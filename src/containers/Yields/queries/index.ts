@@ -6,7 +6,8 @@ import {
 	YIELD_CHAIN_API,
 	YIELD_LEND_BORROW_API,
 	YIELD_PERPS_API,
-	PROTOCOLS_API
+	PROTOCOLS_API,
+	COINS_PRICES_API
 } from '~/constants'
 import { fetchApi } from '~/utils/async'
 import { formatYieldsPageData } from './utils'
@@ -64,7 +65,7 @@ export async function getYieldPageData() {
 			.slice(p * maxSize, maxSize * (p + 1))
 			.join(',')
 			.replaceAll('/', '')
-		pricesA = [...pricesA, (await fetchApi([`https://coins.llama.fi/prices/current/${x}`]))[0].coins]
+		pricesA = [...pricesA, (await fetchApi([`${COINS_PRICES_API}/current/${x}`]))[0].coins]
 	}
 	// flatten
 	let prices = {}
@@ -250,7 +251,7 @@ export async function getLendBorrowData() {
 				borrowFactor: x.borrowFactor,
 				// note re morpho: they build on top of compound. if the total supply is being used by borrowers
 				// then any excess borrows will be routed via compound pools. so the available liquidity is actually
-				// compounds liquidity. not 100% sure how to present this on the frontend, but for now going to supress
+				// compounds liquidity. not 100% sure how to present this on the frontend, but for now going to suppress
 				// liq values (cause some of them are negative)
 				totalAvailableUsd,
 				apyBorrow,

@@ -1,5 +1,4 @@
 import * as React from 'react'
-import dynamic from 'next/dynamic'
 import Layout from '~/layout'
 import type { IBarChartProps } from '~/components/ECharts/types'
 import { Announcement } from '~/components/Announcement'
@@ -13,9 +12,7 @@ import { CSVDownloadButton } from '~/components/ButtonStyled/CsvButton'
 import { oldBlue } from '~/constants/colors'
 import { Metrics } from '~/components/Metrics'
 
-const BarChart = dynamic(() => import('~/components/ECharts/BarChart'), {
-	ssr: false
-}) as React.FC<IBarChartProps>
+const BarChart = React.lazy(() => import('~/components/ECharts/BarChart')) as React.FC<IBarChartProps>
 
 const RaisesContainer = ({ raises, investors, rounds, sectors, chains, investorName }) => {
 	const { pathname } = useRouter()
@@ -37,14 +34,14 @@ const RaisesContainer = ({ raises, investors, rounds, sectors, chains, investorN
 				<span>Are we missing any funding round?</span>{' '}
 				<a
 					href="https://airtable.com/shrON6sFMgyFGulaq"
-					className="text-[var(--blue)] underline font-medium"
+					className="text-(--blue) underline font-medium"
 					target="_blank"
 					rel="noopener noreferrer"
 				>
 					Add it here!
 				</a>
 				<br />
-				<span>Are you a VC and want to submit your investments in bulk? Email them to us at raises@llama.fi</span>
+				<span>Are you a VC and want to submit your investments in bulk? Email them to us at support@defillama.com</span>
 			</Announcement>
 			<Metrics currentMetric="Total Raised" />
 			<RaisesFilters
@@ -61,7 +58,7 @@ const RaisesContainer = ({ raises, investors, rounds, sectors, chains, investorN
 			/>
 
 			<div className="grid grid-cols-2 relative isolate xl:grid-cols-3 gap-1">
-				<div className="bg-[var(--cards-bg)] rounded-md flex flex-col gap-6 p-5 col-span-2 w-full xl:col-span-1 overflow-x-auto">
+				<div className="bg-(--cards-bg) rounded-md flex flex-col gap-6 p-5 col-span-2 w-full xl:col-span-1 overflow-x-auto">
 					<p className="flex flex-col gap-1 text-base">
 						<span className="text-[#545757] dark:text-[#cccccc]">Total Funding Rounds</span>
 						<span className="font-jetbrains font-semibold text-2xl">{filteredRaisesList.length}</span>
@@ -73,8 +70,10 @@ const RaisesContainer = ({ raises, investors, rounds, sectors, chains, investorN
 					<CSVDownloadButton onClick={() => downloadCsv({ raises })} className="mt-auto mr-auto" />
 				</div>
 
-				<div className="bg-[var(--cards-bg)] rounded-md col-span-2 min-h-[360px] ">
-					<BarChart chartData={monthlyInvestment} title="" valueSymbol="$" color={oldBlue} groupBy="monthly" />
+				<div className="bg-(--cards-bg) rounded-md col-span-2 min-h-[360px] ">
+					<React.Suspense fallback={<></>}>
+						<BarChart chartData={monthlyInvestment} title="" valueSymbol="$" color={oldBlue} groupBy="monthly" />
+					</React.Suspense>
 				</div>
 			</div>
 

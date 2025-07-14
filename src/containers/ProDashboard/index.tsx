@@ -1,216 +1,306 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useRouter } from 'next/router'
 import { Icon } from '~/components/Icon'
-import { ChartConfig, CHART_TYPES, DashboardItemConfig, ProtocolsTableConfig } from './types'
 import { AddChartModal } from './components/AddChartModal'
 import { ChartGrid } from './components/ChartGrid'
 import { EmptyState } from './components/EmptyState'
-import { useChartsData, useProtocolsAndChains } from './queries'
-import { QueryObserverResult } from '@tanstack/react-query'
-import { groupData } from './utils'
-import { Protocol } from './types'
-import { useRouter } from 'next/router'
-import { SubscribePlusCard } from '~/components/SubscribeCards/SubscribePlusCard'
+import { DemoPreview } from './components/DemoPreview'
 import { useSubscribe } from '~/hooks/useSubscribe'
-import { useLocalStorageContext, PRO_DASHBOARD_ITEMS } from '~/contexts/LocalStorage'
-import { LoadingSpinner } from './components/LoadingSpinner'
+import { ProDashboardLoader } from './components/ProDashboardLoader'
+import { useProDashboard, TimePeriod } from './ProDashboardAPIContext'
+import { DashboardItemConfig } from './types'
+import { useAuthContext } from '~/containers/Subscribtion/auth'
 
-export default function ProDashboard() {
-	const { data: { protocols = [], chains = [] } = {}, isLoading: protocolsLoading } = useProtocolsAndChains()
-	const [showAddModal, setShowAddModal] = useState<boolean>(false)
-	const [items, setItems] = useState<DashboardItemConfig[]>([])
-	const { subscription, isLoading: isSubLoading } = useSubscribe()
+function ProDashboardContent() {
 	const router = useRouter()
-	const [localStorageState, { updateKey }] = useLocalStorageContext()
+	const [showAddModal, setShowAddModal] = useState<boolean>(false)
+	const [editItem, setEditItem] = useState<DashboardItemConfig | null>(null)
+	const [isEditingName, setIsEditingName] = useState<boolean>(false)
+	const [showDashboardMenu, setShowDashboardMenu] = useState<boolean>(false)
+	const { subscription, isLoading: isSubLoading } = useSubscribe()
+	const { isAuthenticated } = useAuthContext()
+	const {
+		items,
+		protocolsLoading,
+		timePeriod,
+		setTimePeriod,
+		dashboardName,
+		setDashboardName,
+		dashboardId,
+		dashboards,
+		isLoadingDashboards,
+		isLoadingDashboard,
+		createNewDashboard,
+		loadDashboard,
+		deleteDashboard,
+		saveDashboard,
+		saveDashboardName,
+		isReadOnly,
+		copyDashboard
+	} = useProDashboard()
 
-	useEffect(() => {
-		const savedItems = localStorageState?.[PRO_DASHBOARD_ITEMS]
-		if (savedItems && Array.isArray(savedItems) && savedItems.length > 0) {
-			setItems(savedItems)
-		}
-	}, [localStorageState])
+	const timePeriods: { value: TimePeriod; label: string }[] = [
+		{ value: '30d', label: '30d' },
+		{ value: '90d', label: '90d' },
+		{ value: '365d', label: '365d' },
+		{ value: 'all', label: 'All' }
+	]
 
-	useEffect(() => {
-		const itemsToSave = items.map((item) => {
-			if (item.kind === 'chart') {
-				const { data, isLoading, hasError, refetch, ...chartConfigToSave } = item as ChartConfig
-				return chartConfigToSave
-			} else if (item.kind === 'table') {
-				return item as ProtocolsTableConfig
-			}
-			return item
-		})
-
-		const currentlySavedItemsString = JSON.stringify(localStorageState?.[PRO_DASHBOARD_ITEMS] || [])
-		const itemsToSaveString = JSON.stringify(itemsToSave)
-
-		if (itemsToSaveString !== currentlySavedItemsString) {
-			updateKey(PRO_DASHBOARD_ITEMS, itemsToSave)
-		}
-	}, [items, localStorageState, updateKey])
-
-	const chartItems = items.filter((item) => item.kind === 'chart') as ChartConfig[]
-	const chartQueries = useChartsData(chartItems)
-
-	const chartsWithData: DashboardItemConfig[] = items.map((item) => {
-		if (item.kind === 'chart') {
-			const chart = item
-			const idx = chartItems.findIndex((c) => c.id === chart.id)
-			const query = chartQueries[idx] || ({} as QueryObserverResult<any, Error>)
-			const chartTypeDetails = CHART_TYPES[chart.type]
-			let processedData = query.data || []
-			if (chartTypeDetails?.groupable) {
-				processedData = groupData(query.data, chart.grouping)
-			}
-			return {
-				...chart,
-				data: processedData,
-				isLoading: query.isLoading || false,
-				hasError: query.isError || false,
-				refetch: query.refetch || (() => {})
-			}
-		}
-		return item
-	})
-
-	useEffect(() => {
-		if (chains.length > 0) {
-			const topChainName = chains[0].name
-			if (items.length === 0) {
-				const initialCharts: DashboardItemConfig[] = [
-					{ id: `${topChainName}-tvl`, kind: 'chart', chain: topChainName, type: 'tvl' },
-					{ id: `${topChainName}-volume`, kind: 'chart', chain: topChainName, type: 'volume', grouping: 'day' },
-					{ id: `${topChainName}-fees`, kind: 'chart', chain: topChainName, type: 'fees', grouping: 'day' }
-				]
-				setItems(initialCharts)
-			}
-		}
-	}, [chains, items.length])
-
-	const handleAddChart = (item: string, chartType: string, itemType: 'chain' | 'protocol', geckoId?: string | null) => {
-		const newChartId = `${item}-${chartType}-${Date.now()}`
-		const chartTypeDetails = CHART_TYPES[chartType]
-
-		const newChartBase: Partial<ChartConfig> = {
-			id: newChartId,
-			kind: 'chart',
-			type: chartType
-		}
-
-		if (chartTypeDetails?.groupable) {
-			newChartBase.grouping = 'day'
-		}
-
-		let newChart: ChartConfig
-		if (itemType === 'protocol') {
-			newChart = {
-				...newChartBase,
-				protocol: item,
-				chain: '',
-				geckoId
-			} as ChartConfig
-		} else {
-			newChart = {
-				...newChartBase,
-				chain: item
-			} as ChartConfig
-		}
-
-		setItems((prev) => [...prev, newChart])
+	const handleNameSubmit = (e: React.FormEvent) => {
+		e.preventDefault()
+		setIsEditingName(false)
+		saveDashboardName()
 	}
 
-	const handleAddTable = (chain: string) => {
-		const newTable: ProtocolsTableConfig = {
-			id: `table-${chain}-${Date.now()}`,
-			kind: 'table',
-			chain
+	const handleNameKeyDown = (e: React.KeyboardEvent) => {
+		if (e.key === 'Enter') {
+			setIsEditingName(false)
+			saveDashboardName()
+		} else if (e.key === 'Escape') {
+			setIsEditingName(false)
+			saveDashboardName()
 		}
-		setItems((prev) => [...prev, newTable])
 	}
 
-	const handleRemoveChart = (chartId: string) => {
-		setItems((prev) => prev.filter((item) => item.id !== chartId))
-	}
-
-	const handleChartsReordered = (newCharts: ChartConfig[]) => {
-		setItems(newCharts)
-	}
-
-	const getChainInfo = (chainName: string) => {
-		return chains.find((chain) => chain.name === chainName)
-	}
-
-	const getProtocolInfo = (protocolId: string) => {
-		return protocols.find((p: Protocol) => p.slug === protocolId)
-	}
-
-	if (isSubLoading) {
-		return (
-			<div className="flex justify-center items-center h-[40vh]">
-				<LoadingSpinner />
-			</div>
-		)
-	}
-
-	if (subscription?.status !== 'active') {
-		return (
-			<div className="flex flex-col items-center justify-center w-full px-4 py-10">
-				<div className="mb-10 text-center w-full max-w-3xl">
-					<h2 className="text-3xl font-extrabold text-white mb-3">Unlock the Full Picture</h2>
-					<p className="text-[#b4b7bc] text-lg mb-4">
-						The Pro Dashboard offers dynamic, customizable charts. Here's a sneak peek of what you can explore with a
-						Llama+ subscription:
-					</p>
-				</div>
-
-				<SubscribePlusCard context="modal" />
-			</div>
-		)
+	if (!isAuthenticated && subscription?.status !== 'active') {
+		return <DemoPreview />
 	}
 
 	return (
-		<div className="p-4 md:p-6">
-			<div className="flex justify-end items-center mb-6">
+		<div className="pro-dashboard p-4 md:p-6">
+			<div className="mb-4">
 				<button
-					className="px-4 py-2 rounded-md bg-[var(--primary1)] text-white flex items-center gap-2 hover:bg-[var(--primary1-hover)]"
-					onClick={() => setShowAddModal(true)}
+					onClick={() => router.push('/pro')}
+					className="flex items-center gap-2 pro-text2 hover:pro-text1 transition-colors"
+				>
+					<Icon name="arrow-left" height={16} width={16} />
+					Back to Dashboards
+				</button>
+			</div>
+
+			<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4 md:mb-2">
+				<div className="flex gap-0 overflow-x-auto order-2 md:order-1">
+					{timePeriods.map((period, index) => (
+						<button
+							key={period.value}
+							className={`px-3 py-1.5 md:px-4 md:py-2 text-sm font-medium border transition-colors duration-200 flex-1 md:flex-initial ${
+								timePeriod === period.value
+									? 'border-(--primary1) bg-(--primary1) text-white'
+									: 'border-white/20 pro-hover-bg pro-text2'
+							}`}
+							onClick={() => setTimePeriod(period.value)}
+						>
+							{period.label}
+						</button>
+					))}
+				</div>
+
+				<div className="flex items-center gap-2 order-1 md:order-2 w-full md:w-auto">
+					<div className="flex items-center gap-2 min-w-0 flex-1 md:flex-initial">
+						{isEditingName && !isReadOnly ? (
+							<form onSubmit={handleNameSubmit} className="flex items-center flex-1">
+								<input
+									type="text"
+									value={dashboardName}
+									onChange={(e) => setDashboardName(e.target.value)}
+									onBlur={() => {
+										setIsEditingName(false)
+										saveDashboardName()
+									}}
+									onKeyDown={handleNameKeyDown}
+									className="text-lg md:text-xl font-semibold bg-transparent border-b-2 border-(--primary1) pro-text1 focus:outline-hidden px-2 py-1 md:px-3 md:py-2 min-w-0 w-full md:text-center"
+									autoFocus
+									placeholder="Dashboard Name"
+								/>
+							</form>
+						) : (
+							<button
+								onClick={() => !isReadOnly && setIsEditingName(true)}
+								className={`group text-lg md:text-xl font-semibold pro-text1 px-2 py-1 md:px-3 md:py-2 bg-(--bg7) bg-opacity-30 ${
+									!isReadOnly ? 'pro-hover-bg hover:border-(--form-control-border)' : ''
+								} flex items-center gap-2 transition-colors min-w-0`}
+								disabled={isReadOnly}
+							>
+								<span className="truncate">{dashboardName}</span>
+								{!isReadOnly && <Icon name="pencil" height={14} width={14} className="pro-text1 shrink-0" />}
+								{isReadOnly && <span className="text-xs pro-text3 ml-2 shrink-0">(Read-only)</span>}
+							</button>
+						)}
+
+						{isAuthenticated && isReadOnly && (
+							<button
+								onClick={() => copyDashboard()}
+								className="flex items-center gap-2 px-3 py-2 border border-(--primary1) text-(--primary1) hover:bg-(--primary1) hover:text-white transition-colors"
+								title="Copy Dashboard"
+							>
+								<Icon name="copy" height={16} width={16} />
+								<span className="hidden sm:inline">Copy Dashboard</span>
+							</button>
+						)}
+
+						{isAuthenticated && (
+							<div className="relative">
+								<button
+									onClick={() => setShowDashboardMenu(!showDashboardMenu)}
+									className="p-2 bg-(--bg7) bg-opacity-30 pro-hover-bg hover:border-(--form-control-border) transition-colors"
+									title="Dashboard menu"
+								>
+									<Icon name="chevron-down" height={16} width={16} className="pro-text1" />
+								</button>
+
+								{showDashboardMenu && (
+									<>
+										<div className="fixed inset-0 z-10" onClick={() => setShowDashboardMenu(false)} />
+										<div className="absolute right-0 top-full mt-2 w-64 bg-(--bg7) bg-opacity-90 backdrop-filter backdrop-blur-xl border border-white/30 shadow-lg z-[1000]">
+											<div className="p-2">
+												{isReadOnly ? (
+													<button
+														onClick={() => {
+															copyDashboard()
+															setShowDashboardMenu(false)
+														}}
+														className="w-full text-left px-3 py-2 pro-hover-bg flex items-center gap-2"
+													>
+														<Icon name="copy" height={16} width={16} />
+														Copy Dashboard
+													</button>
+												) : (
+													<>
+														<button
+															onClick={() => {
+																saveDashboard()
+																setShowDashboardMenu(false)
+															}}
+															className="w-full text-left px-3 py-2 pro-hover-bg flex items-center gap-2"
+															disabled={!dashboardId && items.length === 0}
+														>
+															<Icon name="download-cloud" height={16} width={16} />
+															{dashboardId ? 'Save Dashboard' : 'Save as New Dashboard'}
+														</button>
+
+														{dashboardId && (
+															<button
+																onClick={() => {
+																	deleteDashboard(dashboardId)
+																	setShowDashboardMenu(false)
+																}}
+																className="w-full text-left px-3 py-2 pro-hover-bg text-red-500 flex items-center gap-2"
+															>
+																<Icon name="trash-2" height={16} width={16} />
+																Delete Dashboard
+															</button>
+														)}
+													</>
+												)}
+
+												<button
+													onClick={() => {
+														createNewDashboard()
+														setShowDashboardMenu(false)
+													}}
+													className="w-full text-left px-3 py-2 pro-hover-bg flex items-center gap-2"
+												>
+													<Icon name="plus" height={16} width={16} />
+													New Dashboard
+												</button>
+
+												{dashboards.length > 0 && (
+													<>
+														<div className="border-t border-(--divider) my-2" />
+														<div className="text-xs pro-text3 px-3 py-1">My Dashboards</div>
+														{isLoadingDashboards ? (
+															<div className="px-3 py-2 text-sm pro-text3">Loading...</div>
+														) : (
+															<div className="max-h-64 overflow-y-auto thin-scrollbar">
+																{dashboards.map((dashboard) => (
+																	<button
+																		key={dashboard.id}
+																		onClick={() => {
+																			loadDashboard(dashboard.id)
+																			setShowDashboardMenu(false)
+																		}}
+																		className={`w-full text-left px-3 py-2 pro-hover-bg text-sm ${
+																			dashboard.id === dashboardId ? 'bg-(--bg3)' : ''
+																		}`}
+																	>
+																		<div className="flex items-center justify-between">
+																			<span className="truncate">{dashboard.data.dashboardName}</span>
+																			{dashboard.id === dashboardId && (
+																				<Icon name="check" height={14} width={14} className="text-(--primary1)" />
+																			)}
+																		</div>
+																		<div className="text-xs pro-text3">
+																			{new Date(dashboard.updated).toLocaleDateString()}
+																		</div>
+																	</button>
+																))}
+															</div>
+														)}
+													</>
+												)}
+											</div>
+										</div>
+									</>
+								)}
+							</div>
+						)}
+					</div>
+
+					<button
+						className={`px-2.5 py-2 md:px-4 md:py-2 ${
+							!isReadOnly ? 'bg-(--primary1) hover:bg-(--primary1-hover)' : 'bg-(--bg3) cursor-not-allowed'
+						} text-white flex items-center gap-2 text-sm md:text-base whitespace-nowrap md:hidden`}
+						onClick={() => !isReadOnly && setShowAddModal(true)}
+						disabled={isReadOnly}
+						title="Add Item"
+					>
+						<Icon name="plus" height={16} width={16} />
+					</button>
+				</div>
+
+				<button
+					className={`px-4 py-2 ${
+						!isReadOnly ? 'bg-(--primary1) hover:bg-(--primary1-hover)' : 'bg-(--bg3) cursor-not-allowed'
+					} text-white items-center gap-2 text-base whitespace-nowrap hidden md:flex order-3`}
+					onClick={() => !isReadOnly && setShowAddModal(true)}
+					disabled={isReadOnly}
 				>
 					<Icon name="plus" height={16} width={16} />
 					Add Item
 				</button>
 			</div>
 
-			{protocolsLoading && items.length === 0 && (
-				<div className="flex items-center justify-center h-40">
-					<LoadingSpinner />
+			{!isAuthenticated && (
+				<div className="bg-(--bg3) border border-(--divider) p-3 mb-4 text-sm pro-text2">
+					<Icon name="help-circle" height={16} width={16} className="inline mr-2" />
+					Sign in to save and manage multiple dashboards
 				</div>
 			)}
 
 			{items.length > 0 && (
 				<ChartGrid
-					charts={chartsWithData}
-					onChartsReordered={handleChartsReordered}
-					onRemoveChart={handleRemoveChart}
-					getChainInfo={getChainInfo}
-					getProtocolInfo={getProtocolInfo}
-					onGroupingChange={(chartId: string, newGrouping: 'day' | 'week' | 'month') => {
-						setItems((prev) =>
-							prev.map((c) => (c.id === chartId && c.kind === 'chart' ? { ...c, grouping: newGrouping } : c))
-						)
-					}}
 					onAddChartClick={() => setShowAddModal(true)}
+					onEditItem={(item) => {
+						setEditItem(item)
+						setShowAddModal(true)
+					}}
 				/>
 			)}
 
 			<AddChartModal
 				isOpen={showAddModal}
-				onClose={() => setShowAddModal(false)}
-				onAddChart={handleAddChart}
-				onAddTable={handleAddTable}
-				chains={chains}
-				chainsLoading={protocolsLoading}
+				onClose={() => {
+					setShowAddModal(false)
+					setEditItem(null)
+				}}
+				editItem={editItem}
 			/>
 
 			{!protocolsLoading && items.length === 0 && <EmptyState onAddChart={() => setShowAddModal(true)} />}
 		</div>
 	)
+}
+
+export default function ProDashboard() {
+	return <ProDashboardContent />
 }

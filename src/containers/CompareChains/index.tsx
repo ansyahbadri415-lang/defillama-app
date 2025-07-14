@@ -1,13 +1,11 @@
 import * as React from 'react'
-import dynamic from 'next/dynamic'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/router'
 import type { NextRouter } from 'next/router'
 import { useDarkModeManager, useLocalStorageSettingsManager } from '~/contexts/LocalStorage'
 import { LocalLoader } from '~/components/LocalLoader'
-import { ISettings } from '~/contexts/types'
 import { ReactSelect } from '~/components/MultiSelect/ReactSelect'
-import { fetchWithErrorLogging } from '~/utils/async'
+import { fetchJson } from '~/utils/async'
 import { PROTOCOLS_API } from '~/constants'
 import { TokenLogo } from '~/components/TokenLogo'
 import { chainIconUrl, formattedNum } from '~/utils'
@@ -18,11 +16,7 @@ import { Icon } from '~/components/Icon'
 import { Switch } from '~/components/Switch'
 import { ProtocolsChainsSearch } from '~/components/Search/ProtocolsChains'
 
-const fetch = fetchWithErrorLogging
-
-const ChainChart: any = dynamic(() => import('~/containers/ChainOverview/Chart').then((m) => m.ChainChart), {
-	ssr: false
-}) as React.FC<any>
+const ChainChart: any = React.lazy(() => import('~/containers/ChainOverview/Chart'))
 
 const CustomOption = ({ innerProps, label, data }) => (
 	<div {...innerProps} style={{ display: 'flex', margin: '8px', cursor: 'pointer' }}>
@@ -35,9 +29,9 @@ const CustomOption = ({ innerProps, label, data }) => (
 	</div>
 )
 
-export const getChainData = async (chain: string, extraTvlsEnabled: ISettings) => {
-	const data = await fetch(`https://defillama.com/api/cache/chain/${chain}`).then((r) => r.json())
-	console.log(data)
+export const getChainData = async (chain: string, extraTvlsEnabled: Record<string, boolean>) => {
+	const data = await fetchJson(`https://defillama.com/api/cache/chain/${chain}`)
+
 	const {
 		chart,
 		extraTvlCharts,
@@ -117,7 +111,13 @@ export const getChainData = async (chain: string, extraTvlsEnabled: ISettings) =
 	}
 }
 
-export const useCompare = ({ chains = [], extraTvlsEnabled }: { chains?: string[]; extraTvlsEnabled: ISettings }) => {
+export const useCompare = ({
+	chains = [],
+	extraTvlsEnabled
+}: {
+	chains?: string[]
+	extraTvlsEnabled: Record<string, boolean>
+}) => {
 	const data = useQueries({
 		queries: chains.map((chain) => ({
 			queryKey: ['compare', JSON.stringify(chain), JSON.stringify(extraTvlsEnabled)],
@@ -128,10 +128,7 @@ export const useCompare = ({ chains = [], extraTvlsEnabled }: { chains?: string[
 
 	const chainsData = useQuery({
 		queryKey: ['chains'],
-		queryFn: () =>
-			fetch(PROTOCOLS_API)
-				.then((r) => r.json())
-				.then((pData) => pData?.chains?.map((val) => ({ value: val, label: val }))),
+		queryFn: () => fetchJson(PROTOCOLS_API).then((pData) => pData?.chains?.map((val) => ({ value: val, label: val }))),
 		staleTime: 60 * 60 * 1000
 	})
 	return {
@@ -187,7 +184,7 @@ export function CompareChains() {
 		<>
 			<ProtocolsChainsSearch />
 
-			<div className="bg-[var(--cards-bg)] rounded-md flex items-center gap-3 p-3 last:*:-my-3">
+			<div className="bg-(--cards-bg) rounded-md flex items-center gap-3 p-3 *:last:-my-3">
 				<h2 className="font-semibold text-base">Compare chains: </h2>
 
 				<ReactSelect
@@ -205,7 +202,7 @@ export function CompareChains() {
 			</div>
 
 			<div className="flex flex-col gap-1 relative">
-				<div className="bg-[var(--cards-bg)] rounded-md min-h-[404px]">
+				<div className="bg-(--cards-bg) rounded-md min-h-[404px]">
 					<div className="flex items-center flex-wrap gap-2 p-3">
 						{supportedCharts.map(({ id, name, key }) =>
 							data?.data?.some((val) => val?.[key] && val?.[key]?.length > 0) ? (
@@ -250,7 +247,7 @@ export function CompareChains() {
 								className="flex flex-col justify-between relative isolate xl:grid-cols-[auto_1fr] gap-1"
 								key={`${chainData?.chain || i}`}
 							>
-								<div className="flex-1 flex flex-col gap-8 p-5 col-span-1 w-full bg-[var(--cards-bg)] rounded-md overflow-x-auto">
+								<div className="flex-1 flex flex-col gap-8 p-5 col-span-1 w-full bg-(--cards-bg) rounded-md overflow-x-auto">
 									<h1 className="flex items-center gap-2 text-xl font-semibold">
 										<TokenLogo logo={chainIconUrl(chainData?.chain)} size={24} />
 										<span>{chainData.chain}</span>

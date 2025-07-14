@@ -2,9 +2,7 @@ import { useState } from 'react'
 import { Icon } from '~/components/Icon'
 import { Tooltip } from '~/components/Tooltip'
 import * as Ariakit from '@ariakit/react'
-import { fetchWithErrorLogging } from '~/utils/async'
-
-const fetch = fetchWithErrorLogging
+import { fetchJson } from '~/utils/async'
 
 export function Flag({
 	protocol,
@@ -30,17 +28,17 @@ export function Flag({
 
 		const form = e.target as HTMLFormElement
 
-		const data = await fetch('https://api.llama.fi/reportError', {
+		const data = await fetchJson('https://api.llama.fi/reportError', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
 				protocol,
 				dataType: dataType ?? form.dataType?.value ?? '',
 				message: form.message?.value ?? '',
-				correctSource: form.correctSource?.value ?? ''
+				correctSource: form.correctSource?.value ?? '',
+				contact: form.contact?.value ?? ''
 			})
 		})
-			.then((res) => res.json())
 			.then((data) => {
 				setLoading(false)
 
@@ -66,7 +64,7 @@ export function Flag({
 					<Icon name="flag" height={14} width={14} />
 				</Tooltip>
 			) : (
-				<button className="text-left mt-auto pt-6 underline" onClick={dialogStore.toggle}>
+				<button className="text-left mt-auto pt-4 underline" onClick={dialogStore.toggle}>
 					Report incorrect data
 				</button>
 			)}
@@ -84,7 +82,7 @@ export function Flag({
 							name="protocol"
 							value={protocol}
 							disabled
-							className="p-2 rounded-md bg-white dark:bg-black text-black dark:text-white disabled:opacity-50 border border-[var(--form-control-border)]"
+							className="p-2 rounded-md bg-white dark:bg-black text-black dark:text-white disabled:opacity-50 border border-(--form-control-border)"
 						/>
 					</label>
 					<label className="flex flex-col gap-1">
@@ -94,12 +92,12 @@ export function Flag({
 								name="dataType"
 								value={dataType}
 								disabled
-								className="p-2 rounded-md bg-white dark:bg-black text-black dark:text-white disabled:opacity-50 border border-[var(--form-control-border)]"
+								className="p-2 rounded-md bg-white dark:bg-black text-black dark:text-white disabled:opacity-50 border border-(--form-control-border)"
 							/>
 						) : (
 							<select
 								name="dataType"
-								className="p-2 rounded-md bg-white dark:bg-black text-black dark:text-white disabled:opacity-50 border border-[var(--form-control-border)]"
+								className="p-2 rounded-md bg-white dark:bg-black text-black dark:text-white disabled:opacity-50 border border-(--form-control-border)"
 							>
 								<option value="TVL">TVL</option>
 								<option value="Mcap">Mcap</option>
@@ -132,14 +130,22 @@ export function Flag({
 						<textarea
 							name="message"
 							required
-							className="p-2 rounded-md bg-white dark:bg-black text-black dark:text-white disabled:opacity-50 border border-[var(--form-control-border)]"
+							className="p-2 rounded-md bg-white dark:bg-black text-black dark:text-white disabled:opacity-50 border border-(--form-control-border)"
 						/>
 					</label>
 					<label className="flex flex-col gap-1">
 						<span>Where can we find correct information? (optional)</span>
 						<textarea
 							name="correctSource"
-							className="p-2 rounded-md bg-white dark:bg-black text-black dark:text-white disabled:opacity-50 border border-[var(--form-control-border)]"
+							className="p-2 rounded-md bg-white dark:bg-black text-black dark:text-white disabled:opacity-50 border border-(--form-control-border)"
+						/>
+					</label>
+					<label className="flex flex-col gap-1">
+						<span>How can we contact you? (optional)</span>
+						<input
+							name="contact"
+							placeholder="Email address"
+							className="p-2 rounded-md bg-white dark:bg-black text-black dark:text-white disabled:opacity-50 border border-(--form-control-border)"
 						/>
 					</label>
 					<button

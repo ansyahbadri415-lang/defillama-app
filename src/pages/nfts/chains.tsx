@@ -6,14 +6,14 @@ import { TableWithSearch } from '~/components/Table/TableWithSearch'
 import { TokenLogo } from '~/components/TokenLogo'
 import Layout from '~/layout'
 import { chainIconUrl, formattedNum, slug } from '~/utils'
-import { fetchWithErrorLogging } from '~/utils/async'
+import { fetchJson } from '~/utils/async'
 import { withPerformanceLogging } from '~/utils/perf'
-import metadataCache from '~/utils/metadata'
+import { TEMP_CHAIN_NFTS } from '~/constants'
 
 export const getStaticProps = withPerformanceLogging(`nfts/chains`, async () => {
-	const data = (await fetchWithErrorLogging(`https://defillama-datasets.llama.fi/temp/chainNfts`).then((res) =>
-		res.json()
-	)) as Promise<Record<string, number>>
+	const metadataCache = await import('~/utils/metadata').then((m) => m.default)
+
+	const data = (await fetchJson(TEMP_CHAIN_NFTS)) as Promise<Record<string, number>>
 
 	if (!data) return { notFound: true }
 
@@ -64,13 +64,13 @@ const columns = [
 
 			return (
 				<span className="flex items-center gap-2 relative">
-					<span className="flex-shrink-0">{index + 1}</span>
+					<span className="shrink-0">{index + 1}</span>
 
 					<TokenLogo logo={row.original.logo} data-lgonly />
 
 					<BasicLink
 						href={`/chain/${slug(value)}`}
-						className="text-sm font-medium text-[var(--link-text)] overflow-hidden whitespace-nowrap text-ellipsis hover:underline"
+						className="text-sm font-medium text-(--link-text) overflow-hidden whitespace-nowrap text-ellipsis hover:underline"
 					>
 						{value}
 					</BasicLink>

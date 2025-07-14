@@ -43,7 +43,7 @@ export function SubscribeLayout({ children }) {
 					</div>
 				</header>
 
-				<main className="flex-grow py-8">{children}</main>
+				<main className="grow py-8">{children}</main>
 
 				<footer className="border-t border-[#39393E]/40 mt-auto py-8 px-5">
 					<div className="max-w-6xl xl:max-w-7xl mx-auto">
@@ -63,7 +63,7 @@ export function SubscribeLayout({ children }) {
 								<a href="https://github.com/DefiLlama" className="hover:text-white transition-colors">
 									GitHub
 								</a>
-								<a href="mailto:support@llama.fi" className="hover:text-white transition-colors">
+								<a href="mailto:support@defillama.com" className="hover:text-white transition-colors">
 									Contact Us
 								</a>
 							</div>
@@ -78,6 +78,10 @@ export function SubscribeLayout({ children }) {
 
 								<BasicLink href="/subscription/fulfillment-policies" className="hover:text-white transition-colors">
 									Fulfillment Policies
+								</BasicLink>
+
+								<BasicLink href="/terms" className="hover:text-white transition-colors">
+									Terms of Service
 								</BasicLink>
 							</div>
 						</div>

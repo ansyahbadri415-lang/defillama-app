@@ -1,4 +1,5 @@
 import { DEFI_SETTINGS } from '~/contexts/LocalStorage'
+import { ChainChartLabels } from './constants'
 
 export interface IChainMetadata {
 	stablecoins?: boolean
@@ -7,32 +8,33 @@ export interface IChainMetadata {
 	activeUsers?: boolean
 	fees?: boolean
 	chainFees?: boolean
-	derivatives?: boolean
-	aggregators?: boolean
+	perps?: boolean
+	dexAggregators?: boolean
 	options?: boolean
-	'aggregator-derivatives'?: boolean
-	'bridge-aggregators'?: boolean
+	perpsAggregators?: boolean
+	bridgeAggregators?: boolean
 	inflows?: boolean
 	chainAssets?: boolean
 	gecko_id?: string
 	tokenSymbol?: string
 	github?: boolean
+	id: string
 }
 
 export interface IChainOverviewData {
 	chain: string
 	metadata: IChainMetadata
 	protocols: Array<IProtocol>
-	tvlChart: Array<[string, number]>
+	tvlChart: Array<[number, number]>
 	extraTvlChart: {
-		staking: Array<[string, number]>
-		borrowed: Array<[string, number]>
-		pool2: Array<[string, number]>
-		vesting: Array<[string, number]>
-		offers: Array<[string, number]>
-		doublecounted: Array<[string, number]>
-		liquidstaking: Array<[string, number]>
-		dcAndLsOverlap: Array<[string, number]>
+		staking: Record<string, number>
+		borrowed: Record<string, number>
+		pool2: Record<string, number>
+		vesting: Record<string, number>
+		offers: Record<string, number>
+		doublecounted: Record<string, number>
+		liquidstaking: Record<string, number>
+		dcAndLsOverlap: Record<string, number>
 	}
 	chainTokenInfo: {
 		gecko_id: string | null
@@ -60,9 +62,9 @@ export interface IChainOverviewData {
 		emissions24h: number | null
 		emissions7d: number | null
 		emissions30d: number | null
-		incentivesChart: Array<[number, number]> | null
 	}
 	appRevenue: { total24h: number | null }
+	appFees: { total24h: number | null }
 	dexs: {
 		total24h: number | null
 		total7d: number | null
@@ -73,7 +75,6 @@ export interface IChainOverviewData {
 	perps: { total24h: number | null; total7d: number | null; change_7dover7d: number | null }
 	users: { activeUsers: number | null; newUsers: number | null; transactions: number | null }
 	inflows: { netInflows: number | null } | null
-	raises: Array<[number, number]> | null
 	treasury: { tvl: number | null; tokenBreakdowns: Record<string, number> | null } | null
 	chainRaises: Array<IRaises> | null
 	chainAssets: IFormattedChainAsset | null
@@ -91,6 +92,8 @@ export interface IChainOverviewData {
 		total14d: number
 		tokens: Array<[string, string]>
 	} | null
+	tvlAndFeesOptions: Array<{ name: string; key: string }>
+	charts: ChainChartLabels[]
 }
 
 export interface ILiteChart {

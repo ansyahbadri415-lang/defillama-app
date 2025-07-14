@@ -177,9 +177,24 @@ export const ChainProtocolsTable = ({
 		const allKeys = mergedColumns.map((col) => col.key)
 		const ops = Object.fromEntries(allKeys.map((key) => [key, newColumns.includes(key) ? true : false]))
 		window.localStorage.setItem(tableColumnOptionsKey, JSON.stringify(ops))
+
+		if (instance && instance.setColumnVisibility) {
+			instance.setColumnVisibility(ops)
+		} else {
+			window.dispatchEvent(new Event('storage'))
+		}
+	}
+
+	const addOnlyOneColumn = (newOption) => {
+		const ops = Object.fromEntries(
+			instance.getAllLeafColumns().map((col) => [col.id, col.id === newOption ? true : false])
+		)
+		window.localStorage.setItem(tableColumnOptionsKey, JSON.stringify(ops))
 		window.dispatchEvent(new Event('storage'))
 		if (instance && instance.setColumnVisibility) {
 			instance.setColumnVisibility(ops)
+		} else {
+			window.dispatchEvent(new Event('storage'))
 		}
 	}
 
@@ -377,46 +392,57 @@ export const ChainProtocolsTable = ({
 	}
 
 	return (
-		<div className="bg-[var(--cards-bg)] rounded-md isolate">
-			<div className="flex items-center justify-between flex-wrap gap-2 p-3">
-				<h3 className="text-lg font-semibold mr-auto">Protocol Rankings</h3>
-				<TagGroup
-					setValue={setFilter('category')}
-					selectedValue={filterState}
-					values={Object.values(TABLE_CATEGORIES) as Array<string>}
-				/>
-				<TagGroup
-					setValue={setFilter('period')}
-					selectedValue={filterState}
-					values={Object.values(TABLE_PERIODS) as Array<string>}
-				/>
-				<SelectWithCombobox
-					allValues={mergedColumns}
-					selectedValues={selectedColumns}
-					setSelectedValues={addColumn}
-					toggleAll={toggleAllColumns}
-					clearAll={clearAllColumns}
-					nestedMenu={false}
-					label={'Columns'}
-					labelType="smol"
-					triggerProps={{
-						className:
-							'flex items-center justify-between gap-2 p-2 text-xs rounded-md cursor-pointer flex-nowrap relative border border-[var(--form-control-border)] text-[#666] dark:text-[#919296] hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] font-medium'
-					}}
-					customFooter={
-						<button
-							className="w-full flex items-center gap-2 px-3 py-2 mt-2 rounded-md bg-[var(--btn-bg)] hover:bg-[var(--btn-hover-bg)] text-[var(--text1)] text-xs font-medium border border-[var(--form-control-border)]"
-							onClick={handleAddCustomColumn}
-							type="button"
-						>
-							<Icon name="plus" height={16} width={16} />
-							Add Custom Column
-						</button>
-					}
-					onEditCustomColumn={handleEditCustomColumn}
-					onDeleteCustomColumn={handleDeleteCustomColumn}
-				/>
-				<TVLRange variant="third" />
+		<div className="bg-(--cards-bg) rounded-md border border-(--cards-border) isolate">
+			<div className="flex items-center gap-2 p-3 flex-wrap">
+				<div className="text-lg font-semibold flex grow w-full md:w-auto">Protocol Rankings</div>
+
+				<div className="flex items-center gap-2 max-md:w-full max-sm:flex-col">
+					<TagGroup
+						setValue={setFilter('category')}
+						selectedValue={filterState}
+						values={Object.values(TABLE_CATEGORIES) as Array<string>}
+						className="max-sm:w-full"
+						triggerClassName="inline-flex max-sm:flex-1 items-center justify-center whitespace-nowrap"
+					/>
+					<TagGroup
+						setValue={setFilter('period')}
+						selectedValue={filterState}
+						values={Object.values(TABLE_PERIODS) as Array<string>}
+						className="max-sm:w-full"
+						triggerClassName="inline-flex max-sm:flex-1 items-center justify-center whitespace-nowrap"
+					/>
+
+					<div className="flex items-center gap-2 w-full sm:w-auto">
+						<SelectWithCombobox
+							allValues={mergedColumns}
+							selectedValues={selectedColumns}
+							setSelectedValues={addColumn}
+							selectOnlyOne={addOnlyOneColumn}
+							toggleAll={toggleAllColumns}
+							clearAll={clearAllColumns}
+							nestedMenu={false}
+							label={'Columns'}
+							labelType="smol"
+							triggerProps={{
+								className:
+									'flex items-center justify-between gap-2 p-2 text-xs rounded-md cursor-pointer flex-nowrap relative border border-(--form-control-border) text-[#666] dark:text-[#919296] hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) font-medium w-full sm:w-auto'
+							}}
+							customFooter={
+								<button
+									className="w-full flex items-center gap-2 px-3 py-2 mt-2 rounded-md bg-(--btn-bg) hover:bg-(--btn-hover-bg) text-(--text1) text-xs font-medium border border-(--form-control-border)"
+									onClick={handleAddCustomColumn}
+									type="button"
+								>
+									<Icon name="plus" height={16} width={16} />
+									Add Custom Column
+								</button>
+							}
+							onEditCustomColumn={handleEditCustomColumn}
+							onDeleteCustomColumn={handleDeleteCustomColumn}
+						/>
+						<TVLRange variant="third" triggerClassName="w-full sm:w-auto" />
+					</div>
+				</div>
 			</div>
 			<VirtualTable instance={instance} />
 			<CustomColumnModal
@@ -516,6 +542,8 @@ const columnOptions = [
 	},
 	{ name: 'User Fees 24h', key: 'userFees_24h', category: TABLE_CATEGORIES.FEES, period: TABLE_PERIODS.ONE_DAY },
 	{ name: 'Cumulative Fees', key: 'fees_cumulative', category: TABLE_CATEGORIES.FEES },
+	{ name: 'Cumulative Revenue', key: 'cumulativeRevenue', category: TABLE_CATEGORIES.REVENUE },
+	{ name: 'Cumulative Incentives', key: 'cumulativeEmissions', category: TABLE_CATEGORIES.REVENUE },
 	{
 		name: 'Holders Revenue 24h',
 		key: 'holderRevenue_24h',
@@ -600,19 +628,19 @@ const columns: ColumnDef<IProtocol>[] = [
 						<Bookmark readableProtocolName={value} data-lgonly data-bookmark />
 					)}
 
-					<span className="flex-shrink-0">{index + 1}</span>
+					<span className="shrink-0">{index + 1}</span>
 
 					<TokenLogo logo={`${ICONS_CDN}/protocols/${row.original.slug}?w=48&h=48`} data-lgonly />
 
 					<span className="flex flex-col -my-2">
 						<BasicLink
 							href={`/protocol/${row.original.slug}`}
-							className="text-sm font-medium text-[var(--link-text)] overflow-hidden whitespace-nowrap text-ellipsis hover:underline"
+							className="text-sm font-medium text-(--link-text) overflow-hidden whitespace-nowrap text-ellipsis hover:underline"
 						>
 							{value}
 						</BasicLink>
 
-						<Tooltip content={<Chains />} className="text-[0.7rem] text-[var(--text-disabled)]">
+						<Tooltip content={<Chains />} className="text-[0.7rem] text-(--text-disabled)">
 							{`${row.original.chains.length} chain${row.original.chains.length > 1 ? 's' : ''}`}
 						</Tooltip>
 					</span>
@@ -633,10 +661,7 @@ const columns: ColumnDef<IProtocol>[] = [
 		enableSorting: false,
 		cell: ({ getValue }) =>
 			getValue() ? (
-				<BasicLink
-					href={`/protocols/${slug(getValue() as string)}`}
-					className="text-sm font-medium text-[var(--link-text)]"
-				>
+				<BasicLink href={`/protocols/${slug(getValue() as string)}`} className="text-sm font-medium text-(--link-text)">
 					{getValue() as string}
 				</BasicLink>
 			) : (
@@ -844,7 +869,7 @@ const columns: ColumnDef<IProtocol>[] = [
 					align: 'end',
 					headerHelperText: 'Average monthly fees paid by users in the last 12 months'
 				},
-				size: 170
+				size: 180
 			}),
 			columnHelper.accessor((row) => row.revenue?.total1y, {
 				id: 'revenue_1y',
@@ -889,7 +914,7 @@ const columns: ColumnDef<IProtocol>[] = [
 					align: 'end',
 					headerHelperText: 'Average monthly incentives distributed to users in the last 12 months'
 				},
-				size: 180
+				size: 220
 			}),
 			columnHelper.accessor((row) => row.fees?.totalAllTime, {
 				id: 'fees_cumulative',
@@ -911,7 +936,7 @@ const columns: ColumnDef<IProtocol>[] = [
 					align: 'end',
 					headerHelperText: 'Total revenue earned by the protocol since the protocol was launched'
 				},
-				size: 150
+				size: 180
 			}),
 			columnHelper.accessor((row) => row.emissions?.totalAllTime, {
 				id: 'cumulativeEmissions',
@@ -922,7 +947,7 @@ const columns: ColumnDef<IProtocol>[] = [
 					align: 'end',
 					headerHelperText: 'Total incentives distributed to users since the protocol was launched'
 				},
-				size: 150
+				size: 180
 			}),
 			columnHelper.accessor((row) => row.fees?.pf, {
 				id: 'pf',
@@ -1034,7 +1059,7 @@ const columns: ColumnDef<IProtocol>[] = [
 						headerHelperText:
 							'Average monthly earnings (Revenue - Incentives) earned by the protocol in the last 12 months'
 					},
-					size: 180
+					size: 200
 				}
 			),
 			columnHelper.accessor(
@@ -1205,7 +1230,7 @@ const Tvl = ({ rowValues }) => {
 					text={"There's some internal doublecounting that is excluded from parent TVL, so sum won't match"}
 				/>
 			) : null}
-			<span className={rowValues.strikeTvl ? 'text-[var(--text-disabled)]' : ''}>
+			<span className={rowValues.strikeTvl ? 'text-(--text-disabled)' : ''}>
 				{formattedNum(rowValues.tvl.default.tvl, true)}
 			</span>
 		</span>

@@ -24,10 +24,13 @@ export function TableWithSearch({
 	header = null,
 	renderSubComponent = null,
 	columnSizes = null,
-	columnOrders = null
+	columnOrders = null,
+	defaultSorting = null,
+	rowSize = null,
+	compact = false
 }) {
 	const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
-	const [sorting, setSorting] = React.useState<SortingState>([])
+	const [sorting, setSorting] = React.useState<SortingState>(defaultSorting ?? [])
 	const [expanded, setExpanded] = React.useState<ExpandedState>({})
 	const [columnSizing, setColumnSizing] = React.useState<ColumnSizingState>({})
 	const [columnOrder, setColumnOrder] = React.useState<ColumnOrderState>([])
@@ -107,15 +110,15 @@ export function TableWithSearch({
 	}, [instance, windowSize])
 
 	return (
-		<div className="bg-[var(--cards-bg)] rounded-md">
-			<div className="flex items-center justify-end gap-2 p-3">
+		<div className="bg-(--cards-bg) border border-(--cards-border) rounded-md">
+			<div className="flex flex-wrap items-center justify-end gap-2 p-3">
 				{header ? <h1 className="text-lg font-semibold mr-auto">{header}</h1> : null}
 				<div className="relative w-full sm:max-w-[280px]">
 					<Icon
 						name="search"
 						height={16}
 						width={16}
-						className="absolute text-[var(--text3)] top-0 bottom-0 my-auto left-2"
+						className="absolute text-(--text3) top-0 bottom-0 my-auto left-2"
 					/>
 					<input
 						value={projectName}
@@ -123,12 +126,12 @@ export function TableWithSearch({
 							setProjectName(e.target.value)
 						}}
 						placeholder={placeholder}
-						className="border border-[var(--form-control-border)] w-full p-[6px] pl-7 bg-white dark:bg-black text-black dark:text-white rounded-md text-sm"
+						className="border border-(--form-control-border) w-full p-[6px] pl-7 bg-white dark:bg-black text-black dark:text-white rounded-md text-sm"
 					/>
 				</div>
 				{customFilters}
 			</div>
-			<VirtualTable instance={instance} renderSubComponent={renderSubComponent} />
+			<VirtualTable instance={instance} renderSubComponent={renderSubComponent} rowSize={rowSize} compact={compact} />
 		</div>
 	)
 }

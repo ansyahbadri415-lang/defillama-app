@@ -27,6 +27,8 @@ import { useRouter } from 'next/router'
 import { useLocalStorageSettingsManager } from '~/contexts/LocalStorage'
 import useWindowSize from '~/hooks/useWindowSize'
 import { AdapterByChainChart } from './ChainChart'
+import { protocolCharts } from '../ProtocolOverview/Chart/constants'
+import { FullOldViewButton } from '~/components/ButtonStyled/FullOldViewButton'
 
 interface IProps extends IAdapterByChainPageData {
 	type: Extract<
@@ -43,6 +45,35 @@ interface IProps extends IAdapterByChainPageData {
 		| 'Options Notional Volume'
 		| 'Earnings'
 	>
+}
+
+const getProtocolsByCategory = (protocols: IAdapterByChainPageData['protocols'], categoriesToFilter: Array<string>) => {
+	const final = []
+
+	for (const protocol of protocols) {
+		if (protocol.childProtocols) {
+			const childProtocols = protocol.childProtocols.filter((childProtocol) =>
+				categoriesToFilter.includes(childProtocol.category)
+			)
+
+			if (childProtocols.length === protocol.childProtocols.length) {
+				final.push(protocol)
+			} else {
+				for (const childProtocol of childProtocols) {
+					final.push(childProtocol)
+				}
+			}
+
+			continue
+		}
+
+		if (categoriesToFilter.includes(protocol.category)) {
+			final.push(protocol)
+			continue
+		}
+	}
+
+	return final
 }
 
 export function AdapterByChain(props: IProps) {
@@ -67,7 +98,7 @@ export function AdapterByChain(props: IProps) {
 				: selectedCategories.length === 0
 				? []
 				: categoriesToFilter.length > 0
-				? props.protocols.filter((protocol) => categoriesToFilter.includes(protocol.category))
+				? getProtocolsByCategory(props.protocols, categoriesToFilter)
 				: props.protocols
 
 		const finalProtocols =
@@ -133,7 +164,7 @@ export function AdapterByChain(props: IProps) {
 			protocols: finalProtocols,
 			columnsOptions: getColumnsOptions(props.type)
 		}
-	}, [router.query.category, props, enabledSettings])
+	}, [router.query, props, enabledSettings])
 
 	const [sorting, setSorting] = useState<SortingState>([{ desc: true, id: 'total24h' }])
 	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
@@ -311,6 +342,14 @@ export function AdapterByChain(props: IProps) {
 		instance.setColumnVisibility(ops)
 	}
 
+	const addOnlyOneColumn = (newOption) => {
+		const ops = Object.fromEntries(
+			instance.getAllLeafColumns().map((col) => [col.id, col.id === newOption ? true : false])
+		)
+		window.localStorage.setItem(columnsKey, JSON.stringify(ops))
+		instance.setColumnVisibility(ops)
+	}
+
 	const selectedColumns = instance
 		.getAllLeafColumns()
 		.filter((col) => col.getIsVisible())
@@ -322,8 +361,8 @@ export function AdapterByChain(props: IProps) {
 			<Metrics currentMetric={props.type} />
 			<RowLinksWithDropdown links={props.chains} activeLink={props.chain} />
 			{props.adapterType !== 'fees' ? (
-				<div className="grid grid-cols-2 relative isolate xl:grid-cols-3 gap-1 text-base">
-					<div className="bg-[var(--cards-bg)] rounded-md flex flex-col gap-6 p-5 col-span-2 w-full xl:col-span-1 overflow-x-auto">
+				<div className="grid grid-cols-2 relative isolate xl:grid-cols-3 gap-2">
+					<div className="bg-(--cards-bg) border border-(--cards-border) rounded-md flex flex-col gap-6 p-2 col-span-2 w-full xl:col-span-1 overflow-x-auto">
 						{props.chain !== 'All' && (
 							<h1 className="flex items-center flex-nowrap gap-2">
 								<TokenLogo logo={chainIconUrl(props.chain)} size={24} />
@@ -342,25 +381,24 @@ export function AdapterByChain(props: IProps) {
 							</p>
 						) : null}
 
-						<div className="flex flex-col gap-1">
+						<div className="flex flex-col">
 							{props.total30d != null ? (
-								<p className="flex items-center gap-4 justify-between flex-wrap">
-									<span className="font-normal text-[#545757] dark:text-[#cccccc]">{metricName} (30d)</span>
-									<span className="text-right font-jetbrains">{formattedNum(props.total30d, true)}</span>
+								<p className="group flex flex-wrap justify-start gap-4 border-b border-(--cards-border) last:border-none py-1">
+									<span className="text-[#545757] dark:text-[#cccccc]">{metricName} (30d)</span>
+									<span className="font-jetbrains ml-auto">{formattedNum(props.total30d, true)}</span>
 								</p>
 							) : null}
 							{props.change_7dover7d != null ? (
-								<p className="flex items-center gap-4 justify-between flex-wrap">
+								<p className="group flex flex-wrap justify-start gap-4 border-b border-(--cards-border) last:border-none py-1">
 									<Tooltip
 										content="Change of last 7d volume over the previous 7d volume"
-										className="underline decoration-dotted font-normal text-[#545757] dark:text-[#cccccc]"
-										render={<span />}
+										className="text-[#545757] dark:text-[#cccccc] underline decoration-dotted"
 									>
 										Weekly Change
 									</Tooltip>
 									<span
-										className={`text-right font-jetbrains pl-2 pb-1 text-ellipsis" ${
-											props.change_7dover7d >= 0 ? 'text-[var(--pct-green)]' : 'text-[var(--pct-red)]'
+										className={`ml-auto font-jetbrains ${
+											props.change_7dover7d >= 0 ? 'text-(--pct-green)' : 'text-(--pct-red)'
 										}`}
 									>
 										{`${props.change_7dover7d >= 0 ? '+' : ''}${props.change_7dover7d}%`}
@@ -378,14 +416,14 @@ export function AdapterByChain(props: IProps) {
 					/>
 				</div>
 			) : null}
-			<div className="bg-[var(--cards-bg)] rounded-md">
-				<div className="flex items-center justify-end flex-wrap gap-4 p-3">
+			<div className="bg-(--cards-bg) border border-(--cards-border) rounded-md">
+				<div className="flex items-center justify-end flex-wrap gap-4 p-2">
 					<div className="relative w-full sm:max-w-[280px] mr-auto">
 						<Icon
 							name="search"
 							height={16}
 							width={16}
-							className="absolute text-[var(--text3)] top-0 bottom-0 my-auto left-2"
+							className="absolute text-(--text3) top-0 bottom-0 my-auto left-2"
 						/>
 						<input
 							value={projectName}
@@ -393,13 +431,14 @@ export function AdapterByChain(props: IProps) {
 								setProjectName(e.target.value)
 							}}
 							placeholder="Search..."
-							className="border border-[var(--form-control-border)] w-full pl-7 pr-2 py-[6px] bg-white dark:bg-black text-black dark:text-white rounded-md text-sm"
+							className="border border-(--form-control-border) w-full pl-7 pr-2 py-[6px] bg-white dark:bg-black text-black dark:text-white rounded-md text-sm"
 						/>
 					</div>
 					<SelectWithCombobox
 						allValues={columnsOptions}
 						selectedValues={selectedColumns}
 						setSelectedValues={addColumn}
+						selectOnlyOne={addOnlyOneColumn}
 						toggleAll={toggleAllColumns}
 						clearAll={clearAllColumns}
 						nestedMenu={false}
@@ -407,7 +446,7 @@ export function AdapterByChain(props: IProps) {
 						labelType="smol"
 						triggerProps={{
 							className:
-								'flex items-center justify-between gap-2 p-2 text-xs rounded-md cursor-pointer flex-nowrap relative border border-[var(--form-control-border)] text-[#666] dark:text-[#919296] hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] font-medium'
+								'flex items-center justify-between gap-2 p-2 text-xs rounded-md cursor-pointer flex-nowrap relative border border-(--form-control-border) text-[#666] dark:text-[#919296] hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) font-medium'
 						}}
 					/>
 					{props.categories.length > 0 && (
@@ -415,6 +454,7 @@ export function AdapterByChain(props: IProps) {
 							allValues={props.categories}
 							selectedValues={selectedCategories}
 							setSelectedValues={addCategory}
+							selectOnlyOne={addCategory}
 							toggleAll={toggleAllCategories}
 							clearAll={clearAllCategories}
 							nestedMenu={false}
@@ -422,10 +462,11 @@ export function AdapterByChain(props: IProps) {
 							labelType="smol"
 							triggerProps={{
 								className:
-									'flex items-center justify-between gap-2 p-2 text-xs rounded-md cursor-pointer flex-nowrap relative border border-[var(--form-control-border)] text-[#666] dark:text-[#919296] hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] font-medium'
+									'flex items-center justify-between gap-2 p-2 text-xs rounded-md cursor-pointer flex-nowrap relative border border-(--form-control-border) text-[#666] dark:text-[#919296] hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) font-medium'
 							}}
 						/>
 					)}
+					<FullOldViewButton type={props.type} />
 					<CSVDownloadButton onClick={downloadCsv} className="min-h-8" />
 				</div>
 
@@ -447,18 +488,18 @@ const columnOrders = Object.entries({
 	640: ['name', 'category', 'definition', 'total24h', 'total30d']
 }).sort((a, b) => Number(b[0]) - Number(a[0]))
 
-const chartKeys: Record<IProps['type'], string> = {
+const chartKeys: Record<IProps['type'], typeof protocolCharts[keyof typeof protocolCharts]> = {
 	Fees: 'fees',
 	Revenue: 'revenue',
 	'Holders Revenue': 'holdersRevenue',
 	'Options Premium Volume': 'optionsPremiumVolume',
 	'Options Notional Volume': 'optionsNotionalVolume',
 	'DEX Volume': 'dexVolume',
-	'Perp Volume': 'perpsVolume',
-	'Bridge Aggregator Volume': 'bridgeAggregators',
-	'Perp Aggregator Volume': 'perpsAggregators',
-	'DEX Aggregator Volume': 'dexAggregators',
-	Earnings: 'earnings'
+	'Perp Volume': 'perpVolume',
+	'Bridge Aggregator Volume': 'bridgeAggregatorVolume',
+	'Perp Aggregator Volume': 'perpAggregatorVolume',
+	'DEX Aggregator Volume': 'dexAggregatorVolume',
+	Earnings: 'incentives'
 }
 
 const getColumnsOptions = (type) =>
@@ -529,10 +570,10 @@ const NameColumn = (type: IProps['type']): ColumnDef<IAdapterByChainPageData['pr
 					: chartKeys[type]
 
 			return (
-				<span className={`flex items-center gap-2 relative ${row.depth > 0 ? 'pl-12' : 'pl-6'}`}>
+				<span className={`flex items-center gap-2 relative ${row.depth > 0 ? 'pl-6' : 'pl-0'}`}>
 					{row.subRows?.length > 0 ? (
 						<button
-							className="absolute -left-[2px]"
+							className="absolute -left-[18px]"
 							{...{
 								onClick: row.getToggleExpandedHandler()
 							}}
@@ -551,19 +592,21 @@ const NameColumn = (type: IProps['type']): ColumnDef<IAdapterByChainPageData['pr
 						</button>
 					) : null}
 
-					<span className="flex-shrink-0">{index + 1}</span>
+					<span className="shrink-0" onClick={row.getToggleExpandedHandler()}>
+						{index + 1}
+					</span>
 
 					<TokenLogo logo={row.original.logo} data-lgonly />
 
 					<span className="flex flex-col -my-2">
 						<BasicLink
 							href={`/${basePath}/${row.original.slug}?tvl=false&events=false&${chartKey}=true`}
-							className="text-sm font-medium text-[var(--link-text)] overflow-hidden whitespace-nowrap text-ellipsis hover:underline"
+							className="text-sm font-medium text-(--link-text) overflow-hidden whitespace-nowrap text-ellipsis hover:underline"
 						>
 							{value}
 						</BasicLink>
 
-						<Tooltip content={<Chains />} className="text-[0.7rem] text-[var(--text-disabled)]">
+						<Tooltip content={<Chains />} className="text-[0.7rem] text-(--text-disabled)">
 							{`${row.original.chains.length} chain${row.original.chains.length > 1 ? 's' : ''}`}
 						</Tooltip>
 					</span>
@@ -589,7 +632,7 @@ const getColumnsByType = (
 					getValue() ? (
 						<BasicLink
 							href={`/protocols/${slug(getValue() as string)}`}
-							className="text-sm font-medium text-[var(--link-text)]"
+							className="text-sm font-medium text-(--link-text)"
 						>
 							{getValue() as string}
 						</BasicLink>
@@ -619,6 +662,7 @@ const getColumnsByType = (
 				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
+					align: 'center',
 					headerHelperText:
 						'Total fees paid by users when using the protocol in the last 24 hours, updated daily at 00:00 UTC'
 				},
@@ -631,7 +675,7 @@ const getColumnsByType = (
 				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
-					align: 'end',
+					align: 'center',
 					headerHelperText: 'Total fees paid by users when using the protocol in the last 30 days'
 				},
 				size: 128
@@ -648,7 +692,7 @@ const getColumnsByType = (
 					getValue() ? (
 						<BasicLink
 							href={`/protocols/${slug(getValue() as string)}`}
-							className="text-sm font-medium text-[var(--link-text)]"
+							className="text-sm font-medium text-(--link-text)"
 						>
 							{getValue() as string}
 						</BasicLink>
@@ -678,6 +722,7 @@ const getColumnsByType = (
 				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
+					align: 'center',
 					headerHelperText: 'Revenue earned by the protocol in the last 24 hours, updated daily at 00:00 UTC'
 				},
 				size: 128
@@ -689,7 +734,7 @@ const getColumnsByType = (
 				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
-					align: 'end',
+					align: 'center',
 					headerHelperText: 'Revenue earned by the protocol in the last 30 days'
 				},
 				size: 128
@@ -706,7 +751,7 @@ const getColumnsByType = (
 					getValue() ? (
 						<BasicLink
 							href={`/protocols/${slug(getValue() as string)}`}
-							className="text-sm font-medium text-[var(--link-text)]"
+							className="text-sm font-medium text-(--link-text)"
 						>
 							{getValue() as string}
 						</BasicLink>
@@ -736,6 +781,7 @@ const getColumnsByType = (
 				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
+					align: 'center',
 					headerHelperText:
 						'Revenue earned by token holders of the protocol in the last 24 hours, updated daily at 00:00 UTC'
 				},
@@ -748,7 +794,7 @@ const getColumnsByType = (
 				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
-					align: 'end',
+					align: 'center',
 					headerHelperText: 'Revenue earned by token holders of the protocol in the last 30 days'
 				},
 				size: 180
@@ -763,6 +809,7 @@ const getColumnsByType = (
 				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
+					align: 'center',
 					headerHelperText:
 						'Sum of value paid buying and selling options on the options exchange in the last 24 hours, updated daily at 00:00 UTC'
 				},
@@ -775,7 +822,7 @@ const getColumnsByType = (
 				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
-					align: 'end',
+					align: 'center',
 					headerHelperText: 'Sum of value paid buying and selling options on the options exchange in the last 30 days'
 				},
 				size: 180
@@ -790,6 +837,7 @@ const getColumnsByType = (
 				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
+					align: 'center',
 					headerHelperText:
 						'Sum of the notional value of all options that have been traded on the options exchange in the last 24 hours, updated daily at 00:00 UTC'
 				},
@@ -802,7 +850,7 @@ const getColumnsByType = (
 				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
-					align: 'end',
+					align: 'center',
 					headerHelperText:
 						'Sum of the notional value of all options that have been traded on the options exchange in the last 30 days'
 				},
@@ -818,6 +866,7 @@ const getColumnsByType = (
 				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
+					align: 'center',
 					headerHelperText: 'Volume of all spot swaps on the dex in the last 24 hours, updated daily at 00:00 UTC'
 				},
 				size: 152
@@ -829,7 +878,7 @@ const getColumnsByType = (
 				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
-					align: 'end',
+					align: 'center',
 					headerHelperText: 'Volume of all spot swaps on the dex in the last 30 days'
 				},
 				size: 152
@@ -844,6 +893,7 @@ const getColumnsByType = (
 				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
+					align: 'center',
 					headerHelperText:
 						'Notional volume of all trades on the perp exchange, including leverage in the last 24 hours, updated daily at 00:00 UTC'
 				},
@@ -856,7 +906,7 @@ const getColumnsByType = (
 				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
-					align: 'end',
+					align: 'center',
 					headerHelperText: 'Notional volume of all trades on the perp exchange, including leverage in the last 30 days'
 				},
 				size: 160
@@ -876,6 +926,7 @@ const getColumnsByType = (
 				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
+					align: 'center',
 					headerHelperText:
 						'Notional volume of all trades on the perp aggregator, including leverage in the last 24 hours, updated daily at 00:00 UTC'
 				},
@@ -893,7 +944,7 @@ const getColumnsByType = (
 				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
-					align: 'end',
+					align: 'center',
 					headerHelperText:
 						'Notional volume of all trades on the perp aggregator, including leverage in the last 30 days'
 				},
@@ -914,6 +965,7 @@ const getColumnsByType = (
 				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
+					align: 'center',
 					headerHelperText:
 						'Sum of value of all assets that were bridged through the bridge Aggregator in the last 24 hours, updated daily at 00:00 UTC'
 				},
@@ -931,7 +983,7 @@ const getColumnsByType = (
 				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
-					align: 'end',
+					align: 'center',
 					headerHelperText:
 						'Sum of value of all assets that were bridged through the bridge Aggregator in the last 30 days'
 				},
@@ -952,6 +1004,7 @@ const getColumnsByType = (
 				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
+					align: 'center',
 					headerHelperText:
 						'Volume of spot token swaps on the DEX aggregator in the last 24 hours, updated daily at 00:00 UTC'
 				},
@@ -969,7 +1022,7 @@ const getColumnsByType = (
 				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
-					align: 'end',
+					align: 'center',
 					headerHelperText: 'Volume of spot token swaps on the DEX aggregator in the last 30 days'
 				},
 				size: 160
@@ -986,7 +1039,7 @@ const getColumnsByType = (
 					getValue() ? (
 						<BasicLink
 							href={`/protocols/${slug(getValue() as string)}`}
-							className="text-sm font-medium text-[var(--link-text)]"
+							className="text-sm font-medium text-(--link-text)"
 						>
 							{getValue() as string}
 						</BasicLink>
@@ -1002,6 +1055,7 @@ const getColumnsByType = (
 				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
+					align: 'center',
 					headerHelperText:
 						'Earnings (Revenue - Incentives) earned by the protocol in the last 24 hours' +
 						(isChain ? ' Incentives are split propotionally to revenue on this chain.' : '')
@@ -1015,7 +1069,7 @@ const getColumnsByType = (
 				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
-					align: 'end',
+					align: 'center',
 					headerHelperText:
 						'Earnings (Revenue - Incentives) earned by the protocol in the last 30 days' +
 						(isChain ? ' Incentives are split propotionally to revenue on this chain.' : '')

@@ -21,16 +21,16 @@ interface AccountStatusProps {
 
 export const AccountStatus = ({ user, isVerified, isSubscribed, onEmailChange, subscription }: AccountStatusProps) => {
 	return (
-		<div className="backdrop-filter backdrop-blur-md bg-gradient-to-r from-[#1a1b1f]/90 to-[#1a1b1f]/70 border border-[#39393E]/30 rounded-xl overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.2)] hover:shadow-[0_8px_30px_rgba(92,92,249,0.1)] transition-shadow duration-300">
+		<div className="backdrop-filter backdrop-blur-md bg-linear-to-r from-[#1a1b1f]/90 to-[#1a1b1f]/70 border border-[#39393E]/30 rounded-xl overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.2)] hover:shadow-[0_8px_30px_rgba(92,92,249,0.1)] transition-shadow duration-300">
 			<div className="p-4 border-b border-[#39393E]/20">
 				<div className="flex items-center justify-between">
 					<div className="flex items-center gap-3">
-						<div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#5C5CF9] to-[#4335A8] flex items-center justify-center text-base font-medium text-white shadow-[0_4px_12px_rgba(92,92,249,0.25)] relative overflow-hidden group">
+						<div className="h-10 w-10 rounded-xl bg-linear-to-br from-[#5C5CF9] to-[#4335A8] flex items-center justify-center text-base font-medium text-white shadow-[0_4px_12px_rgba(92,92,249,0.25)] relative overflow-hidden group">
 							{user.address ? <Icon name="ethereum" height={20} width={20} /> : user.email.charAt(0).toUpperCase()}
 						</div>
 						<div>
 							<div className="flex items-center gap-2">
-								<h2 className="text-xl font-bold bg-gradient-to-r from-white to-[#b4b7bc] bg-clip-text text-transparent">
+								<h2 className="text-xl font-bold bg-linear-to-r from-white to-[#b4b7bc] bg-clip-text text-transparent">
 									{user.address ? null : user.email.split('@')[0]}
 								</h2>
 								{isVerified && (
@@ -61,7 +61,7 @@ export const AccountStatus = ({ user, isVerified, isSubscribed, onEmailChange, s
 								width={14}
 								className="text-[#5C5CF9] group-hover:scale-110 transition-transform"
 							/>
-							<span className="bg-gradient-to-r from-white to-[#b4b7bc] group-hover:from-white group-hover:to-white bg-clip-text text-transparent transition-colors">
+							<span className="bg-linear-to-r from-white to-[#b4b7bc] group-hover:from-white group-hover:to-white bg-clip-text text-transparent transition-colors">
 								Change Email
 							</span>
 						</button>
@@ -71,10 +71,10 @@ export const AccountStatus = ({ user, isVerified, isSubscribed, onEmailChange, s
 
 			<div className="p-5">
 				<div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-					<div className="flex flex-col p-3.5 bg-gradient-to-br from-[#222429]/90 to-[#1d1e23]/70 rounded-xl border border-[#39393E]/40 hover:border-[#5C5CF9]/30 transition-all duration-300 hover:shadow-[0_4px_12px_rgba(0,0,0,0.2)] transform hover:translate-y-[-2px] group">
+					<div className="flex flex-col p-3.5 bg-linear-to-br from-[#222429]/90 to-[#1d1e23]/70 rounded-xl border border-[#39393E]/40 hover:border-[#5C5CF9]/30 transition-all duration-300 hover:shadow-[0_4px_12px_rgba(0,0,0,0.2)] transform hover:translate-y-[-2px] group">
 						<span className="text-xs text-[#8a8c90] mb-1.5">Status</span>
 						<span className="font-medium text-sm flex items-center gap-2">
-							<span className="bg-gradient-to-r from-white to-[#b4b7bc] group-hover:from-white group-hover:to-white bg-clip-text text-transparent transition-colors">
+							<span className="bg-linear-to-r from-white to-[#b4b7bc] group-hover:from-white group-hover:to-white bg-clip-text text-transparent transition-colors">
 								{subscription.status === 'active' ? (
 									<>
 										<span className="h-2 w-2 mr-1 rounded-full inline-block bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.6)] animate-pulse"></span>
@@ -89,12 +89,15 @@ export const AccountStatus = ({ user, isVerified, isSubscribed, onEmailChange, s
 							</span>
 						</span>
 					</div>
-					<div className="flex flex-col p-3.5 bg-gradient-to-br from-[#222429]/90 to-[#1d1e23]/70 rounded-xl border border-[#39393E]/40 hover:border-[#5C5CF9]/30 transition-all duration-300 hover:shadow-[0_4px_12px_rgba(0,0,0,0.2)] transform hover:translate-y-[-2px] group">
+					<div className="flex flex-col p-3.5 bg-linear-to-br from-[#222429]/90 to-[#1d1e23]/70 rounded-xl border border-[#39393E]/40 hover:border-[#5C5CF9]/30 transition-all duration-300 hover:shadow-[0_4px_12px_rgba(0,0,0,0.2)] transform hover:translate-y-[-2px] group">
 						<span className="text-xs text-[#8a8c90] mb-1.5">Membership</span>
-						<span className="font-medium text-sm bg-gradient-to-r from-white to-[#b4b7bc] group-hover:from-white group-hover:to-white bg-clip-text text-transparent transition-colors">
+						<span className="font-medium text-sm bg-linear-to-r from-white to-[#b4b7bc] group-hover:from-white group-hover:to-white bg-clip-text text-transparent transition-colors">
 							{isSubscribed ? (
 								<span className="flex items-center gap-2">
-									<span>{subscription.type === 'llamafeed' ? 'Llama+' : 'Pro'}</span>
+									<span>
+										{subscription.type === 'llamafeed' ? 'Llama+' : 'Pro'}
+										{subscription.provider === 'trial' && ' Trial'}
+									</span>
 									<Icon
 										name="star"
 										height={12}
@@ -107,9 +110,9 @@ export const AccountStatus = ({ user, isVerified, isSubscribed, onEmailChange, s
 							)}
 						</span>
 					</div>
-					<div className="flex flex-col p-3.5 bg-gradient-to-br from-[#222429]/90 to-[#1d1e23]/70 rounded-xl border border-[#39393E]/40 hover:border-[#5C5CF9]/30 transition-all duration-300 hover:shadow-[0_4px_12px_rgba(0,0,0,0.2)] transform hover:translate-y-[-2px] group">
+					<div className="flex flex-col p-3.5 bg-linear-to-br from-[#222429]/90 to-[#1d1e23]/70 rounded-xl border border-[#39393E]/40 hover:border-[#5C5CF9]/30 transition-all duration-300 hover:shadow-[0_4px_12px_rgba(0,0,0,0.2)] transform hover:translate-y-[-2px] group">
 						<span className="text-xs text-[#8a8c90] mb-1.5">API Access</span>
-						<span className="font-medium text-sm bg-gradient-to-r from-white to-[#b4b7bc] group-hover:from-white group-hover:to-white bg-clip-text text-transparent transition-colors">
+						<span className="font-medium text-sm bg-linear-to-r from-white to-[#b4b7bc] group-hover:from-white group-hover:to-white bg-clip-text text-transparent transition-colors">
 							{isSubscribed && subscription.type !== 'llamafeed' ? (
 								<span className="flex items-center gap-2">
 									<span>Enabled</span>
@@ -122,8 +125,24 @@ export const AccountStatus = ({ user, isVerified, isSubscribed, onEmailChange, s
 					</div>
 				</div>
 
+				{subscription?.provider === 'trial' && subscription?.expires_at && (
+					<div className="mt-4 p-3.5 bg-linear-to-br from-[#222429]/90 to-[#1d1e23]/70 rounded-xl border border-orange-500/30 hover:border-orange-500/50 transition-all duration-300 hover:shadow-[0_4px_12px_rgba(251,146,60,0.15)] group">
+						<div className="flex items-center justify-between">
+							<div className="flex items-center gap-2">
+								<svg className="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+								</svg>
+								<span className="text-sm text-orange-400 font-medium">Trial Expires</span>
+							</div>
+							<span className="text-sm text-[#b4b7bc]">
+								{new Date(parseFloat(subscription.expires_at) * 1000).toLocaleString()}
+							</span>
+						</div>
+					</div>
+				)}
+
 				{user.walletAddress && (
-					<div className="mt-4 p-3.5 bg-gradient-to-br from-[#222429]/90 to-[#1d1e23]/70 rounded-xl border border-[#39393E]/40 hover:border-[#5C5CF9]/30 transition-all duration-300 hover:shadow-[0_4px_12px_rgba(0,0,0,0.2)] group">
+					<div className="mt-4 p-3.5 bg-linear-to-br from-[#222429]/90 to-[#1d1e23]/70 rounded-xl border border-[#39393E]/40 hover:border-[#5C5CF9]/30 transition-all duration-300 hover:shadow-[0_4px_12px_rgba(0,0,0,0.2)] group">
 						<div className="flex items-center justify-between mb-2">
 							<span className="text-xs text-[#8a8c90]">Wallet</span>
 							<span className="text-xs flex items-center gap-1 text-green-400">

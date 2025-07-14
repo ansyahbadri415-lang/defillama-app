@@ -1,16 +1,13 @@
-import { useState } from 'react'
+import { useDeferredValue, useState } from 'react'
 import { ColumnDef, getCoreRowModel, getSortedRowModel, SortingState, useReactTable } from '@tanstack/react-table'
 import Layout from '~/layout'
 import { ProtocolsChainsSearch } from '~/components/Search/ProtocolsChains'
 import { VirtualTable } from '~/components/Table/Table'
-import { useDebounce } from '~/hooks/useDebounce'
 import { formattedPercent } from '~/utils'
 
-import { fetchWithErrorLogging } from '~/utils/async'
+import { fetchJson } from '~/utils/async'
 import { TagGroup } from '~/components/TagGroup'
 import { useQuery } from '@tanstack/react-query'
-
-const fetch = fetchWithErrorLogging
 
 const valueToFilter = {
 	'1d': 'day',
@@ -29,45 +26,41 @@ interface ITrendingContracts {
 	name?: string
 }
 
-async function getContracts(chain: string, time: number) {
-	return await fetch(
+async function getContracts(chain: string, time: string) {
+	return await fetchJson(
 		`https://trending-contracts-api.onrender.com/${chain}_tc/${valueToFilter[time] || valueToFilter['1d']}`
-	)
-		.then((res) => res.json())
-		.then(async (r) => {
-			return {
-				results: await Promise.all(
-					r.map(async (contract) => {
-						let name = contract.name ? { name: contract.name } : undefined
-						if (!name) {
+	).then(async (r) => {
+		return {
+			results: await Promise.all(
+				r.map(async (contract) => {
+					let name = contract.name ? { name: contract.name } : undefined
+					if (!name) {
+						try {
+							name = await fetchJson(
+								`https://raw.githubusercontent.com/verynifty/RolodETH/main/data/${contract.contract.toLowerCase()}`
+							)
+							if (name.name === undefined) {
+								throw new Error('RolodETH: No name')
+							}
+						} catch (e) {
 							try {
-								name = await fetch(
-									`https://raw.githubusercontent.com/verynifty/RolodETH/main/data/${contract.contract.toLowerCase()}`
-								).then((r) => r.json())
-								if (name.name === undefined) {
-									throw new Error('RolodETH: No name')
+								name = await fetchJson(`https://api.llama.fi/contractName2/${chain}/${contract.contract.toLowerCase()}`)
+								if (name.name === '') {
+									throw new Error('Etherescan: Contract not verified')
 								}
 							} catch (e) {
-								try {
-									name = await fetch(
-										`https://api.llama.fi/contractName2/${chain}/${contract.contract.toLowerCase()}`
-									).then((r) => r.json())
-									if (name.name === '') {
-										throw new Error('Etherescan: Contract not verified')
-									}
-								} catch (e) {
-									name = undefined
-								}
+								name = undefined
 							}
 						}
-						return {
-							...contract,
-							name: name?.name
-						}
-					})
-				)
-			}
-		})
+					}
+					return {
+						...contract,
+						name: name?.name
+					}
+				})
+			)
+		}
+	})
 }
 
 export default function TrendingContracts() {
@@ -76,7 +69,7 @@ export default function TrendingContracts() {
 	const [value, setValue] = useState('1d')
 	const [chain, setChain] = useState('Ethereum')
 
-	const time = useDebounce(value, 500)
+	const time = useDeferredValue(value)
 
 	const activeChain = typeof chain === 'string' ? chain.toLowerCase() : 'ethereum'
 
@@ -102,7 +95,7 @@ export default function TrendingContracts() {
 	return (
 		<Layout title={`Trending Contracts - DefiLlama`} defaultSEO>
 			<ProtocolsChainsSearch />
-			<div className="bg-[var(--cards-bg)] rounded-md">
+			<div className="bg-(--cards-bg) border border-(--cards-border) rounded-md">
 				<div className="flex items-center flex-wrap gap-5 p-3">
 					<h1 className="text-xl font-semibold mr-auto">Trending Contracts</h1>
 					<TagGroup selectedValue={value} setValue={(val: string) => setValue(val)} values={['1d', '7d', '30d']} />

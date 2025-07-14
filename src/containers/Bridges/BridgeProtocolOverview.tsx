@@ -1,5 +1,4 @@
 import * as React from 'react'
-import dynamic from 'next/dynamic'
 import Layout from '~/layout'
 import { BridgesSearch } from '~/components/Search/Bridges'
 import { TokenLogo } from '~/components/TokenLogo'
@@ -15,13 +14,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Icon } from '~/components/Icon'
 import { LazyChart } from '~/components/LazyChart'
 
-const BarChart = dynamic(() => import('~/components/ECharts/BarChart'), {
-	ssr: false
-}) as React.FC<IBarChartProps>
-
-const PieChart = dynamic(() => import('~/components/ECharts/PieChart'), {
-	ssr: false
-}) as React.FC<IPieChartProps>
+const BarChart = React.lazy(() => import('~/components/ECharts/BarChart')) as React.FC<IBarChartProps>
+const PieChart = React.lazy(() => import('~/components/ECharts/PieChart')) as React.FC<IPieChartProps>
 
 const BridgeInfo = ({
 	displayName,
@@ -64,7 +58,7 @@ const BridgeInfo = ({
 
 	return (
 		<>
-			<div className="bg-[var(--cards-bg)] rounded-md p-3 flex items-center justify-between gap-2">
+			<div className="bg-(--cards-bg) rounded-md p-3 flex items-center justify-between gap-2">
 				<h1 className="flex flex-nowrap items-center gap-1 text-xl font-semibold">
 					<TokenLogo logo={logo} size={24} />
 					<span>{displayName}</span>
@@ -72,7 +66,7 @@ const BridgeInfo = ({
 				<BridgeChainSelector currentChain={currentChain} options={chainOptions} handleClick={setChain} />
 			</div>
 			<div className="grid grid-cols-2 relative isolate xl:grid-cols-3 gap-1">
-				<div className="bg-[var(--cards-bg)] rounded-md flex flex-col gap-3 p-5 col-span-2 w-full xl:col-span-1 overflow-x-auto">
+				<div className="bg-(--cards-bg) rounded-md flex flex-col gap-3 p-5 col-span-2 w-full xl:col-span-1 overflow-x-auto">
 					<p className="flex flex-col gap-1 text-base">
 						<span className="text-[#545757] dark:text-[#cccccc]">Deposited to {currentChain} (24h)</span>
 						<span className="font-jetbrains font-semibold text-2xl">
@@ -99,7 +93,7 @@ const BridgeInfo = ({
 					</p>
 					{config?.url ? (
 						<a
-							className="flex items-center gap-1 justify-center py-1 px-2 whitespace-nowrap text-xs rounded-md text-[var(--link-text)] bg-[var(--link-bg)] hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] mt-auto mr-auto"
+							className="flex items-center gap-1 justify-center py-1 px-2 whitespace-nowrap text-xs rounded-md text-(--link-text) bg-(--link-bg) hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) mt-auto mr-auto"
 							href={config.url}
 							target="_blank"
 							rel="noreferrer noopener"
@@ -109,25 +103,25 @@ const BridgeInfo = ({
 					) : null}
 				</div>
 
-				<div className="bg-[var(--cards-bg)] rounded-md col-span-2">
+				<div className="bg-(--cards-bg) rounded-md col-span-2">
 					<div className="w-full max-w-fit overflow-x-auto ml-auto p-3">
-						<div className="text-xs font-medium flex items-center rounded-md overflow-x-auto flex-nowrap w-fit border border-[var(--form-control-border)] text-[#666] dark:text-[#919296]">
+						<div className="text-xs font-medium flex items-center rounded-md overflow-x-auto flex-nowrap w-fit border border-(--form-control-border) text-[#666] dark:text-[#919296]">
 							<button
-								className="flex-shrink-0 py-2 px-3 whitespace-nowrap hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] data-[active=true]:bg-[var(--old-blue)] data-[active=true]:text-white"
+								className="shrink-0 py-2 px-3 whitespace-nowrap hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) data-[active=true]:bg-(--old-blue) data-[active=true]:text-white"
 								data-active={chartType === 'Inflows'}
 								onClick={() => setChartType('Inflows')}
 							>
 								Inflows
 							</button>
 							<button
-								className="flex-shrink-0 py-2 px-3 whitespace-nowrap hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] data-[active=true]:bg-[var(--old-blue)] data-[active=true]:text-white"
+								className="shrink-0 py-2 px-3 whitespace-nowrap hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) data-[active=true]:bg-(--old-blue) data-[active=true]:text-white"
 								data-active={chartType === 'Tokens To'}
 								onClick={() => setChartType('Tokens To')}
 							>
 								Tokens To
 							</button>
 							<button
-								className="flex-shrink-0 py-2 px-3 whitespace-nowrap hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] data-[active=true]:bg-[var(--old-blue)] data-[active=true]:text-white"
+								className="shrink-0 py-2 px-3 whitespace-nowrap hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) data-[active=true]:bg-(--old-blue) data-[active=true]:text-white"
 								data-active={chartType === 'Tokens From'}
 								onClick={() => setChartType('Tokens From')}
 							>
@@ -135,25 +129,31 @@ const BridgeInfo = ({
 							</button>
 						</div>
 					</div>
-					<LazyChart className="relative col-span-full min-h-[360px] flex flex-col xl:col-span-1 xl:[&:last-child:nth-child(2n_-_1)]:col-span-full">
+					<LazyChart className="relative col-span-full min-h-[360px] flex flex-col xl:col-span-1 xl:[&:last-child:nth-child(2n-1)]:col-span-full">
 						{chartType === 'Inflows' && volumeChartDataByChain && volumeChartDataByChain.length > 0 && (
-							<BarChart
-								chartData={volumeChartDataByChain}
-								title=""
-								chartOptions={volumeChartOptions}
-								stacks={inflowChartStacks}
-							/>
+							<React.Suspense fallback={<></>}>
+								<BarChart
+									chartData={volumeChartDataByChain}
+									title=""
+									chartOptions={volumeChartOptions}
+									stacks={inflowChartStacks}
+								/>
+							</React.Suspense>
 						)}
 						{chartType === 'Tokens To' && tokenWithdrawals && tokenWithdrawals.length > 0 && (
-							<PieChart chartData={tokenWithdrawals} />
+							<React.Suspense fallback={<></>}>
+								<PieChart chartData={tokenWithdrawals} />
+							</React.Suspense>
 						)}
 						{chartType === 'Tokens From' && tokenDeposits && tokenDeposits.length > 0 && (
-							<PieChart chartData={tokenDeposits} />
+							<React.Suspense fallback={<></>}>
+								<PieChart chartData={tokenDeposits} />
+							</React.Suspense>
 						)}
 					</LazyChart>
 				</div>
 			</div>
-			<div className="bg-[var(--cards-bg)] rounded-md">
+			<div className="bg-(--cards-bg) border border-(--cards-border) rounded-md">
 				<div className="flex items-end justify-between flex-wrap gap-2 p-3">
 					<AddressesTableSwitch />
 					<p className="opacity-60 text-sm italic">All stats in table are for the previous day.</p>

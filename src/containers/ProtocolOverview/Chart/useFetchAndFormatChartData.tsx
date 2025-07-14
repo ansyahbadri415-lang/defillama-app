@@ -16,14 +16,12 @@ import {
 import { firstDayOfMonth, lastDayOfWeek, nearestUtcZeroHour } from '~/utils'
 import { BAR_CHARTS, DISABLED_CUMULATIVE_CHARTS } from './utils'
 import { useFetchBridgeVolumeOnAllChains } from '~/containers/Bridges/BridgeProtocolOverview'
-import { fetchWithErrorLogging } from '~/utils/async'
+import { fetchJson } from '~/utils/async'
 import dayjs from 'dayjs'
 import { CACHE_SERVER } from '~/constants'
 import { useQuery } from '@tanstack/react-query'
 import { getAdapterProtocolSummary } from '~/containers/DimensionAdapters/queries'
 import { useLocalStorageSettingsManager } from '~/contexts/LocalStorage'
-
-const fetch = fetchWithErrorLogging
 
 interface ChartData {
 	date: string
@@ -145,9 +143,7 @@ export function useFetchAndFormatChartData({
 	const { data: fdvData = null, isLoading: fetchingFdv } = useQuery({
 		queryKey: [`fdv-${geckoId && fdv === 'true' && isRouterReady ? geckoId : null}`],
 		queryFn:
-			geckoId && fdv === 'true' && isRouterReady
-				? () => fetch(`${CACHE_SERVER}/supply/${geckoId}`).then((res) => res.json())
-				: () => null,
+			geckoId && fdv === 'true' && isRouterReady ? () => fetchJson(`${CACHE_SERVER}/supply/${geckoId}`) : () => null,
 		staleTime: 60 * 60 * 1000
 	})
 
@@ -173,7 +169,7 @@ export function useFetchAndFormatChartData({
 		isRouterReady && metrics.treasury && treasury === 'true' ? protocol : null,
 		true
 	)
-	const { data: unlocksData, isLoading: fetchingEmissions } = useGetProtocolEmissions(
+	const { data: unlocksData = null, isLoading: fetchingEmissions } = useGetProtocolEmissions(
 		isRouterReady && metrics.unlocks && unlocks === 'true' ? protocol : null
 	)
 	const { data: bridgeVolumeData, isLoading: fetchingBridgeVolume } = useFetchBridgeVolumeOnAllChains(
@@ -386,7 +382,7 @@ export function useFetchAndFormatChartData({
 			isRouterReady && perpsAggregators === 'true' && metrics.perpsAggregators
 				? () =>
 						getAdapterProtocolSummary({
-							adapterType: 'derivatives-aggregator',
+							adapterType: 'aggregator-derivatives',
 							protocol,
 							excludeTotalDataChart: false,
 							excludeTotalDataChartBreakdown: true
@@ -897,7 +893,7 @@ export function useFetchAndFormatChartData({
 			chartsUnique.push('Active Addresses')
 
 			for (const [dateS, noOfUsers] of activeAddressesData) {
-				const date = Math.floor(nearestUtcZeroHour(+dateS * 1000) / 1000)
+				const date = Math.floor(nearestUtcZeroHour(dateS) / 1000)
 
 				if (!chartData[date]) {
 					chartData[date] = { date }
@@ -910,7 +906,7 @@ export function useFetchAndFormatChartData({
 			chartsUnique.push('New Addresses')
 
 			for (const [dateS, noOfUsers] of newAddressesData) {
-				const date = Math.floor(nearestUtcZeroHour(+dateS * 1000) / 1000)
+				const date = Math.floor(nearestUtcZeroHour(dateS) / 1000)
 
 				if (!chartData[date]) {
 					chartData[date] = { date }
@@ -923,7 +919,7 @@ export function useFetchAndFormatChartData({
 			chartsUnique.push('Transactions')
 
 			for (const [dateS, noOfTxs] of transactionsData) {
-				const date = Math.floor(nearestUtcZeroHour(+dateS * 1000) / 1000)
+				const date = Math.floor(nearestUtcZeroHour(dateS) / 1000)
 
 				if (!chartData[date]) {
 					chartData[date] = { date }
@@ -1321,7 +1317,7 @@ export function useFetchAndFormatChartData({
 		contributersCommits,
 		treasuryData,
 		showNonUsdDenomination,
-		denominationHistory.prices,
+		denominationHistory,
 		mcap,
 		tokenPrice,
 		fdv,

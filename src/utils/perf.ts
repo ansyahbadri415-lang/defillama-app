@@ -72,12 +72,12 @@ export const fetchOverCache = async (url: RequestInfo | URL, options?: FetchOver
 				'Content-Type': ContentType
 			})
 		}
-		const end = Date.now()
-		IS_RUNTIME &&
-			!options?.silent &&
-			isServer &&
-			end - start > 10_000 &&
-			postRuntimeLogs(`[fetch-cache] [HIT] [${StatusCode}] [${(end - start).toFixed(0)}ms] <${url}>`)
+		// const end = Date.now()
+		// IS_RUNTIME &&
+		// 	!options?.silent &&
+		// 	isServer &&
+		// 	end - start > 10_000 &&
+		// 	postRuntimeLogs(`[fetch-cache] [HIT] [${StatusCode}] [${(end - start).toFixed(0)}ms] <${url}>`)
 
 		return new Response(blob, responseInit)
 	} else {
@@ -127,22 +127,12 @@ export const fetchOverCache = async (url: RequestInfo | URL, options?: FetchOver
 			}
 		}
 
-		const end = Date.now()
-		IS_RUNTIME &&
-			!options?.silent &&
-			isServer &&
-			end - start > 10_000 &&
-			postRuntimeLogs(`[fetch-cache] [MISS] [${StatusCode}] [${(end - start).toFixed(0)}ms] <${url}>`)
+		// const end = Date.now()
+		// IS_RUNTIME &&
+		// 	!options?.silent &&
+		// 	isServer &&
+		// 	end - start > 10_000 &&
+		// 	postRuntimeLogs(`[fetch-cache] [MISS] [${StatusCode}] [${(end - start).toFixed(0)}ms] <${url}>`)
 		return new Response(blob, responseInit)
 	}
-}
-
-async function handleServerResponse(res: Response, url: string) {
-	const data = await res.json()
-
-	if (res.status !== 200 || data.error) {
-		postRuntimeLogs(`[ERROR] Failed to fetch ${url} : ${data.message ?? data.error ?? res.statusText ?? '-'}`)
-		throw new Error(data.message ?? data.error ?? res.statusText ?? `Failed to fetch ${url}`)
-	}
-	return data
 }

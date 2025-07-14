@@ -6,7 +6,6 @@ import { SEO } from '~/components/SEO'
 import { chainIconUrl, formattedNum } from '~/utils'
 import { TokenLogo } from '~/components/TokenLogo'
 import { FormattedName } from '~/components/FormattedName'
-import dynamic from 'next/dynamic'
 import { IBarChartProps, IPieChartProps } from '~/components/ECharts/types'
 import useWindowSize from '~/hooks/useWindowSize'
 import { SortingState, getCoreRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table'
@@ -14,12 +13,8 @@ import { VirtualTable } from '~/components/Table/Table'
 import { RowLinksWithDropdown } from '~/components/RowLinksWithDropdown'
 import { Metrics } from '~/components/Metrics'
 
-const PieChart = dynamic(() => import('~/components/ECharts/PieChart'), {
-	ssr: false
-}) as React.FC<IPieChartProps>
-const BarChart = dynamic(() => import('~/components/ECharts/BarChart'), {
-	ssr: false
-}) as React.FC<IBarChartProps>
+const PieChart = React.lazy(() => import('~/components/ECharts/PieChart')) as React.FC<IPieChartProps>
+const BarChart = React.lazy(() => import('~/components/ECharts/BarChart')) as React.FC<IBarChartProps>
 
 export function BridgedTVLByChain({ chainData, chains, chain, inflows, tokenInflowNames, chainName = 'All Chains' }) {
 	const [chartType, setChartType] = React.useState('total')
@@ -63,7 +58,7 @@ export function BridgedTVLByChain({ chainData, chains, chain, inflows, tokenInfl
 				<Metrics currentMetric="Bridged TVL" isChains={chainName === 'All Chains'} />
 				<RowLinksWithDropdown links={chains} activeLink={chainName} />
 				<div className="grid grid-cols-2 relative isolate xl:grid-cols-3 gap-1">
-					<div className="bg-[var(--cards-bg)] rounded-md flex flex-col gap-3 p-5 col-span-2 w-full xl:col-span-1 overflow-x-auto">
+					<div className="bg-(--cards-bg) rounded-md flex flex-col gap-3 p-5 col-span-2 w-full xl:col-span-1 overflow-x-auto">
 						<h1 className="flex items-center gap-2 text-xl font-semibold mb-3">
 							<TokenLogo logo={chainIconUrl(chain)} size={24} />
 							<FormattedName text={chainName + ' Bridged TVL'} fontWeight={700} />
@@ -101,13 +96,13 @@ export function BridgedTVLByChain({ chainData, chains, chain, inflows, tokenInfl
 							</p>
 						) : null}
 					</div>
-					<div className="bg-[var(--cards-bg)] rounded-md col-span-2 flex flex-col items-center gap-4 min-h-[434px]">
+					<div className="bg-(--cards-bg) rounded-md col-span-2 flex flex-col items-center gap-4 min-h-[434px]">
 						<div className="w-full max-w-fit overflow-x-auto p-3">
-							<div className="text-xs font-medium flex items-center rounded-md overflow-x-auto flex-nowrap border border-[var(--form-control-border)] text-[#666] dark:text-[#919296]">
+							<div className="text-xs font-medium flex items-center rounded-md overflow-x-auto flex-nowrap border border-(--form-control-border) text-[#666] dark:text-[#919296]">
 								{chartTypes.map(({ type, name }) =>
 									chainData[type]?.total !== '0' ? (
 										<button
-											className="flex-shrink-0 py-2 px-3 whitespace-nowrap hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] data-[active=true]:bg-[var(--old-blue)] data-[active=true]:text-white"
+											className="shrink-0 py-2 px-3 whitespace-nowrap hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) data-[active=true]:bg-(--old-blue) data-[active=true]:text-white"
 											data-active={chartType === type}
 											onClick={() => setChartType(type)}
 											key={'bridged-' + name}
@@ -118,7 +113,7 @@ export function BridgedTVLByChain({ chainData, chains, chain, inflows, tokenInfl
 								)}
 								{inflows ? (
 									<button
-										className="flex-shrink-0 py-2 px-3 whitespace-nowrap hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] data-[active=true]:bg-[var(--old-blue)] data-[active=true]:text-white"
+										className="shrink-0 py-2 px-3 whitespace-nowrap hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) data-[active=true]:bg-(--old-blue) data-[active=true]:text-white"
 										data-active={chartType === 'inflows'}
 										onClick={() => setChartType('inflows')}
 									>
@@ -127,7 +122,7 @@ export function BridgedTVLByChain({ chainData, chains, chain, inflows, tokenInfl
 								) : null}
 								{chainData?.ownTokens?.total ? (
 									<button
-										className="flex-shrink-0 py-2 px-3 whitespace-nowrap hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] data-[active=true]:bg-[var(--old-blue)] data-[active=true]:text-white"
+										className="shrink-0 py-2 px-3 whitespace-nowrap hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) data-[active=true]:bg-(--old-blue) data-[active=true]:text-white"
 										data-active={chartType === 'ownTokens'}
 										onClick={() => setChartType('ownTokens')}
 									>
@@ -139,24 +134,28 @@ export function BridgedTVLByChain({ chainData, chains, chain, inflows, tokenInfl
 
 						{chartType !== 'inflows' ? (
 							<div style={{ width: Math.min(+screenWidth.width / 1.5, 600) + 'px' }}>
-								<PieChart
-									chartData={tokens.map(([name, value]: [string, string]) => ({
-										name,
-										value: +value
-									}))}
-									usdFormat={false}
-								/>
+								<React.Suspense fallback={<></>}>
+									<PieChart
+										chartData={tokens.map(([name, value]: [string, string]) => ({
+											name,
+											value: +value
+										}))}
+										usdFormat={false}
+									/>
+								</React.Suspense>
 							</div>
 						) : (
 							<div className="w-full">
-								<BarChart
-									chartData={inflows}
-									title=""
-									hideDefaultLegend={true}
-									customLegendName="Token"
-									customLegendOptions={tokenInflowNames}
-									// chartOptions={inflowsChartOptions}
-								/>
+								<React.Suspense fallback={<></>}>
+									<BarChart
+										chartData={inflows}
+										title=""
+										hideDefaultLegend={true}
+										customLegendName="Token"
+										customLegendOptions={tokenInflowNames}
+										// chartOptions={inflowsChartOptions}
+									/>
+								</React.Suspense>
 							</div>
 						)}
 					</div>

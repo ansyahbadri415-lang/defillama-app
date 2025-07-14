@@ -8,7 +8,25 @@ export interface Chain {
 	chainId?: string
 }
 
-export type DashboardItemConfig = ChartConfig | ProtocolsTableConfig
+export interface MultiChartConfig {
+	id: string
+	kind: 'multi'
+	name?: string
+	items: ChartConfig[]
+	grouping?: 'day' | 'week' | 'month' | 'quarter'
+	colSpan?: 1 | 2
+	showCumulative?: boolean
+}
+
+export interface TextConfig {
+	id: string
+	kind: 'text'
+	title?: string
+	content: string
+	colSpan?: 1 | 2
+}
+
+export type DashboardItemConfig = ChartConfig | ProtocolsTableConfig | MultiChartConfig | TextConfig
 
 export interface ChartConfig {
 	id: string
@@ -20,14 +38,64 @@ export interface ChartConfig {
 	isLoading?: boolean
 	hasError?: boolean
 	refetch?: () => void
-	grouping?: 'day' | 'week' | 'month'
+	grouping?: 'day' | 'week' | 'month' | 'quarter'
 	geckoId?: string | null
+	colSpan?: 1 | 2
+	showCumulative?: boolean
+}
+
+export interface TableFilters {
+	protocols?: string[]
+	categories?: string[]
+	apyMin?: number
+	apyMax?: number
+	tvlMin?: number
+	tvlMax?: number
+	baseApyMin?: number
+	baseApyMax?: number
+	chains?: string[]
+	hasRewards?: boolean
+	stablesOnly?: boolean
+	activeLending?: boolean
+	poolTypes?: string[]
+	[key: string]: any // Allow for future filter types
 }
 
 export interface ProtocolsTableConfig {
 	id: string
 	kind: 'table'
-	chain: string
+	tableType: 'protocols' | 'dataset'
+	chains: string[]
+	colSpan?: 1 | 2
+	filters?: TableFilters
+	columnOrder?: string[]
+	columnVisibility?: Record<string, boolean>
+	customColumns?: Array<{
+		id: string
+		name: string
+		expression: string
+		isValid: boolean
+		errorMessage?: string
+	}>
+	datasetType?:
+		| 'stablecoins'
+		| 'cex'
+		| 'revenue'
+		| 'holders-revenue'
+		| 'earnings'
+		| 'token-usage'
+		| 'yields'
+		| 'aggregators'
+		| 'perps'
+		| 'options'
+		| 'dexs'
+		| 'bridge-aggregators'
+		| 'trending-contracts'
+		| 'chains'
+	datasetChain?: string
+	tokenSymbols?: string[]
+	includeCex?: boolean
+	datasetTimeframe?: string
 }
 
 export interface Protocol {
@@ -71,7 +139,20 @@ export const CHART_TYPES = {
 	activeUsers: { id: 'activeUsers', title: 'Active Users', chartType: 'bar', color: '#EC4899', groupable: true },
 	newUsers: { id: 'newUsers', title: 'New Users', chartType: 'bar', color: '#8B5CF6', groupable: true },
 	gasUsed: { id: 'gasUsed', title: 'Gas Used', chartType: 'bar', color: '#F59E0B', groupable: true },
-	medianApy: { id: 'medianApy', title: 'Median APY', chartType: 'area', color: '#059669' }
+	medianApy: { id: 'medianApy', title: 'Median APY', chartType: 'area', color: '#059669' },
+	stablecoins: { id: 'stablecoins', title: 'Stablecoins', chartType: 'area', color: '#06B6D4' },
+	stablecoinInflows: {
+		id: 'stablecoinInflows',
+		title: 'Stablecoin Inflows',
+		chartType: 'bar',
+		color: '#F59E0B',
+		groupable: true
+	},
+	chainFees: { id: 'chainFees', title: 'Chain Fees', chartType: 'bar', color: '#F59E0B', groupable: true },
+	chainRevenue: { id: 'chainRevenue', title: 'Chain Revenue', chartType: 'bar', color: '#F59E0B', groupable: true },
+	bridgedTvl: { id: 'bridgedTvl', title: 'Bridged TVL', chartType: 'area', color: '#9333EA' },
+	chainMcap: { id: 'chainMcap', title: 'Token MCap', chartType: 'area', color: '#2563EB' },
+	chainPrice: { id: 'chainPrice', title: 'Token Price', chartType: 'area', color: '#16A34A' }
 }
 
 // Helper functions to extract chart types from CHART_TYPES
@@ -96,6 +177,16 @@ export const getChainChartTypes = (): string[] => {
 		'tokenTax',
 		'activeUsers',
 		'newUsers',
-		'gasUsed'
+		'gasUsed',
+		'stablecoins',
+		'stablecoinInflows',
+		'chainFees',
+		'chainRevenue',
+		'bridgedTvl',
+		'chainMcap',
+		'chainPrice'
 	]
 }
+
+export const isMulti = (x: DashboardItemConfig): x is MultiChartConfig => x.kind === 'multi'
+export const isText = (x: DashboardItemConfig): x is TextConfig => x.kind === 'text'

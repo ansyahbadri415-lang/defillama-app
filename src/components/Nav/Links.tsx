@@ -38,6 +38,12 @@ export const defaultToolsAndFooterLinks = {
 			newTag: true
 		},
 		{
+			name: 'Support',
+			path: '/support',
+			external: false,
+			newTag: true
+		},
+		{
 			name: 'Report Error',
 			path: '/report-error',
 			external: false,
@@ -98,7 +104,7 @@ export const defaultToolsAndFooterLinks = {
 			path: '/liquidity',
 			external: true
 		},
-		{ name: 'Correlation', path: '/correlation', newTag: true },
+		{ name: 'Correlation', path: '/correlation' },
 		{
 			name: 'Press / Media',
 			path: '/press'
@@ -144,7 +150,7 @@ export const navLinks: ILinks = {
 			{ name: 'Bridged TVL', path: '/bridged' },
 			{ name: 'Compare Chains', path: '/compare-chains?chains=OP+Mainnet&chains=Arbitrum' },
 			{ name: 'Airdrops', path: '/airdrops' },
-			{ name: 'Treasuries', path: '/treasuries', newTag: true },
+			{ name: 'Treasuries', path: '/treasuries' },
 			{ name: 'Oracles', path: '/oracles' },
 			{ name: 'Forks', path: '/forks' },
 			{ name: 'Top Protocols', path: '/top-protocols' },
@@ -154,7 +160,7 @@ export const navLinks: ILinks = {
 			{ name: 'Categories', path: '/categories' },
 			{ name: 'Recent', path: '/recent' },
 			{ name: 'Languages', path: '/languages' },
-			{ name: 'Token PNL', path: '/token-pnl', newTag: true }
+			{ name: 'Token PNL', path: '/token-pnl' }
 		],
 		...defaultToolsAndFooterLinks,
 		icon: <Icon name="bar-chart-2" height={16} width={16} />
@@ -172,6 +178,12 @@ export const navLinks: ILinks = {
 		],
 		tools: [
 			{
+				name: 'Support',
+				path: '/support',
+				external: false,
+				newTag: true
+			},
+			{
 				name: 'Report Error',
 				path: '/report-error',
 				external: false,
@@ -183,19 +195,13 @@ export const navLinks: ILinks = {
 				name: 'Roundup',
 				path: '/roundup'
 			},
-			{ name: 'Trending Contracts', path: '/trending-contracts', newTag: true },
+			{ name: 'Trending Contracts', path: '/trending-contracts' },
 			{
 				name: 'Token Liquidity',
 				path: '/liquidity',
-				newTag: true,
 				external: true
 			},
-			{ name: 'Correlation', path: '/correlation', newTag: true },
-			{
-				name: 'Wiki',
-				path: 'https://wiki.defillama.com/wiki/Main_Page',
-				external: true
-			},
+			{ name: 'Correlation', path: '/correlation' },
 			{
 				name: 'Press / Media',
 				path: '/press'
@@ -241,13 +247,13 @@ export const navLinks: ILinks = {
 		main: [
 			{ name: 'DEXs', path: '/dexs' },
 			{ name: 'DEXs (chains)', path: '/dexs/chains' },
-			{ name: 'DEX Aggregators', path: '/dex-aggregators', newTag: true },
+			{ name: 'DEX Aggregators', path: '/dex-aggregators' },
 			{ name: 'Perps', path: '/perps' },
 			{ name: 'Perps (Chains)', path: '/perps/chains' },
-			{ name: 'Perps Aggregators', path: '/perps-aggregators', newTag: true },
+			{ name: 'Perps Aggregators', path: '/perps-aggregators' },
 			{ name: 'Options Premium Volume', path: '/options/premium-volume' },
 			{ name: 'Options Notional Volume', path: '/options/notional-volume' },
-			{ name: 'Bridge Aggregators', path: '/bridge-aggregators', newTag: true }
+			{ name: 'Bridge Aggregators', path: '/bridge-aggregators' }
 		],
 		...defaultToolsAndFooterLinks,
 		icon: <Icon name="bar-chart" height={16} width={16} />
@@ -262,6 +268,12 @@ export const navLinks: ILinks = {
 		...defaultToolsAndFooterLinks,
 		icon: <Icon name="pie-chart" height={16} width={16} />
 	},
+	'Pro Dashboard': {
+		main: [],
+		...defaultToolsAndFooterLinks,
+		icon: <Icon name="database" height={16} width={16} />,
+		newTag: true
+	},
 	'CEX Transparency': {
 		main: [],
 		...defaultToolsAndFooterLinks,
@@ -273,12 +285,11 @@ export const navLinks: ILinks = {
 			{ name: 'Calendar', path: '/unlocks/calendar' }
 		],
 		...defaultToolsAndFooterLinks,
-		icon: <Icon name="unlock" height={16} width={16} />,
-		newTag: true
+		icon: <Icon name="unlock" height={16} width={16} />
 	},
 	'Borrow Aggregator': {
 		main: [
-			{ name: 'Basic', path: '/borrow', newTag: true },
+			{ name: 'Basic', path: '/borrow' },
 			{ name: 'Advanced', path: '/borrow/advanced' }
 		],
 		...defaultToolsAndFooterLinks,
@@ -325,7 +336,7 @@ export const navLinks: ILinks = {
 		main: [
 			{ name: 'Overview', path: '/bridges' },
 			{ name: 'Chains', path: '/bridges/chains' },
-			{ name: 'Transactions', path: '/bridge-transactions', newTag: true }
+			{ name: 'Transactions', path: '/bridge-transactions' }
 		],
 		...defaultToolsAndFooterLinks,
 		icon: <Icon name="shuffle" height={16} width={16} />
@@ -352,5 +363,6 @@ export const linksWithNoSubMenu = [
 	{ name: 'ETH Liquid Staking', url: '/lst' },
 	{ name: 'ETFs', url: '/etfs' },
 	{ name: 'Pro API', url: '/pro-api' },
-	{ name: 'Narrative Tracker', url: '/narrative-tracker' }
+	{ name: 'Narrative Tracker', url: '/narrative-tracker' },
+	{ name: 'Pro Dashboard', url: '/pro' }
 ]

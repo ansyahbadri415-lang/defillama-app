@@ -14,6 +14,9 @@ import { VirtualTable } from '~/components/Table/Table'
 import { ColumnDef, getCoreRowModel, getSortedRowModel, SortingState, useReactTable } from '@tanstack/react-table'
 import { TokenLogo } from '~/components/TokenLogo'
 import { BasicLink } from '~/components/Link'
+import { fetchJson } from '~/utils/async'
+import { useMedia } from '~/hooks/useMedia'
+import { Switch } from '~/components/Switch'
 
 export const getStaticProps = withPerformanceLogging('tokenUsage', async () => {
 	const searchData = await getAllCGTokensList()
@@ -36,6 +39,7 @@ export const getStaticProps = withPerformanceLogging('tokenUsage', async () => {
 
 export default function Tokens({ searchData }) {
 	const router = useRouter()
+	const isSmall = useMedia(`(max-width: 639px)`)
 
 	const { token, includecex } = router.query
 
@@ -58,13 +62,9 @@ export default function Tokens({ searchData }) {
 
 	const filteredProtocols = useMemo(() => {
 		return (
-			protocols
-				?.filter((protocol) =>
-					!protocol.misrepresentedTokens && protocol.category?.toLowerCase() === 'cex'
-						? includeCentraliseExchanges
-						: true
-				)
-				?.map((p) => ({ ...p, amountUsd: Object.values(p.amountUsd).reduce((s: number, a: number) => s + a, 0) })) ?? []
+			protocols?.filter((protocol) =>
+				!protocol.misrepresentedTokens && protocol.category?.toLowerCase() === 'cex' ? includeCentraliseExchanges : true
+			) ?? []
 		)
 	}, [protocols, includeCentraliseExchanges])
 
@@ -84,8 +84,17 @@ export default function Tokens({ searchData }) {
 	return (
 		<Layout title="Token Usage - DefiLlama" defaultSEO>
 			<Announcement notCancellable>This is not an exhaustive list</Announcement>
-			<DesktopSearch data={searchData} placeholder="Search tokens..." data-alwaysdisplay onItemClick={onItemClick} />
-			<div className="bg-[var(--cards-bg)] rounded-md w-full">
+
+			<DesktopSearch
+				data={searchData}
+				placeholder="Search tokens..."
+				data-alwaysdisplay
+				onItemClick={onItemClick}
+				customSearchRoute="/token-usage?token="
+				variant={isSmall ? 'secondary' : 'primary'}
+			/>
+
+			<div className="bg-(--cards-bg) rounded-md w-full">
 				{isLoading ? (
 					<div className="flex items-center justify-center mx-auto w-full my-32">
 						<LocalLoader />
@@ -94,31 +103,34 @@ export default function Tokens({ searchData }) {
 					<></>
 				) : (
 					<>
-						<div className="flex items-center gap-2 justify-between p-3">
-							<h1 className="text-xl font-medium">{`${tokenSymbol.toUpperCase()} usage in protocols`}</h1>
-							<CSVDownloadButton onClick={downloadCSV} />
+						<div className="flex items-center justify-between flex-wrap gap-2 p-3">
+							<div className="text-lg font-semibold flex grow w-full sm:w-auto">{`${tokenSymbol.toUpperCase()} usage in protocols`}</div>
 
-							{/* <div className="flex items-center gap-4">
-								<input
-									type="checkbox"
+							<div className="flex items-center gap-2 max-sm:w-full">
+								<Switch
+									label="Include CEXs"
 									value="includeCentraliseExchanges"
 									checked={includeCentraliseExchanges}
 									onChange={() =>
-										router.push({
-											pathname: router.pathname,
-											query: { ...router.query, includecex: !includeCentraliseExchanges }
-										})
+										router.push(
+											{
+												pathname: router.pathname,
+												query: { ...router.query, includecex: !includeCentraliseExchanges }
+											},
+											undefined,
+											{ shallow: true }
+										)
 									}
 								/>
-								<span>Include CEXs</span>
-							</div> */}
+								<CSVDownloadButton onClick={downloadCSV} />
+							</div>
 						</div>
 
 						<Suspense
 							fallback={
 								<div
 									style={{ minHeight: `${filteredProtocols.length * 50 + 200}px` }}
-									className="bg-[var(--cards-bg)] rounded-md"
+									className="bg-(--cards-bg) border border-(--cards-border) rounded-md"
 								/>
 							}
 						>
@@ -134,8 +146,11 @@ export default function Tokens({ searchData }) {
 const fetchProtocols = async (tokenSymbol) => {
 	if (!tokenSymbol) return null
 	try {
-		const data = await fetch(`${PROTOCOLS_BY_TOKEN_API}/${tokenSymbol.toUpperCase()}`).then((res) => res.json())
-		return data
+		const data = await fetchJson(`${PROTOCOLS_BY_TOKEN_API}/${tokenSymbol.toUpperCase()}`)
+		return (
+			data?.map((p) => ({ ...p, amountUsd: Object.values(p.amountUsd).reduce((s: number, a: number) => s + a, 0) })) ??
+			[]
+		)
 	} catch (error) {
 		throw new Error(error instanceof Error ? error.message : 'Failed to fetch')
 	}
@@ -169,11 +184,11 @@ const columns: ColumnDef<{ name: string; amountUsd: number }>[] = [
 
 			return (
 				<span className="flex items-center gap-2">
-					<span className="flex-shrink-0">{index + 1}</span>
+					<span className="shrink-0">{index + 1}</span>
 					<TokenLogo logo={tokenIconUrl(value)} data-lgonly />
 					<BasicLink
 						href={`/protocol/${slug(value)}`}
-						className="text-sm font-medium text-[var(--link-text)] overflow-hidden whitespace-nowrap text-ellipsis hover:underline"
+						className="text-sm font-medium text-(--link-text) overflow-hidden whitespace-nowrap text-ellipsis hover:underline"
 					>{`${value}`}</BasicLink>
 				</span>
 			)

@@ -1,9 +1,14 @@
 import type { IJoin2ReturnType, IOverviewProps, ProtocolAdaptorSummaryProps } from '~/api/categories/adaptors'
-import { ADAPTER_TYPES } from './constants'
+import { ADAPTER_TYPES, ADAPTER_DATA_TYPES } from './constants'
 
 export interface IProtocolContainerProps {
 	protocolSummary: ProtocolAdaptorSummaryProps
 	title: string
+	metadata?: {
+		revenue?: boolean
+		bribeRevenue?: boolean
+		tokenTax?: boolean
+	}
 }
 
 export interface IDimensionChainChartProps {
@@ -104,7 +109,7 @@ export interface IAdapterByChainPageData {
 	protocols: Array<IAdapterByChainPageProtocol>
 	categories: Array<string>
 	adapterType: `${ADAPTER_TYPES}`
-	dataType: string | null
+	dataType: `${ADAPTER_DATA_TYPES}` | null
 	chartData: Array<[number, number]>
 	total24h: number | null
 	total7d: number | null
@@ -117,7 +122,7 @@ export interface IAdapterByChainPageData {
 
 export interface IChainsByAdapterPageData {
 	adapterType: `${ADAPTER_TYPES}`
-	dataType: string | null
+	dataType: `${ADAPTER_DATA_TYPES}` | null
 	chartData: Record<string, Record<string, number>>
 	chains: Array<{
 		name: string

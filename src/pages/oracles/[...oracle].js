@@ -1,5 +1,4 @@
-import { useMemo } from 'react'
-import dynamic from 'next/dynamic'
+import { lazy, Suspense, useMemo } from 'react'
 import Layout from '~/layout'
 import { RowLinksWithDropdown } from '~/components/RowLinksWithDropdown'
 import { formatChartTvlsByDay } from '~/hooks/data'
@@ -12,11 +11,9 @@ import { ProtocolsTableWithSearch } from '~/components/Table/Defi/Protocols'
 import { getOraclePageData } from '~/containers/Oracles/queries'
 import { ProtocolsChainsSearch } from '~/components/Search/ProtocolsChains'
 import { oldBlue } from '~/constants/colors'
+import { protocolsOracleColumns } from '~/components/Table/Defi/Protocols/columns'
 
-const LineAndBarChart = dynamic(() => import('~/components/ECharts/LineAndBarChart'), {
-	ssr: false,
-	loading: () => <></>
-})
+const LineAndBarChart = lazy(() => import('~/components/ECharts/LineAndBarChart'))
 
 export const getStaticProps = withPerformanceLogging(
 	'oracles/[...oracle]',
@@ -55,10 +52,15 @@ export async function getStaticPaths() {
 const PageView = ({ chartData, tokenLinks, token, filteredProtocols, chain, chainChartData }) => {
 	const [extraTvlsEnabled] = useLocalStorageSettingsManager('tvl')
 	const { protocolsData, charts, totalValue } = useMemo(() => {
-		const protocolsData = formatDataWithExtraTvls({
+		const dataWithTvs = formatDataWithExtraTvls({
 			data: filteredProtocols,
 			extraTvlsEnabled
 		})
+
+		const protocolsData = dataWithTvs.map((p) => ({
+			...p,
+			tvs: p.tvs ?? p.tvl ?? 0
+		}))
 
 		const finalChartData = formatChartTvlsByDay({ data: chainChartData || chartData, extraTvlsEnabled, key: 'TVS' })
 
@@ -83,7 +85,7 @@ const PageView = ({ chartData, tokenLinks, token, filteredProtocols, chain, chai
 
 	if (protocolsData.length > 0) {
 		topToken.name = protocolsData[0]?.name
-		topToken.tvl = protocolsData[0]?.tvl
+		topToken.tvl = protocolsData[0]?.tvs
 	}
 
 	const dominance = getTokenDominance(topToken, totalValue)
@@ -95,7 +97,7 @@ const PageView = ({ chartData, tokenLinks, token, filteredProtocols, chain, chai
 			<RowLinksWithDropdown links={tokenLinks} activeLink={chain ?? 'All'} />
 
 			<div className="grid grid-cols-2 relative isolate xl:grid-cols-3 gap-1">
-				<div className="bg-[var(--cards-bg)] rounded-md flex flex-col gap-6 p-5 col-span-2 w-full xl:col-span-1 overflow-x-auto">
+				<div className="bg-(--cards-bg) rounded-md flex flex-col gap-6 p-5 col-span-2 w-full xl:col-span-1 overflow-x-auto">
 					<h1 className="text-xl font-semibold">{token}</h1>
 					<p className="flex flex-col">
 						<span className="text-[#545757] dark:text-[#cccccc]">Total Value Secured (USD)</span>
@@ -107,12 +109,14 @@ const PageView = ({ chartData, tokenLinks, token, filteredProtocols, chain, chai
 					</p>
 				</div>
 
-				<div className="bg-[var(--cards-bg)] rounded-md flex flex-col col-span-2 min-h-[360px]">
-					<LineAndBarChart charts={charts} alwaysShowTooltip />
+				<div className="bg-(--cards-bg) rounded-md flex flex-col col-span-2 min-h-[360px]">
+					<Suspense fallback={<></>}>
+						<LineAndBarChart charts={charts} alwaysShowTooltip />
+					</Suspense>
 				</div>
 			</div>
 
-			<ProtocolsTableWithSearch data={protocolsData} />
+			<ProtocolsTableWithSearch data={protocolsData} columns={protocolsOracleColumns} />
 		</>
 	)
 }

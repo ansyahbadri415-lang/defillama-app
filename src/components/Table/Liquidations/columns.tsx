@@ -8,6 +8,7 @@ import { getReadableValue } from '~/containers/Liquidations/utils'
 import { ILiquidablePositionsRow, ILiquidableProtocolRow } from './types'
 import { useQuery } from '@tanstack/react-query'
 import { Icon } from '~/components/Icon'
+import { fetchJson } from '~/utils/async'
 
 export const liquidatableProtocolsColumns: ColumnDef<ILiquidableProtocolRow>[] = [
 	{
@@ -168,7 +169,7 @@ export const liquidatablePositionsColumns: ColumnDef<ILiquidablePositionsRow>[] 
 
 const fetchApi = async (url: string) => {
 	try {
-		const data = await fetch(url).then((res) => res.json())
+		const data = await fetchJson(url)
 		return data
 	} catch (error) {
 		throw new Error(error instanceof Error ? error.message : `Failed to fetch ${url}`)
@@ -201,11 +202,11 @@ const ProtocolName = ({ value, index }: { value: string; index: number }) => {
 
 	return (
 		<span className="flex items-center gap-2">
-			<span className="flex-shrink-0">{index + 1}</span>
+			<span className="shrink-0">{index + 1}</span>
 			<TokenLogo logo={data.logo} data-lgonly />
 			<BasicLink
 				href={`/protocol/${_value}`}
-				className="text-sm font-medium text-[var(--link-text)] overflow-hidden whitespace-nowrap text-ellipsis hover:underline min-w-[200px] ml-4"
+				className="text-sm font-medium text-(--link-text) overflow-hidden whitespace-nowrap text-ellipsis hover:underline min-w-[200px] ml-4"
 			>
 				{data.name}
 			</BasicLink>
@@ -236,11 +237,11 @@ const ChainName = ({ value, index }: { value: string; index?: number }) => {
 
 	return (
 		<span className="flex items-center gap-2">
-			{(index || index === 0) && <span className="flex-shrink-0">{index + 1}</span>}
+			{(index || index === 0) && <span className="shrink-0">{index + 1}</span>}
 			<TokenLogo logo={chainIconUrl(name)} data-lgonly />
 			<BasicLink
 				href={`/chain/${_name}`}
-				className="text-sm font-medium text-[var(--link-text)] overflow-hidden whitespace-nowrap text-ellipsis hover:underline min-w-[200px] ml-4"
+				className="text-sm font-medium text-(--link-text) overflow-hidden whitespace-nowrap text-ellipsis hover:underline min-w-[200px] ml-4"
 			>
 				{_name}
 			</BasicLink>

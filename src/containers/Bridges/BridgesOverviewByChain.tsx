@@ -1,5 +1,4 @@
 import * as React from 'react'
-import dynamic from 'next/dynamic'
 import { BRIDGES_SHOWING_TXS, useLocalStorageSettingsManager } from '~/contexts/LocalStorage'
 import { RowLinksWithDropdown } from '~/components/RowLinksWithDropdown'
 import type { IBarChartProps, IPieChartProps } from '~/components/ECharts/types'
@@ -14,25 +13,17 @@ import { CSVDownloadButton } from '~/components/ButtonStyled/CsvButton'
 import { useEffect } from 'react'
 import { BridgeVolumeChart } from '~/components/Charts/BridgeVolumeChart'
 
-const BarChart = dynamic(() => import('~/components/ECharts/BarChart'), {
-	ssr: false,
-	loading: () => <div className="min-h-[360px]" />
-}) as React.FC<IBarChartProps>
+const BarChart = React.lazy(() => import('~/components/ECharts/BarChart')) as React.FC<IBarChartProps>
 
-const PieChart = dynamic(() => import('~/components/ECharts/PieChart'), {
-	ssr: false,
-	loading: () => <div className="min-h-[360px]" />
-}) as React.FC<IPieChartProps>
+const PieChart = React.lazy(() => import('~/components/ECharts/PieChart')) as React.FC<IPieChartProps>
 
-const NetflowChart = dynamic(() => import('~/components/ECharts/BarChart/NetflowChart'), {
-	ssr: false,
-	loading: () => <div className="min-h-[600px]" />
-}) as React.FC<any>
+const NetflowChart = React.lazy(() => import('~/components/ECharts/BarChart/NetflowChart')) as React.FC<any>
 
 export function BridgesOverviewByChain({
 	selectedChain = 'All',
 	chains = [],
 	filteredBridges,
+	messagingProtocols,
 	bridgeNames,
 	bridgeNameToChartDataIndex,
 	chartDataByBridge,
@@ -43,6 +34,7 @@ export function BridgesOverviewByChain({
 	const [enableBreakdownChart, setEnableBreakdownChart] = React.useState(false)
 	const [chartType, setChartType] = React.useState(selectedChain === 'All' ? 'Volumes' : 'Bridge Volume')
 	const [chartView, setChartView] = React.useState<'default' | 'netflow' | 'volume'>('netflow')
+	const [activeTab, setActiveTab] = React.useState<'bridges' | 'messaging'>('bridges')
 
 	useEffect(() => {
 		setChartView('netflow')
@@ -108,11 +100,16 @@ export function BridgesOverviewByChain({
 	}, [chainVolumeData])
 
 	const downloadCsv = () => {
-		const filteredBridgeNames = bridgeNames.filter((bridgeName) => {
+		const allBridges = [...(filteredBridges || []), ...(messagingProtocols || [])]
+		const allBridgeNames = allBridges.map((bridge) => bridge.displayName)
+
+		const filteredBridgeNames = allBridgeNames.filter((bridgeName) => {
 			const chartDataIndex = bridgeNameToChartDataIndex[bridgeName]
 			const charts = chartDataByBridge[chartDataIndex]
-			return charts.length
+			return charts && charts.length
 		})
+
+		const fileName = 'bridge-and-messaging-volumes.csv'
 		const rows = [['Timestamp', 'Date', ...filteredBridgeNames, 'Total']]
 		let stackedDatasetObject = {} as any
 		filteredBridgeNames.map((bridgeName) => {
@@ -139,7 +136,7 @@ export function BridgesOverviewByChain({
 					}, 0)
 				])
 			})
-		download('bridge-volumes.csv', rows.map((r) => r.join(',')).join('\n'))
+		download(fileName, rows.map((r) => r.join(',')).join('\n'))
 	}
 
 	const downloadChartCsv = () => {
@@ -196,8 +193,10 @@ export function BridgesOverviewByChain({
 		let dayTotalVolume, weekTotalVolume, monthTotalVolume
 		dayTotalVolume = weekTotalVolume = monthTotalVolume = 0
 
-		if (filteredBridges) {
-			filteredBridges?.forEach((bridge) => {
+		const bridgesToCalculate = activeTab === 'bridges' ? filteredBridges : messagingProtocols
+
+		if (bridgesToCalculate) {
+			bridgesToCalculate?.forEach((bridge) => {
 				dayTotalVolume += Number(bridge?.lastDailyVolume) || 0
 				weekTotalVolume += Number(bridge?.weeklyVolume) || 0
 				monthTotalVolume += Number(bridge?.monthlyVolume) || 0
@@ -215,7 +214,7 @@ export function BridgesOverviewByChain({
 			}
 		}
 		return { dayTotalVolume, weekTotalVolume, monthTotalVolume }
-	}, [chainVolumeData, selectedChain, filteredBridges])
+	}, [chainVolumeData, selectedChain, filteredBridges, messagingProtocols, activeTab])
 
 	return (
 		<>
@@ -224,7 +223,7 @@ export function BridgesOverviewByChain({
 			<RowLinksWithDropdown links={chainOptions} activeLink={selectedChain} />
 
 			<div className="grid grid-cols-2 relative isolate xl:grid-cols-3 gap-1">
-				<div className="bg-[var(--cards-bg)] rounded-md flex flex-col gap-6 p-5 col-span-2 w-full xl:col-span-1 overflow-x-auto">
+				<div className="bg-(--cards-bg) rounded-md flex flex-col gap-6 p-5 col-span-2 w-full xl:col-span-1 overflow-x-auto">
 					<h1 className="flex flex-col">
 						<span className="text-[#545757] dark:text-[#cccccc]">Total volume (24h)</span>
 						<span className="font-semibold text-3xl font-jetbrains">{formattedNum(dayTotalVolume, true)}</span>
@@ -240,12 +239,12 @@ export function BridgesOverviewByChain({
 
 					<CSVDownloadButton onClick={downloadCsv} className="mt-auto mr-auto" />
 				</div>
-				<div className="bg-[var(--cards-bg)] rounded-md flex flex-col col-span-2">
+				<div className="bg-(--cards-bg) rounded-md flex flex-col col-span-2">
 					{selectedChain === 'All' ? (
 						<>
 							<div className="flex items-center">
 								<button
-									className="flex-1 flex items-center justify-center p-3 text-xs font-medium border-b-2 border-[var(--link-bg)] hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] data-[active=true]:bg-[var(--link-bg)] data-[active=true]:border-[var(--old-blue)]"
+									className="flex-1 flex items-center justify-center p-3 text-xs font-medium border-b-2 border-(--link-bg) hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) data-[active=true]:bg-(--link-bg) data-[active=true]:border-(--old-blue)"
 									data-active={chartView === 'netflow'}
 									onClick={() => setChartView('netflow')}
 								>
@@ -253,7 +252,7 @@ export function BridgesOverviewByChain({
 								</button>
 
 								<button
-									className="flex-1 flex items-center justify-center p-3 text-xs font-medium border-b-2 border-[var(--link-bg)] hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] data-[active=true]:bg-[var(--link-bg)] data-[active=true]:border-[var(--old-blue)]"
+									className="flex-1 flex items-center justify-center p-3 text-xs font-medium border-b-2 border-(--link-bg) hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) data-[active=true]:bg-(--link-bg) data-[active=true]:border-(--old-blue)"
 									onClick={() => setChartView('volume')}
 									data-active={chartView === 'volume'}
 								>
@@ -262,7 +261,9 @@ export function BridgesOverviewByChain({
 							</div>
 
 							{chartView === 'netflow' ? (
-								<NetflowChart height={600} />
+								<React.Suspense fallback={<div className="min-h-[600px]" />}>
+									<NetflowChart height={600} />
+								</React.Suspense>
 							) : (
 								<BridgeVolumeChart chain={selectedChain === 'All' ? 'all' : selectedChain} height="360px" />
 							)}
@@ -287,31 +288,47 @@ export function BridgesOverviewByChain({
 								<BridgeVolumeChart chain={selectedChain === 'All' ? 'all' : selectedChain} height="360px" />
 							)}
 							{chartType === 'Net Flow' && chainNetFlowData && chainNetFlowData.length > 0 && (
-								<BarChart
-									chartData={chainNetFlowData}
-									title=""
-									hideDefaultLegend={true}
-									customLegendName="Volume"
-									customLegendOptions={['Net Flow']}
-								/>
+								<React.Suspense fallback={<div className="min-h-[360px]" />}>
+									<BarChart
+										chartData={chainNetFlowData}
+										title=""
+										hideDefaultLegend={true}
+										customLegendName="Volume"
+										customLegendOptions={['Net Flow']}
+									/>
+								</React.Suspense>
 							)}
 							{chartType === 'Net Flow (%)' && chainPercentageNet && chainPercentageNet.length > 0 && (
-								<BarChart
-									chartData={chainPercentageNet}
-									title=""
-									valueSymbol="%"
-									stacks={{ Inflows: 'stackA', Outflows: 'stackA' }}
-									hideDefaultLegend={true}
-									customLegendName="Volume"
-									customLegendOptions={['Inflows', 'Outflows']}
-								/>
+								<React.Suspense fallback={<div className="min-h-[360px]" />}>
+									<BarChart
+										chartData={chainPercentageNet}
+										title=""
+										valueSymbol="%"
+										stacks={{ Inflows: 'stackA', Outflows: 'stackA' }}
+										hideDefaultLegend={true}
+										customLegendName="Volume"
+										customLegendOptions={['Inflows', 'Outflows']}
+									/>
+								</React.Suspense>
 							)}
 							{chartType === 'Inflows' && (
 								<BridgeVolumeChart chain={selectedChain === 'All' ? 'all' : selectedChain} height="360px" />
 							)}
-							{chartType === 'Net Flow By Chain' && <NetflowChart height="600px" />}
-							{chartType === '24h Tokens Deposited' && <PieChart chartData={tokenWithdrawals} />}
-							{chartType === '24h Tokens Withdrawn' && <PieChart chartData={tokenDeposits} />}
+							{chartType === 'Net Flow By Chain' && (
+								<React.Suspense fallback={<div className="min-h-[600px]" />}>
+									<NetflowChart height="600px" />
+								</React.Suspense>
+							)}
+							{chartType === '24h Tokens Deposited' && (
+								<React.Suspense fallback={<div className="min-h-[360px]" />}>
+									<PieChart chartData={tokenWithdrawals} />
+								</React.Suspense>
+							)}
+							{chartType === '24h Tokens Withdrawn' && (
+								<React.Suspense fallback={<div className="min-h-[360px]" />}>
+									<PieChart chartData={tokenDeposits} />
+								</React.Suspense>
+							)}
 						</>
 					)}
 					<div className="flex items-center justify-end p-3">
@@ -320,15 +337,33 @@ export function BridgesOverviewByChain({
 				</div>
 			</div>
 
-			<div className="bg-[var(--cards-bg)] rounded-md">
-				<div className="p-3 w-full max-w-fit ml-auto">
-					<TxsTableSwitch />
+			<div className="bg-(--cards-bg) border border-(--cards-border) rounded-md">
+				<div className="flex items-center justify-between p-3">
+					<div className="flex items-center">
+						<button
+							className="px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) data-[active=true]:border-(--old-blue)"
+							data-active={activeTab === 'bridges'}
+							onClick={() => setActiveTab('bridges')}
+						>
+							Bridges
+						</button>
+						<button
+							className="px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) data-[active=true]:border-(--old-blue)"
+							data-active={activeTab === 'messaging'}
+							onClick={() => setActiveTab('messaging')}
+						>
+							Messaging Protocols
+						</button>
+					</div>
+					<div className="ml-auto">
+						<TxsTableSwitch />
+					</div>
 				</div>
 
 				{isBridgesShowingTxs ? (
 					<LargeTxsTable data={largeTxsData} chain={selectedChain} />
 				) : (
-					<BridgesTable data={filteredBridges} />
+					<BridgesTable data={activeTab === 'bridges' ? filteredBridges : messagingProtocols} />
 				)}
 			</div>
 		</>

@@ -1,5 +1,5 @@
 import { DARK_MODE, TSETTINGTYPE, useDarkModeManager, useLocalStorageSettingsManager } from '~/contexts/LocalStorage'
-import { protocolsAndChainsOptions } from '~/components/Filters/options'
+import { tvlOptions } from '~/components/Filters/options'
 import { nftOptions } from '~/components/Filters/nfts/options'
 import { useRouter } from 'next/router'
 import { feesOptions } from '~/components/Filters/options'
@@ -7,7 +7,7 @@ import { Icon } from '~/components/Icon'
 import * as Ariakit from '@ariakit/react'
 
 export function Settings() {
-	const [darkMode] = useDarkModeManager()
+	const [darkMode, toggleDarkMode] = useDarkModeManager()
 
 	const { options, dashboardType } = useAppSettings()
 
@@ -18,8 +18,11 @@ export function Settings() {
 		.filter((key) => enabledOptions[key])
 		.concat(darkMode ? [DARK_MODE] : [])
 
-	const onChange = (values) => {
-		if (values.length < selectedOptions.length) {
+	const onChange = (values: string[]) => {
+		const isDarkMode = values.includes(DARK_MODE)
+		if (isDarkMode !== darkMode) {
+			toggleDarkMode()
+		} else if (values.length < selectedOptions.length) {
 			const off = selectedOptions.find((o) => !values.includes(o))
 			updater(off)
 		} else {
@@ -39,11 +42,11 @@ export function Settings() {
 				hideOnInteractOutside
 				gutter={6}
 				wrapperProps={{
-					className: 'max-sm:!fixed max-sm:!bottom-0 max-sm:!top-[unset] max-sm:!transform-none max-sm:!w-full'
+					className: 'max-sm:fixed! max-sm:bottom-0! max-sm:top-[unset]! max-sm:transform-none! max-sm:w-full!'
 				}}
-				className="flex flex-col bg-[var(--bg1)] rounded-md max-sm:rounded-b-none z-10 overflow-auto overscroll-contain min-w-[180px] border border-[hsl(204,20%,88%)] dark:border-[hsl(204,3%,32%)] max-sm:drawer h-full max-h-[70vh] sm:max-h-[60vh]"
+				className="flex flex-col bg-(--bg1) rounded-md max-sm:rounded-b-none z-10 overflow-auto overscroll-contain min-w-[180px] border border-[hsl(204,20%,88%)] dark:border-[hsl(204,3%,32%)] max-sm:drawer h-full max-h-[70vh] sm:max-h-[60vh]"
 			>
-				<h1 className="text-[var(--text2)] my-2 mx-3">Settings</h1>
+				<h1 className="text-(--text2) my-2 mx-3">Settings</h1>
 				<hr className="border-black/20 dark:border-white/20" />
 				{options.map((option) => (
 					<Ariakit.SelectItem
@@ -107,8 +110,8 @@ const useAppSettings = (): {
 	}
 
 	if (router.pathname.startsWith('/protocol')) {
-		return { options: [...protocolsAndChainsOptions, ...feesOptions], dashboardType: 'tvl_fees' }
+		return { options: [...tvlOptions, ...feesOptions], dashboardType: 'tvl_fees' }
 	}
 
-	return { options: protocolsAndChainsOptions, dashboardType: 'tvl_fees' }
+	return { options: tvlOptions, dashboardType: 'tvl_fees' }
 }

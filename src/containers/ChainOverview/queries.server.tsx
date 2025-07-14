@@ -21,8 +21,7 @@ import {
 import { getPeggedOverviewPageData } from '~/containers/Stablecoins/queries.server'
 import { buildStablecoinChartData, getStablecoinDominance } from '~/containers/Stablecoins/utils'
 import { getNDistinctColors, getPercentChange, slug, tokenIconUrl } from '~/utils'
-import { fetchWithErrorLogging } from '~/utils/async'
-import metadataCache from '~/utils/metadata'
+import { fetchJson } from '~/utils/async'
 import type {
 	IChainMetadata,
 	IChainOverviewData,
@@ -38,12 +37,15 @@ import type {
 } from './types'
 import { formatChainAssets, toFilterProtocol, toStrikeTvl } from './utils'
 import { getAnnualizedRatio } from '~/api/categories/adaptors'
-import { getAllProtocolEmissions, getETFData, getProtocolEmissons } from '~/api/categories/protocols'
+import { getAllProtocolEmissions, getETFData } from '~/api/categories/protocols'
+import { tvlOptions } from '~/components/Filters/options'
+import { ChainChartLabels } from './constants'
 
 export async function getChainOverviewData({ chain }: { chain: string }): Promise<IChainOverviewData | null> {
+	const metadataCache = await import('~/utils/metadata').then((m) => m.default)
 	const metadata: IChainMetadata =
 		chain === 'All'
-			? { name: 'All', stablecoins: true, fees: true, dexs: true, derivatives: true }
+			? { name: 'All', stablecoins: true, fees: true, dexs: true, perps: true, id: 'all' }
 			: metadataCache.chainMetadata[slug(chain)]
 
 	if (!metadata) return null
@@ -63,6 +65,7 @@ export async function getChainOverviewData({ chain }: { chain: string }): Promis
 			nftVolumesData,
 			chainAssets,
 			appRevenue,
+			appFees,
 			chainFees,
 			chainRevenue,
 			perps,
@@ -106,6 +109,7 @@ export async function getChainOverviewData({ chain }: { chain: string }): Promis
 			IAdapterSummary | null,
 			IAdapterSummary | null,
 			IAdapterSummary | null,
+			IAdapterSummary | null,
 			IAdapterOverview | null,
 			number | null,
 			Array<[number, number]> | null,
@@ -114,7 +118,7 @@ export async function getChainOverviewData({ chain }: { chain: string }): Promis
 			any,
 			any
 		] = await Promise.all([
-			fetchWithErrorLogging(`${CHART_API}${chain === 'All' ? '' : `/${metadata.name}`}`).then((r) => r.json()),
+			fetchJson(`${CHART_API}${chain === 'All' ? '' : `/${metadata.name}`}`),
 			getProtocolsByChain({ chain, metadata }),
 			getPeggedOverviewPageData(chain === 'All' ? null : metadata.name)
 				.then((data) => {
@@ -177,40 +181,35 @@ export async function getChainOverviewData({ chain }: { chain: string }): Promis
 						.catch(() => null),
 			!metadata.activeUsers
 				? Promise.resolve(null)
-				: fetchWithErrorLogging(`${PROTOCOL_ACTIVE_USERS_API}/chain$${metadata.name}`)
-						.then((res) => res.json())
+				: fetchJson(`${PROTOCOL_ACTIVE_USERS_API}/chain$${metadata.name}`)
 						.then((data: Array<[number, number]>) => data?.[data?.length - 1]?.[1] ?? null)
 						.catch(() => null),
 			!metadata.activeUsers
 				? Promise.resolve(null)
-				: fetchWithErrorLogging(`${PROTOCOL_TRANSACTIONS_API}/chain$${metadata.name}`)
-						.then((res) => res.json())
+				: fetchJson(`${PROTOCOL_TRANSACTIONS_API}/chain$${metadata.name}`)
 						.then((data: Array<[number, string]>) => data?.[data?.length - 1]?.[1] ?? null)
 						.catch(() => null),
 			!metadata.activeUsers
 				? Promise.resolve(null)
-				: fetchWithErrorLogging(`${PROTOCOL_NEW_USERS_API}/chain$${metadata.name}`)
-						.then((res) => res.json())
+				: fetchJson(`${PROTOCOL_NEW_USERS_API}/chain$${metadata.name}`)
 						.then((data: Array<[number, number]>) => data?.[data?.length - 1]?.[1] ?? null)
 						.catch(() => null),
-			fetchWithErrorLogging(RAISES_API).then((r) => r.json()),
-			chain === 'All' ? Promise.resolve(null) : fetchWithErrorLogging(PROTOCOLS_TREASURY).then((r) => r.json()),
+			fetchJson(RAISES_API),
+			chain === 'All' ? Promise.resolve(null) : fetchJson(PROTOCOLS_TREASURY),
 			metadata.gecko_id
-				? fetchWithErrorLogging(
+				? fetchJson(
 						`https://pro-api.coingecko.com/api/v3/coins/${metadata.gecko_id}?tickers=true&community_data=false&developer_data=false&sparkline=false`,
 						{
 							headers: {
 								'x-cg-pro-api-key': process.env.CG_KEY
 							}
 						}
-				  ).then((res) => res.json())
+				  ).catch(() => ({}))
 				: Promise.resolve({}),
 			chain && chain !== 'All'
-				? fetchWithErrorLogging(`https://defillama-datasets.llama.fi/temp/chainNfts`).then((res) => res.json())
+				? fetchJson(`https://defillama-datasets.llama.fi/temp/chainNfts`)
 				: Promise.resolve(null),
-			fetchWithErrorLogging(CHAINS_ASSETS)
-				.then((res) => res.json())
-				.catch(() => ({})),
+			fetchJson(CHAINS_ASSETS).catch(() => ({})),
 			metadata.fees && chain !== 'All'
 				? getAdapterChainOverview({
 						adapterType: 'fees',
@@ -218,6 +217,18 @@ export async function getChainOverviewData({ chain }: { chain: string }): Promis
 						excludeTotalDataChart: true,
 						excludeTotalDataChartBreakdown: true,
 						dataType: 'dailyAppRevenue'
+				  }).catch((err) => {
+						console.log(err)
+						return null
+				  })
+				: Promise.resolve(null),
+			metadata.fees && chain !== 'All'
+				? getAdapterChainOverview({
+						adapterType: 'fees',
+						chain: metadata.name,
+						excludeTotalDataChart: true,
+						excludeTotalDataChartBreakdown: true,
+						dataType: 'dailyAppFees'
 				  }).catch((err) => {
 						console.log(err)
 						return null
@@ -246,7 +257,7 @@ export async function getChainOverviewData({ chain }: { chain: string }): Promis
 						return null
 				  })
 				: Promise.resolve(null),
-			metadata.derivatives
+			metadata.perps
 				? getAdapterChainOverview({
 						adapterType: 'derivatives',
 						chain: metadata.name,
@@ -277,18 +288,16 @@ export async function getChainOverviewData({ chain }: { chain: string }): Promis
 						.catch(() => null)
 				: Promise.resolve(null),
 			chain === 'All'
-				? fetchWithErrorLogging(`https://pro-api.coingecko.com/api/v3/global/market_cap_chart?days=14`, {
+				? fetchJson(`https://pro-api.coingecko.com/api/v3/global/market_cap_chart?days=14`, {
 						headers: {
 							'x-cg-pro-api-key': process.env.CG_KEY
 						}
 				  })
-						.then((res) => res.json())
 						.then((data) => data?.market_cap_chart?.market_cap?.slice(0, 14) ?? null)
 						.catch(() => null)
 				: Promise.resolve(null),
 			chain === 'All'
-				? fetchWithErrorLogging(`https://api.llama.fi/categories`)
-						.then((res) => res.json())
+				? fetchJson(`https://api.llama.fi/categories`)
 						.then((data) => {
 							const chart = Object.entries(data.chart)
 
@@ -301,13 +310,10 @@ export async function getChainOverviewData({ chain }: { chain: string }): Promis
 				: Promise.resolve(null),
 			chain === 'All' ? getAllProtocolEmissions({ getHistoricalPrices: false }) : Promise.resolve(null),
 			chain !== 'All'
-				? fetchWithErrorLogging(`https://api.llama.fi/emissionsBreakdownAggregated`)
-						.then((res) => res.json())
-						.then(async (data) => {
+				? fetchJson(`https://api.llama.fi/emissionsBreakdownAggregated`)
+						.then((data) => {
 							const protocolData = data.protocols.find((item) => item.chain === metadata.name)
-							const protocolEmissions = await getProtocolEmissons(slug(protocolData.name))
 							return {
-								incentivesChart: protocolEmissions.unlockUsdChart,
 								emissions24h: protocolData.emission24h,
 								emissions7d: protocolData.emission7d,
 								emissions30d: protocolData.emission30d
@@ -329,36 +335,56 @@ export async function getChainOverviewData({ chain }: { chain: string }): Promis
 			dcAndLsOverlap = []
 		} = chartData || {}
 
-		const tvlChart = tvl.map(([date, totalLiquidityUSD]) => [date, Math.trunc(totalLiquidityUSD)]) as Array<
-			[string, number]
-		>
-
+		const tvlAndFeesOptions = tvlOptions.filter((o) => chartData?.[o.key]?.length)
 		const extraTvlChart = {
-			staking: staking.map(([date, totalLiquidityUSD]) => [date, Math.trunc(totalLiquidityUSD)] as [string, number]),
-			borrowed: borrowed.map(([date, totalLiquidityUSD]) => [date, Math.trunc(totalLiquidityUSD)] as [string, number]),
-			pool2: pool2.map(([date, totalLiquidityUSD]) => [date, Math.trunc(totalLiquidityUSD)] as [string, number]),
-			vesting: vesting.map(([date, totalLiquidityUSD]) => [date, Math.trunc(totalLiquidityUSD)] as [string, number]),
-			offers: offers.map(([date, totalLiquidityUSD]) => [date, Math.trunc(totalLiquidityUSD)] as [string, number]),
-			doublecounted: doublecounted.map(
-				([date, totalLiquidityUSD]) => [date, Math.trunc(totalLiquidityUSD)] as [string, number]
-			),
-			liquidstaking: liquidstaking.map(
-				([date, totalLiquidityUSD]) => [date, Math.trunc(totalLiquidityUSD)] as [string, number]
-			),
-			dcAndLsOverlap: dcAndLsOverlap.map(
-				([date, totalLiquidityUSD]) => [date, Math.trunc(totalLiquidityUSD)] as [string, number]
-			)
+			staking: {},
+			borrowed: {},
+			pool2: {},
+			vesting: {},
+			offers: {},
+			doublecounted: {},
+			liquidstaking: {},
+			dcAndLsOverlap: {}
+		}
+		for (const [date, totalLiquidityUSD] of staking) {
+			extraTvlChart.staking[+date * 1e3] = Math.trunc(totalLiquidityUSD)
+		}
+		for (const [date, totalLiquidityUSD] of borrowed) {
+			extraTvlChart.borrowed[+date * 1e3] = Math.trunc(totalLiquidityUSD)
+		}
+		for (const [date, totalLiquidityUSD] of pool2) {
+			extraTvlChart.pool2[+date * 1e3] = Math.trunc(totalLiquidityUSD)
+		}
+		for (const [date, totalLiquidityUSD] of vesting) {
+			extraTvlChart.vesting[+date * 1e3] = Math.trunc(totalLiquidityUSD)
+		}
+		for (const [date, totalLiquidityUSD] of offers) {
+			extraTvlChart.offers[+date * 1e3] = Math.trunc(totalLiquidityUSD)
+		}
+		for (const [date, totalLiquidityUSD] of doublecounted) {
+			extraTvlChart.doublecounted[+date * 1e3] = Math.trunc(totalLiquidityUSD)
+		}
+		for (const [date, totalLiquidityUSD] of liquidstaking) {
+			extraTvlChart.liquidstaking[+date * 1e3] = Math.trunc(totalLiquidityUSD)
+		}
+		for (const [date, totalLiquidityUSD] of dcAndLsOverlap) {
+			extraTvlChart.dcAndLsOverlap[+date * 1e3] = Math.trunc(totalLiquidityUSD)
 		}
 
-		const raisesChart =
-			metadata.name !== 'All' && raisesData
-				? (raisesData?.raises ?? []).reduce((acc, curr) => {
-						if (curr.date && curr.defillamaId === `chain#${slug(metadata.name)}`) {
-							acc[curr.date] = (acc[curr.date] ?? 0) + +(curr.amount ?? 0)
-						}
-						return acc
-				  }, {} as Record<string, number>)
-				: null
+		// by default we should not include liquidstaking and doublecounted in the tvl chart, but include overlapping tvl so you dont subtract twice
+		const tvlChart = tvl.map(([date, totalLiquidityUSD]) => {
+			let sum = Math.trunc(totalLiquidityUSD)
+			if (extraTvlChart['liquidstaking']?.[+date * 1e3]) {
+				sum -= Math.trunc(extraTvlChart['liquidstaking'][+date * 1e3])
+			}
+			if (extraTvlChart['doublecounted']?.[+date * 1e3]) {
+				sum -= Math.trunc(extraTvlChart['doublecounted'][+date * 1e3])
+			}
+			if (extraTvlChart['dcAndLsOverlap']?.[+date * 1e3]) {
+				sum += Math.trunc(extraTvlChart['dcAndLsOverlap'][+date * 1e3])
+			}
+			return [+date * 1e3, sum]
+		}) as Array<[number, number]>
 
 		const chainRaises =
 			raisesData?.raises?.filter((r) => r.defillamaId === `chain#${metadata.name.toLowerCase()}`) ?? null
@@ -371,7 +397,7 @@ export async function getChainOverviewData({ chain }: { chain: string }): Promis
 			) ?? null
 
 		const topProtocolsByFeesChart =
-			fees && fees.totalDataChartBreakdown.length > 0
+			fees?.totalDataChartBreakdown?.length > 0
 				? (protocols
 						.sort((a, b) => (b.fees?.total24h ?? 0) - (a.fees?.total24h ?? 0))
 						.filter((a) => (a.fees?.total24h ? true : false))
@@ -380,7 +406,7 @@ export async function getChainOverviewData({ chain }: { chain: string }): Promis
 				: null
 
 		const feesGenerated24h =
-			fees && fees.totalDataChartBreakdown.length > 0
+			fees?.totalDataChartBreakdown?.length > 0
 				? fees.protocols.reduce((acc, curr) => (acc += curr.total24h || 0), 0)
 				: null
 
@@ -425,6 +451,60 @@ export async function getChainOverviewData({ chain }: { chain: string }): Promis
 
 		const uniqUnlockTokenColors = getNDistinctColors(uniqueUnlockTokens.size)
 
+		const charts: ChainChartLabels[] = ['TVL']
+
+		if (stablecoins?.mcap != null) {
+			charts.push('Stablecoins Mcap')
+		}
+		if (chainFees?.total24h != null) {
+			charts.push('Chain Fees')
+		}
+		if (chainRevenue?.total24h != null) {
+			charts.push('Chain Revenue')
+		}
+		if (dexs?.total24h != null) {
+			charts.push('DEXs Volume')
+		}
+		if (perps?.total24h != null) {
+			charts.push('Perps Volume')
+		}
+		if (chainIncentives?.emissions24h != null) {
+			charts.push('Token Incentives')
+		}
+		if (appRevenue?.total24h != null) {
+			charts.push('App Revenue')
+		}
+		if (appFees?.total24h != null) {
+			charts.push('App Fees')
+		}
+		if (chain !== 'All' && chainAssets != null) {
+			charts.push('Bridged TVL')
+		}
+		if (activeUsers != null) {
+			charts.push('Active Addresses')
+		}
+		// if (newUsers != null) {
+		// 	charts.push('New Addresses')
+		// }
+		if (transactions != null) {
+			charts.push('Transactions')
+		}
+		if (chain === 'All') {
+			charts.push('Raises')
+		}
+		if (inflowsData?.netInflows != null) {
+			charts.push('Net Inflows')
+		}
+		if (chain !== 'All' && metadata.gecko_id != null) {
+			charts.push('Token Price')
+		}
+		if (chain !== 'All' && metadata.gecko_id != null) {
+			charts.push('Token Mcap')
+		}
+		if (chain !== 'All' && metadata.gecko_id != null) {
+			charts.push('Token Volume')
+		}
+
 		return {
 			chain,
 			metadata,
@@ -450,6 +530,7 @@ export async function getChainOverviewData({ chain }: { chain: string }): Promis
 			},
 			chainRevenue: { total24h: chainRevenue?.total24h ?? null },
 			appRevenue: { total24h: appRevenue?.total24h ?? null },
+			appFees: { total24h: appFees?.total24h ?? null },
 			dexs: {
 				total24h: dexs?.total24h ?? null,
 				total7d: dexs?.total7d ?? null,
@@ -464,7 +545,6 @@ export async function getChainOverviewData({ chain }: { chain: string }): Promis
 				change_7dover7d: perps?.change_7dover7d ?? null
 			},
 			users: { activeUsers, newUsers, transactions: transactions ? +transactions : null },
-			raises: raisesChart ? Object.entries(raisesChart).map(([date, amount]) => [+date, amount]) : null,
 			inflows: inflowsData,
 			treasury: treasury ? { tvl: treasury.tvl ?? null, tokenBreakdowns: treasury.tokenBreakdowns ?? null } : null,
 			chainRaises: chainRaises ?? null,
@@ -496,7 +576,13 @@ export async function getChainOverviewData({ chain }: { chain: string }): Promis
 						)
 				  }
 				: null,
-			chainIncentives: chainIncentives
+			chainIncentives: chainIncentives ?? {
+				emissions24h: null,
+				emissions7d: null,
+				emissions30d: null
+			},
+			tvlAndFeesOptions,
+			charts
 		}
 	} catch (error) {
 		const msg = `Error fetching chainOverview:${chain} ${error instanceof Error ? error.message : 'Failed to fetch'}`
@@ -506,6 +592,7 @@ export async function getChainOverviewData({ chain }: { chain: string }): Promis
 }
 
 export const getProtocolsByChain = async ({ metadata, chain }: { chain: string; metadata: IChainMetadata }) => {
+	const metadataCache = await import('~/utils/metadata').then((m) => m.default)
 	const [{ protocols, chains, parentProtocols }, fees, revenue, dexs, emissionsData]: [
 		{ protocols: Array<ILiteProtocol>; chains: Array<string>; parentProtocols: Array<ILiteParentProtocol> },
 		IAdapterOverview | null,
@@ -513,7 +600,7 @@ export const getProtocolsByChain = async ({ metadata, chain }: { chain: string; 
 		IAdapterOverview | null,
 		any
 	] = await Promise.all([
-		fetchWithErrorLogging(PROTOCOLS_API).then((res) => res.json()),
+		fetchJson(PROTOCOLS_API),
 		metadata.fees
 			? getAdapterChainOverview({
 					adapterType: 'fees',
@@ -548,12 +635,10 @@ export const getProtocolsByChain = async ({ metadata, chain }: { chain: string; 
 					return null
 			  })
 			: Promise.resolve(null),
-		fetchWithErrorLogging(`https://api.llama.fi/emissionsBreakdownAggregated`)
-			.then((res) => res.json())
-			.catch((err) => {
-				console.log(err)
-				return null
-			})
+		fetchJson(`https://api.llama.fi/emissionsBreakdownAggregated`).catch((err) => {
+			console.log(err)
+			return null
+		})
 	])
 
 	const dimensionProtocols = {}
@@ -627,7 +712,7 @@ export const getProtocolsByChain = async ({ metadata, chain }: { chain: string; 
 		}
 	}
 
-	const finalProtocols: Record<string, IProtocol> = {}
+	const protocolsStore: Record<string, IProtocol> = {}
 
 	const parentStore: Record<string, Array<IChildProtocol>> = {}
 
@@ -747,7 +832,7 @@ export const getProtocolsByChain = async ({ metadata, chain }: { chain: string; 
 			if (protocol.parentProtocol && metadataCache.protocolMetadata[protocol.parentProtocol]) {
 				parentStore[protocol.parentProtocol] = [...(parentStore?.[protocol.parentProtocol] ?? []), childStore]
 			} else {
-				finalProtocols[protocol.defillamaId] = childStore
+				protocolsStore[protocol.defillamaId] = childStore
 			}
 		}
 	}
@@ -841,10 +926,14 @@ export const getProtocolsByChain = async ({ metadata, chain }: { chain: string; 
 				  }
 				: null
 
-			finalProtocols[parentProtocol.id] = {
+			const chilsProtocolCategories = Array.from(
+				new Set(parentStore[parentProtocol.id].filter((p) => p.category).map((p) => p.category))
+			)
+
+			protocolsStore[parentProtocol.id] = {
 				name: metadataCache.protocolMetadata[parentProtocol.id].displayName,
 				slug: metadataCache.protocolMetadata[parentProtocol.id].name,
-				category: null,
+				category: chilsProtocolCategories.length > 1 ? null : chilsProtocolCategories[0],
 				childProtocols: parentStore[parentProtocol.id],
 				chains: Array.from(new Set(...parentStore[parentProtocol.id].map((p) => p.chains ?? []))),
 				tvl: parentTvl,
@@ -858,22 +947,27 @@ export const getProtocolsByChain = async ({ metadata, chain }: { chain: string; 
 			}
 
 			if (parentFees) {
-				finalProtocols[parentProtocol.id].fees = parentFees
+				protocolsStore[parentProtocol.id].fees = parentFees
 			}
 			if (parentRevenue) {
-				finalProtocols[parentProtocol.id].revenue = parentRevenue
+				protocolsStore[parentProtocol.id].revenue = parentRevenue
 			}
 			if (parentDexs) {
-				finalProtocols[parentProtocol.id].dexs = parentDexs
+				protocolsStore[parentProtocol.id].dexs = parentDexs
 			}
 			if (parentEmissions) {
-				finalProtocols[parentProtocol.id].emissions = parentEmissions
+				protocolsStore[parentProtocol.id].emissions = parentEmissions
 			}
 		}
 	}
 
+	const finalProtocols: IProtocol[] = []
+	for (const protocol in protocolsStore) {
+		finalProtocols.push(protocolsStore[protocol])
+	}
+
 	return {
-		protocols: Object.values(finalProtocols).sort((a, b) => (b.tvl?.default?.tvl ?? 0) - (a.tvl?.default?.tvl ?? 0)),
+		protocols: finalProtocols.sort((a, b) => (b.tvl?.default?.tvl ?? 0) - (a.tvl?.default?.tvl ?? 0)),
 		chains,
 		fees,
 		dexs,

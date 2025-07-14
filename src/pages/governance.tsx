@@ -16,17 +16,15 @@ import { GOVERNANCE_SNAPSHOT_API, GOVERNANCE_COMPOUND_API, GOVERNANCE_TALLY_API 
 import { capitalizeFirstLetter } from '~/utils'
 import { withPerformanceLogging } from '~/utils/perf'
 
-import { fetchWithErrorLogging } from '~/utils/async'
+import { fetchJson } from '~/utils/async'
 import { Icon } from '~/components/Icon'
 import { ProtocolsChainsSearch } from '~/components/Search/ProtocolsChains'
 
-const fetch = fetchWithErrorLogging
-
 export const getStaticProps = withPerformanceLogging('governance', async () => {
 	const [snapshot, compound, tally] = await Promise.all([
-		fetch(GOVERNANCE_SNAPSHOT_API).then((res) => res.json()),
-		fetch(GOVERNANCE_COMPOUND_API).then((res) => res.json()),
-		fetch(GOVERNANCE_TALLY_API).then((res) => res.json())
+		fetchJson(GOVERNANCE_SNAPSHOT_API),
+		fetchJson(GOVERNANCE_COMPOUND_API),
+		fetchJson(GOVERNANCE_TALLY_API)
 	])
 
 	return {
@@ -73,7 +71,7 @@ export default function Governance({ data }) {
 	return (
 		<Layout title={`Governance - DefiLlama`} defaultSEO>
 			<ProtocolsChainsSearch />
-			<div className="bg-[var(--cards-bg)] rounded-md">
+			<div className="bg-(--cards-bg) border border-(--cards-border) rounded-md">
 				<div className="flex items-center gap-2 justify-end flex-wrap p-3">
 					<h1 className="text-xl font-semibold mr-auto">Governance</h1>
 					<div className="relative w-full sm:max-w-[280px]">
@@ -81,7 +79,7 @@ export default function Governance({ data }) {
 							name="search"
 							height={16}
 							width={16}
-							className="absolute text-[var(--text3)] top-0 bottom-0 my-auto left-2"
+							className="absolute text-(--text3) top-0 bottom-0 my-auto left-2"
 						/>
 						<input
 							value={projectName}
@@ -89,7 +87,7 @@ export default function Governance({ data }) {
 								setProjectName(e.target.value)
 							}}
 							placeholder="Search projects..."
-							className="border border-[var(--form-control-border)] w-full p-[6px] pl-7 bg-white dark:bg-black text-black dark:text-white rounded-md text-sm"
+							className="border border-(--form-control-border) w-full p-[6px] pl-7 bg-white dark:bg-black text-black dark:text-white rounded-md text-sm"
 						/>
 					</div>
 				</div>

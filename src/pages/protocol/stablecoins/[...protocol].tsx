@@ -1,11 +1,10 @@
 import { withPerformanceLogging } from '~/utils/perf'
-import metadata from '~/utils/metadata'
-import { getProtocol, getProtocolMetrics, getProtocolPageStyles } from '~/containers/ProtocolOverview/queries'
+import { getProtocol, getProtocolMetrics } from '~/containers/ProtocolOverview/queries'
 import { ProtocolOverviewLayout } from '~/containers/ProtocolOverview/Layout'
 import { maxAgeForNext } from '~/api'
 import { StablecoinInfo } from '~/containers/ProtocolOverview/Stablecoin'
 import { slug } from '~/utils'
-const { protocolMetadata } = metadata
+import { IProtocolMetadata } from '~/containers/ProtocolOverview/types'
 
 export const getStaticProps = withPerformanceLogging(
 	'protocol/stablecoins/[...protocol]',
@@ -15,26 +14,29 @@ export const getStaticProps = withPerformanceLogging(
 		}
 	}) => {
 		const normalizedName = slug(protocol)
-		const metadata = Object.entries(protocolMetadata).find((p) => p[1].name === normalizedName)?.[1]
+		const metadataCache = await import('~/utils/metadata').then((m) => m.default)
+		const { protocolMetadata } = metadataCache
+		let metadata: [string, IProtocolMetadata] | undefined
+		for (const key in protocolMetadata) {
+			if (protocolMetadata[key].name === normalizedName) {
+				metadata = [key, protocolMetadata[key]]
+				break
+			}
+		}
 
-		if (!metadata) {
+		if (!metadata || !metadata[1].stablecoins) {
 			return { notFound: true, props: null }
 		}
 
-		const [protocolData, pageStyles] = await Promise.all([getProtocol(protocol), getProtocolPageStyles(metadata.name)])
+		const protocolData = await getProtocol(protocol)
 
-		const metrics = getProtocolMetrics({ protocolData, metadata })
-
-		if (!protocolData.stablecoins?.length) {
-			return { notFound: true, props: null }
-		}
+		const metrics = getProtocolMetrics({ protocolData, metadata: metadata[1] })
 
 		return {
 			props: {
 				name: protocolData.name,
 				otherProtocols: protocolData?.otherProtocols ?? [],
 				category: protocolData?.category ?? null,
-				pageStyles,
 				metrics,
 				assetName: protocolData.stablecoins[0]
 			},
@@ -54,10 +56,9 @@ export default function Protocols({ clientSide, protocolData, ...props }) {
 			category={props.category}
 			otherProtocols={props.otherProtocols}
 			metrics={props.metrics}
-			pageStyles={props.pageStyles}
 			tab="stablecoins"
 		>
-			<div className="bg-[var(--cards-bg)] rounded-md">
+			<div className="bg-(--cards-bg) border border-(--cards-border) rounded-md">
 				<StablecoinInfo assetName={props.assetName} />
 			</div>
 		</ProtocolOverviewLayout>

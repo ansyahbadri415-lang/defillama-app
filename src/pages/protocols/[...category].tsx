@@ -1,15 +1,12 @@
 import Layout from '~/layout'
-import { ProtocolList } from '~/containers/ProtocolList'
 import { maxAgeForNext } from '~/api'
-import { getProtocolsPageData } from '~/api/categories/protocols'
 import { PROTOCOLS_API } from '~/constants/index'
 import { capitalizeFirstLetter, slug } from '~/utils'
 import { withPerformanceLogging } from '~/utils/perf'
-
-import { fetchWithErrorLogging } from '~/utils/async'
+import { fetchJson } from '~/utils/async'
 import { descriptions } from '../categories'
-
-const fetch = fetchWithErrorLogging
+import { ProtocolsByCategory } from '~/containers/ProtocolsByCategory'
+import { getProtocolsByCategory } from '~/containers/ProtocolsByCategory/queries'
 
 export const getStaticProps = withPerformanceLogging(
 	'protocols/[...category]',
@@ -26,13 +23,13 @@ export const getStaticProps = withPerformanceLogging(
 			}
 		}
 
-		const props = await getProtocolsPageData(categoryName, chain)
+		const props = await getProtocolsByCategory({ category: categoryName, chain })
 
-		if (props.filteredProtocols.length === 0) {
+		if (!props)
 			return {
 				notFound: true
 			}
-		}
+
 		return {
 			props,
 			revalidate: maxAgeForNext([22])
@@ -41,19 +38,19 @@ export const getStaticProps = withPerformanceLogging(
 )
 
 export async function getStaticPaths() {
-	const res = await fetch(PROTOCOLS_API)
+	const res = await fetchJson(PROTOCOLS_API)
 
-	const paths = (await res.json()).protocolCategories.slice(0, 10).map((category) => ({
+	const paths = res.protocolCategories.map((category) => ({
 		params: { category: [slug(category)] }
 	}))
 
 	return { paths, fallback: 'blocking' }
 }
 
-export default function Protocols({ category, ...props }) {
+export default function Protocols(props) {
 	return (
-		<Layout title={`${capitalizeFirstLetter(category)} TVL Rankings - DefiLlama`} defaultSEO>
-			<ProtocolList category={capitalizeFirstLetter(category)} {...props} csvDownload={true} />
+		<Layout title={`${capitalizeFirstLetter(props.category)} TVL Rankings - DefiLlama`} defaultSEO>
+			<ProtocolsByCategory {...props} />
 		</Layout>
 	)
 }

@@ -1,13 +1,14 @@
 import React, { useMemo, useState } from 'react'
 import { IResponseCGMarketsAPI } from '~/api/types'
 import { useRouter } from 'next/router'
-import { CACHE_SERVER } from '~/constants'
+import { CACHE_SERVER, COINS_PRICES_API } from '~/constants'
 import { LocalLoader } from '~/components/LocalLoader'
 import { CoinsPicker } from '~/containers/Correlations'
 import { useQuery } from '@tanstack/react-query'
 import { Icon } from '~/components/Icon'
 import * as Ariakit from '@ariakit/react'
 import { ProtocolsChainsSearch } from '~/components/Search/ProtocolsChains'
+import { fetchJson } from '~/utils/async'
 
 export default function CompareFdv({ coinsData, protocols }) {
 	const router = useRouter()
@@ -35,11 +36,9 @@ export default function CompareFdv({ coinsData, protocols }) {
 			coins.length == 2
 				? () =>
 						Promise.all([
-							fetch(`https://coins.llama.fi/prices/current/${coins.map((c) => 'coingecko:' + c).join(',')}`).then(
-								(res) => res.json()
-							),
-							fetch(`${CACHE_SERVER}/supply/${coins[0]}`).then((res) => res.json()),
-							fetch(`${CACHE_SERVER}/supply/${coins[1]}`).then((res) => res.json())
+							fetchJson(`${COINS_PRICES_API}/current/${coins.map((c) => 'coingecko:' + c).join(',')}`),
+							fetchJson(`${CACHE_SERVER}/supply/${coins[0]}`),
+							fetchJson(`${CACHE_SERVER}/supply/${coins[1]}`)
 						])
 				: () => null,
 		staleTime: 60 * 60 * 1000
@@ -136,14 +135,14 @@ export default function CompareFdv({ coinsData, protocols }) {
 								onError={(e) => {
 									e.currentTarget.src = '/placeholder.png'
 								}}
-								className="inline-block object-cover aspect-square rounded-full flex-shrink-0 bg-[var(--bg3)] absolute top-0 bottom-0 my-auto left-2"
+								className="inline-block object-cover aspect-square rounded-full shrink-0 bg-(--bg3) absolute top-0 bottom-0 my-auto left-2"
 							/>
 						) : (
 							<Icon
 								name="search"
 								height={16}
 								width={16}
-								className="absolute text-[var(--text3)] top-0 bottom-0 my-auto left-2"
+								className="absolute text-(--text3) top-0 bottom-0 my-auto left-2"
 							/>
 						)}
 						<input
@@ -153,7 +152,7 @@ export default function CompareFdv({ coinsData, protocols }) {
 								dialogStore.toggle()
 							}}
 							placeholder="Search coins..."
-							className="border border-[var(--form-control-border)] w-full py-[6px] px-2 pl-7 bg-white dark:bg-black text-black dark:text-white rounded-md text-base"
+							className="border border-(--form-control-border) w-full py-[6px] px-2 pl-7 bg-white dark:bg-black text-black dark:text-white rounded-md text-base"
 						/>
 					</div>
 					{/* <ReactSelect
@@ -208,7 +207,7 @@ export default function CompareFdv({ coinsData, protocols }) {
 								)
 							}
 						}}
-						className="p-1 flex items-center justify-center flex-shrink-0"
+						className="p-1 flex items-center justify-center shrink-0"
 					>
 						<Icon name="repeat" height={16} width={16} />
 						<span className="sr-only">Switch tokens</span>
@@ -261,14 +260,14 @@ export default function CompareFdv({ coinsData, protocols }) {
 								onError={(e) => {
 									e.currentTarget.src = '/placeholder.png'
 								}}
-								className="inline-block object-cover aspect-square rounded-full flex-shrink-0 bg-[var(--bg3)] absolute top-0 bottom-0 my-auto left-2"
+								className="inline-block object-cover aspect-square rounded-full shrink-0 bg-(--bg3) absolute top-0 bottom-0 my-auto left-2"
 							/>
 						) : (
 							<Icon
 								name="search"
 								height={16}
 								width={16}
-								className="absolute text-[var(--text3)] top-0 bottom-0 my-auto left-2"
+								className="absolute text-(--text3) top-0 bottom-0 my-auto left-2"
 							/>
 						)}
 						<input
@@ -278,19 +277,19 @@ export default function CompareFdv({ coinsData, protocols }) {
 								dialogStore.toggle()
 							}}
 							placeholder="Search coins..."
-							className="border border-[var(--form-control-border)] w-full p-[6px] pl-7 bg-white dark:bg-black text-black dark:text-white rounded-md text-base"
+							className="border border-(--form-control-border) w-full p-[6px] pl-7 bg-white dark:bg-black text-black dark:text-white rounded-md text-base"
 						/>
 					</div>
 				</div>
 				<Ariakit.MenuProvider>
-					<Ariakit.MenuButton className="bg-[var(--btn2-bg)] hover:bg-[var(--btn2-hover-bg)] focus-visible:bg-[var(--btn2-hover-bg)] flex items-center justify-between gap-2 py-2 px-3 rounded-md cursor-pointer text-[var(--text1)] flex-nowrap relative w-full">
+					<Ariakit.MenuButton className="bg-(--btn2-bg) hover:bg-(--btn2-hover-bg) focus-visible:bg-(--btn2-hover-bg) flex items-center justify-between gap-2 py-2 px-3 rounded-md cursor-pointer text-(--text1) flex-nowrap relative w-full">
 						<span>{compareType?.label}</span>
 						<Ariakit.MenuButtonArrow />
 					</Ariakit.MenuButton>
 					<Ariakit.Menu
 						unmountOnHide
 						sameWidth
-						className="flex flex-col bg-[var(--bg1)] rounded-md max-sm:rounded-b-none z-10 overflow-auto overscroll-contain min-w-[180px] max-h-[60vh] border border-[hsl(204,20%,88%)] dark:border-[hsl(204,3%,32%)] max-sm:drawer"
+						className="flex flex-col bg-(--bg1) rounded-md max-sm:rounded-b-none z-10 overflow-auto overscroll-contain min-w-[180px] max-h-[60vh] border border-[hsl(204,20%,88%)] dark:border-[hsl(204,3%,32%)] max-sm:drawer"
 					>
 						{compareTypes.map((item) => {
 							return (
@@ -309,7 +308,7 @@ export default function CompareFdv({ coinsData, protocols }) {
 											{ shallow: true }
 										)
 									}}
-									className="flex items-center justify-between gap-4 py-2 px-3 flex-shrink-0 hover:bg-[var(--primary1-hover)] focus-visible:bg-[var(--primary1-hover)] data-[active-item]:bg-[var(--primary1-hover)] cursor-pointer first-of-type:rounded-t-md last-of-type:rounded-b-md border-b border-[var(--form-control-border)]"
+									className="flex items-center justify-between gap-4 py-2 px-3 shrink-0 hover:bg-(--primary1-hover) focus-visible:bg-(--primary1-hover) data-active-item:bg-(--primary1-hover) cursor-pointer first-of-type:rounded-t-md last-of-type:rounded-b-md border-b border-(--form-control-border)"
 								>
 									{item.label}
 								</Ariakit.MenuItem>
@@ -335,7 +334,7 @@ export default function CompareFdv({ coinsData, protocols }) {
 										onError={(e) => {
 											e.currentTarget.src = '/placeholder.png'
 										}}
-										className="inline-block object-cover aspect-square rounded-full flex-shrink-0 bg-[var(--bg3)]"
+										className="inline-block object-cover aspect-square rounded-full shrink-0 bg-(--bg3)"
 									/>
 									<span>{selectedCoins[0].symbol.toUpperCase()}</span>
 								</span>
@@ -350,7 +349,7 @@ export default function CompareFdv({ coinsData, protocols }) {
 										onError={(e) => {
 											e.currentTarget.src = '/placeholder.png'
 										}}
-										className="inline-block object-cover aspect-square rounded-full flex-shrink-0 bg-[var(--bg3)]"
+										className="inline-block object-cover aspect-square rounded-full shrink-0 bg-(--bg3)"
 									/>
 									<span>{selectedCoins[1].symbol.toUpperCase()}</span>
 								</span>

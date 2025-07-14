@@ -1,10 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import NProgress from 'nprogress'
-import { AppContext } from '~/contexts'
 import { useAnalytics } from '~/hooks/useAnalytics'
-import '../tailwind.css'
-import '../nprogress.css'
+import '~/tailwind.css'
+import '~/nprogress.css'
 import { useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { AuthProvider } from '~/containers/Subscribtion/auth'
@@ -49,9 +48,7 @@ function App({ Component, pageProps }) {
 	return (
 		<QueryClientProvider client={client}>
 			<AuthProvider>
-				<AppContext noContext={pageProps.noContext ?? false}>
-					<Component {...pageProps} />
-				</AppContext>
+				<Component {...pageProps} />
 			</AuthProvider>
 			<ReactQueryDevtools initialIsOpen={false} />
 		</QueryClientProvider>

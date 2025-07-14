@@ -26,7 +26,7 @@ interface IUnlocksTableProps {
 	setShowOnlyWatchlist: (value: boolean) => void
 	projectName: string
 	setProjectName: (value: string) => void
-	savedProtocols: { [key: string]: boolean }
+	savedProtocols: Set<string>
 	minUnlockValue?: number | null
 	maxUnlockValue?: number | null
 }
@@ -86,6 +86,21 @@ export const UnlocksTable = ({
 		)
 	}
 
+	const handleUnlockValueClear = () => {
+		const { minUnlockValue, maxUnlockValue, ...restQuery } = router.query
+
+		router.push(
+			{
+				pathname: router.pathname,
+				query: restQuery
+			},
+			undefined,
+			{
+				shallow: true
+			}
+		)
+	}
+
 	const handleUnlockPercSubmit = (e) => {
 		e.preventDefault()
 		const form = e.target
@@ -102,6 +117,21 @@ export const UnlocksTable = ({
 			},
 			undefined,
 			{ shallow: true }
+		)
+	}
+
+	const handleUnlockPercClear = () => {
+		const { minUnlockPerc, maxUnlockPerc, ...restQuery } = router.query
+
+		router.push(
+			{
+				pathname: router.pathname,
+				query: restQuery
+			},
+			undefined,
+			{
+				shallow: true
+			}
 		)
 	}
 
@@ -131,6 +161,12 @@ export const UnlocksTable = ({
 
 	const addOption = (newOptions) => {
 		const ops = Object.fromEntries(columnOptions.map((col) => [col.key, newOptions.includes(col.key) ? true : false]))
+		window.localStorage.setItem(optionsKey, JSON.stringify(ops))
+		window.dispatchEvent(new Event('storage'))
+	}
+
+	const addOnlyOneOption = (newOption) => {
+		const ops = Object.fromEntries(columnOptions.map((col) => [col.key, col.key === newOption ? true : false]))
 		window.localStorage.setItem(optionsKey, JSON.stringify(ops))
 		window.dispatchEvent(new Event('storage'))
 	}
@@ -202,7 +238,7 @@ export const UnlocksTable = ({
 				}
 
 				if (shouldInclude && showOnlyWatchlist) {
-					if (!savedProtocols[slug(protocol.name)]) {
+					if (!savedProtocols.has(protocol.name)) {
 						shouldInclude = false
 					}
 				}
@@ -259,7 +295,6 @@ export const UnlocksTable = ({
 		savedProtocols,
 		showOnlyWatchlist,
 		selectedUnlockTypes,
-		UNLOCK_TYPES.length,
 		minUnlockValue,
 		maxUnlockValue,
 		minPerc,
@@ -284,13 +319,13 @@ export const UnlocksTable = ({
 	})
 
 	return (
-		<div className="bg-[var(--cards-bg)] rounded-md">
+		<div className="bg-(--cards-bg) border border-(--cards-border) rounded-md">
 			<div className="flex items-center justify-end gap-2 flex-wrap p-3">
 				<h1 className="text-xl font-semibold mr-auto">Token Unlocks</h1>
 
 				<button
 					onClick={() => setShowOnlyWatchlist(!showOnlyWatchlist)}
-					className="border border-[var(--form-control-border)] p-[6px] px-3 bg-white dark:bg-black text-black dark:text-white rounded-md text-sm flex items-center gap-2 w-[200px] justify-center"
+					className="border border-(--form-control-border) p-[6px] px-3 bg-white dark:bg-black text-black dark:text-white rounded-md text-sm flex items-center gap-2 w-[200px] justify-center"
 				>
 					<Icon name="bookmark" height={16} width={16} style={{ fill: showOnlyWatchlist ? 'var(--text1)' : 'none' }} />
 					{showOnlyWatchlist ? 'Show All' : 'Show Watchlist'}
@@ -300,24 +335,29 @@ export const UnlocksTable = ({
 					name="Unlock Value"
 					trigger={<span>Unlock Value</span>}
 					onSubmit={handleUnlockValueSubmit}
-					min={min ? min.toString() : ''}
-					max={max ? max.toString() : ''}
+					onClear={handleUnlockValueClear}
+					min={min ?? ''}
+					max={max ?? ''}
 					variant="third"
+					placement="bottom-start"
 				/>
 
 				<FilterBetweenRange
 					name="Unlock % of Market Cap"
 					trigger={<span>Unlock Perc.</span>}
 					onSubmit={handleUnlockPercSubmit}
-					min={minPerc ? minPerc.toString() : ''}
-					max={maxPerc ? maxPerc.toString() : ''}
+					onClear={handleUnlockPercClear}
+					min={minPerc ?? ''}
+					max={maxPerc ?? ''}
 					variant="third"
+					placement="bottom-start"
 				/>
 
 				<SelectWithCombobox
 					allValues={columnOptions}
 					selectedValues={selectedOptions}
 					setSelectedValues={addOption}
+					selectOnlyOne={addOnlyOneOption}
 					toggleAll={toggleAllOptions}
 					clearAll={clearAllOptions}
 					nestedMenu={false}
@@ -325,7 +365,7 @@ export const UnlocksTable = ({
 					labelType="smol"
 					triggerProps={{
 						className:
-							'flex items-center justify-between gap-2 p-2 text-xs rounded-md cursor-pointer flex-nowrap relative border border-[var(--form-control-border)] text-[#666] dark:text-[#919296] hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] font-medium'
+							'flex items-center justify-between gap-2 p-2 text-xs rounded-md cursor-pointer flex-nowrap relative border border-(--form-control-border) text-[#666] dark:text-[#919296] hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) font-medium'
 					}}
 				/>
 
@@ -333,6 +373,7 @@ export const UnlocksTable = ({
 					allValues={UNLOCK_TYPES.map((type) => ({ name: type.charAt(0).toUpperCase() + type.slice(1), key: type }))}
 					selectedValues={selectedUnlockTypes}
 					setSelectedValues={setSelectedUnlockTypes}
+					selectOnlyOne={(value) => setSelectedUnlockTypes([value])}
 					toggleAll={() => setSelectedUnlockTypes(UNLOCK_TYPES)}
 					clearAll={() => setSelectedUnlockTypes([])}
 					nestedMenu={false}
@@ -340,7 +381,7 @@ export const UnlocksTable = ({
 					labelType="smol"
 					triggerProps={{
 						className:
-							'flex items-center justify-between gap-2 p-2 text-xs rounded-md cursor-pointer flex-nowrap relative border border-[var(--form-control-border)] text-[#666] dark:text-[#919296] hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] font-medium'
+							'flex items-center justify-between gap-2 p-2 text-xs rounded-md cursor-pointer flex-nowrap relative border border-(--form-control-border) text-[#666] dark:text-[#919296] hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) font-medium'
 					}}
 				/>
 
@@ -349,7 +390,7 @@ export const UnlocksTable = ({
 						name="search"
 						height={16}
 						width={16}
-						className="absolute text-[var(--text3)] top-0 bottom-0 my-auto left-2"
+						className="absolute text-(--text3) top-0 bottom-0 my-auto left-2"
 					/>
 					<input
 						value={projectName}
@@ -357,7 +398,7 @@ export const UnlocksTable = ({
 							setProjectName(e.target.value)
 						}}
 						placeholder="Search projects..."
-						className="border border-[var(--form-control-border)] w-full p-[6px] pl-7 bg-white dark:bg-black text-black dark:text-white rounded-md text-sm"
+						className="border border-(--form-control-border) w-full p-[6px] pl-7 bg-white dark:bg-black text-black dark:text-white rounded-md text-sm"
 					/>
 				</div>
 			</div>
@@ -366,30 +407,31 @@ export const UnlocksTable = ({
 	)
 }
 
-enum TABLE_CATEGORIES {
-	UNLOCKS = 'Unlocks',
-	TOKENS = 'Tokens',
-	TIME = 'Time'
-}
-
 const columnOptions = [
 	{ name: 'Name', key: 'name' },
-	{ name: 'Price', key: 'price', category: TABLE_CATEGORIES.TOKENS },
-	{ name: 'Market Cap', key: 'mcap', category: TABLE_CATEGORIES.TOKENS },
-	{ name: 'Token Symbol', key: 'symbol', category: TABLE_CATEGORIES.TOKENS },
-	{ name: 'Next Unlock Date', key: 'nextUnlockDate', category: TABLE_CATEGORIES.TIME },
-	{ name: 'Token Amount', key: 'unlockAmount', category: TABLE_CATEGORIES.UNLOCKS },
-	{ name: 'Value (USD)', key: 'unlockValue', category: TABLE_CATEGORIES.UNLOCKS },
-	{ name: '% of Supply', key: 'percSupply', category: TABLE_CATEGORIES.UNLOCKS }
+	{ name: 'Price', key: 'tPrice' },
+	{ name: 'Market Cap', key: 'mcap' },
+	{ name: 'Total Unlocked', key: 'totalLocked' },
+	{ name: 'Prev. Unlock Analysis', key: 'prevUnlock' },
+	{ name: '7d Post Unlock', key: 'postUnlock' },
+	{ name: 'Daily Unlocks', key: 'nextEvent' },
+	{ name: 'Next Event', key: 'upcomingEvent' }
 ]
+
+// these are mising in emissionsColumns
+// { name: 'Token Symbol', key: 'symbol' },
+// { name: 'Next Unlock Date', key: 'nextUnlockDate' },
+// { name: 'Token Amount', key: 'unlockAmount' },
+// { name: 'Value (USD)', key: 'unlockValue' },
+// { name: '% of Supply', key: 'percSupply' },
 
 const defaultColumns = JSON.stringify({
 	name: true,
-	price: true,
+	tPrice: true,
 	mcap: true,
-	symbol: true,
-	nextUnlockDate: true,
-	unlockAmount: true,
-	unlockValue: true,
-	percSupply: true
+	totalLocked: true,
+	prevUnlock: true,
+	postUnlock: true,
+	nextEvent: true,
+	upcomingEvent: true
 })

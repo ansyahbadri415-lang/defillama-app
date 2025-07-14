@@ -3,8 +3,8 @@ import { ILiteParentProtocol, ILiteProtocol } from '~/containers/ChainOverview/t
 import { ORACLE_API, PROTOCOLS_API } from '~/constants'
 import { DEFI_SETTINGS_KEYS } from '~/contexts/LocalStorage'
 import { getAdapterChainOverview, IAdapterOverview } from '~/containers/DimensionAdapters/queries'
-import { getColorFromNumber, slug } from '~/utils'
-import { fetchWithErrorLogging } from '~/utils/async'
+import { getColorFromNumber } from '~/utils'
+import { fetchJson } from '~/utils/async'
 
 interface IOracleProtocols {
 	[key: string]: number
@@ -13,20 +13,20 @@ interface IOracleProtocols {
 interface IOracleApiResponse {
 	chart: Record<string, Record<string, Record<string, number>>>
 	chainChart: Record<string, Record<string, Record<string, number>>>
-	oracles: Record<string, Array<string>>
+	oraclesTVS: Record<string, Record<string, Record<string, number>>>
 	chainsByOracle: Record<string, Array<string>>
 }
 
 // - used in /oracles and /oracles/[name]
 export async function getOraclePageData(oracle = null, chain = null) {
 	try {
-		const [{ chart = {}, chainChart = {}, oracles = {}, chainsByOracle }, { protocols }, perps]: [
+		const [{ chart = {}, chainChart = {}, oraclesTVS = {}, chainsByOracle }, { protocols }, perps]: [
 			IOracleApiResponse,
 			{ protocols: Array<ILiteProtocol>; chains: Array<string>; parentProtocols: Array<ILiteParentProtocol> },
 			IAdapterOverview | null
 		] = await Promise.all([
-			fetchWithErrorLogging(ORACLE_API).then((r) => r.json()),
-			fetchWithErrorLogging(PROTOCOLS_API).then((r) => r.json()),
+			fetchJson(ORACLE_API),
+			fetchJson(PROTOCOLS_API),
 			getAdapterChainOverview({
 				adapterType: 'derivatives',
 				chain: 'All',
@@ -38,7 +38,7 @@ export async function getOraclePageData(oracle = null, chain = null) {
 			})
 		])
 
-		const oracleExists = oracle ? oracles[oracle] && (chain ? chainsByOracle[oracle].includes(chain) : true) : true
+		const oracleExists = oracle ? oraclesTVS[oracle] && (chain ? chainsByOracle[oracle].includes(chain) : true) : true
 
 		if (!oracleExists) {
 			return {
@@ -46,7 +46,47 @@ export async function getOraclePageData(oracle = null, chain = null) {
 			}
 		}
 
-		const filteredProtocols = formatProtocolsData({ oracle, protocols, chain })
+		const oracleFilteredProtocols =
+			oracle && oraclesTVS[oracle] ? protocols.filter((protocol) => protocol.name in oraclesTVS[oracle]) : protocols
+
+		const filteredProtocols = formatProtocolsData({ oracle, protocols: oracleFilteredProtocols, chain })
+		const protocolsWithBreakdown = filteredProtocols.map((protocol) => {
+			const tvsBreakdown: { tvl: number; extraTvl: { [key: string]: { tvl: number } } } = {
+				tvl: 0,
+				extraTvl: {}
+			}
+			const oraclesToCheck = oracle ? [oracle] : Object.keys(oraclesTVS)
+
+			for (const oracleKey of oraclesToCheck) {
+				const protocolData = oraclesTVS[oracleKey]?.[protocol.name]
+				if (protocolData) {
+					for (const key in protocolData) {
+						const value = protocolData[key]
+						const keyParts = key.split('-')
+						if (keyParts.length === 1 && !protocol.chains.includes(keyParts[0])) continue
+						const chainName = keyParts[0]
+						const category = keyParts.length > 1 ? keyParts.slice(1).join('-') : 'tvl'
+
+						if (!chain || chainName === chain) {
+							if (category === 'tvl') {
+								tvsBreakdown.tvl += value
+							} else {
+								if (!tvsBreakdown.extraTvl[category]) {
+									tvsBreakdown.extraTvl[category] = { tvl: 0 }
+								}
+								tvsBreakdown.extraTvl[category].tvl += value
+							}
+						}
+					}
+					break
+				}
+			}
+			return {
+				...protocol,
+				tvl: tvsBreakdown.tvl,
+				extraTvl: tvsBreakdown.extraTvl
+			}
+		})
 
 		let chartData = Object.entries(chart)
 		const chainChartData = chain
@@ -80,8 +120,8 @@ export async function getOraclePageData(oracle = null, chain = null) {
 
 		const oraclesProtocols: IOracleProtocols = {}
 
-		for (const orc in oracles) {
-			oraclesProtocols[orc] = oracles[orc]?.length
+		for (const orc in oraclesTVS) {
+			oraclesProtocols[orc] = Object.keys(oraclesTVS[orc] || {}).length
 		}
 
 		const latestOracleTvlByChain = Object.entries(chainChart)[Object.entries(chainChart).length - 1][1] as Record<
@@ -124,7 +164,7 @@ export async function getOraclePageData(oracle = null, chain = null) {
 			tokenLinks: oracleLinks,
 			token: oracle,
 			tokensProtocols: oraclesProtocols,
-			filteredProtocols,
+			filteredProtocols: protocolsWithBreakdown,
 			chartData,
 			oraclesColors: colors,
 			derivativeProtocols: perps?.protocols ?? []
@@ -137,15 +177,49 @@ export async function getOraclePageData(oracle = null, chain = null) {
 
 export async function getOraclePageDataByChain(chain: string) {
 	try {
-		const [{ chart = {}, chainChart = {}, oracles = {}, chainsByOracle }, { protocols }]: [
+		const [{ chart = {}, chainChart = {}, oraclesTVS = {}, chainsByOracle }, { protocols }]: [
 			IOracleApiResponse,
 			{ protocols: Array<ILiteProtocol>; chains: Array<string>; parentProtocols: Array<ILiteParentProtocol> }
-		] = await Promise.all([
-			fetchWithErrorLogging(ORACLE_API).then((r) => r.json()),
-			fetchWithErrorLogging(PROTOCOLS_API).then((r) => r.json())
-		])
+		] = await Promise.all([fetchJson(ORACLE_API), fetchJson(PROTOCOLS_API)])
 
 		const filteredProtocols = formatProtocolsData({ protocols, chain })
+
+		const protocolsWithBreakdown = filteredProtocols.map((protocol) => {
+			const tvsBreakdown: { tvl: number; extraTvl: { [key: string]: { tvl: number } } } = {
+				tvl: 0,
+				extraTvl: {}
+			}
+
+			for (const oracleKey of Object.keys(oraclesTVS)) {
+				const protocolData = oraclesTVS[oracleKey]?.[protocol.name]
+				if (protocolData) {
+					for (const key in protocolData) {
+						const value = protocolData[key]
+						const keyParts = key.split('-')
+						if (keyParts.length === 1 && !protocol.chains.includes(keyParts[0])) continue
+						const chainName = keyParts[0]
+						const category = keyParts.length > 1 ? keyParts.slice(1).join('-') : 'tvl'
+
+						if (chainName === chain) {
+							if (category === 'tvl') {
+								tvsBreakdown.tvl += value
+							} else {
+								if (!tvsBreakdown.extraTvl[category]) {
+									tvsBreakdown.extraTvl[category] = { tvl: 0 }
+								}
+								tvsBreakdown.extraTvl[category].tvl += value
+							}
+						}
+					}
+				}
+			}
+
+			return {
+				...protocol,
+				tvl: tvsBreakdown.tvl,
+				extraTvl: tvsBreakdown.extraTvl
+			}
+		})
 
 		let chartData = Object.entries(chart)
 		const chainChartData = chain
@@ -174,7 +248,7 @@ export async function getOraclePageDataByChain(chain: string) {
 
 		const oraclesProtocols: IOracleProtocols = {}
 
-		for (const orc in oracles) {
+		for (const orc in oraclesTVS) {
 			oraclesProtocols[orc] = protocols.filter((p) => p.oracles?.includes(orc) && p.chains.includes(chain)).length
 		}
 
@@ -214,7 +288,7 @@ export async function getOraclePageDataByChain(chain: string) {
 			tokens: oraclesUnique,
 			tokenLinks: oracleLinks,
 			tokensProtocols: oraclesProtocols,
-			filteredProtocols,
+			filteredProtocols: protocolsWithBreakdown,
 			chartData: chainChartData,
 			oraclesColors: colors
 		}

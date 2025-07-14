@@ -1,10 +1,9 @@
 import React, { createContext, useContext, useCallback, ReactNode, useState } from 'react'
 import toast from 'react-hot-toast'
 import pb, { AuthModel } from '~/utils/pocketbase'
-import { SiweMessage } from 'siwe'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AUTH_SERVER } from '~/constants'
-
+import { createSiweMessage } from 'viem/siwe'
 interface User extends AuthModel {
 	subscription_status: string
 	subscription: {
@@ -23,7 +22,13 @@ export function getFieldError(error: any, key: string) {
 
 interface AuthContextType {
 	login: (email: string, password: string, onSuccess?: () => void) => Promise<void>
-	signup: (email: string, password: string, passwordConfirm: string, onSuccess?: () => void) => Promise<void>
+	signup: (
+		email: string,
+		password: string,
+		passwordConfirm: string,
+		turnstileToken: string,
+		onSuccess?: () => void
+	) => Promise<void>
 	logout: () => void
 	authorizedFetch: (url: string, options?: FetchOptions, onlyToken?: boolean) => Promise<Response>
 	signInWithEthereum: (address: string, signMessageFunction: any, onSuccess?: () => void) => Promise<void>
@@ -57,6 +62,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 	const [isAuthenticated, setIsAuthenticated] = useState(false)
 	const [subscription, setSubscription] = useState<any>(null)
 	const [isSubscriptionError, setIsSubscriptionError] = useState(false)
+
 	const {
 		data: currentUserData,
 		isPending: userQueryIsPending,
@@ -72,18 +78,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 				const refreshResult = await pb.collection('users').authRefresh()
 				setIsAuthenticated(true)
 				return { ...refreshResult.record }
-			} catch (error) {
+			} catch (error: any) {
 				console.error('Error refreshing auth:', error)
-				pb.authStore.clear()
-				setIsAuthenticated(false)
+
+				if (error?.status === 401 || error?.code === 401) {
+					pb.authStore.clear()
+					setIsAuthenticated(false)
+				} else {
+					setIsAuthenticated(!!pb.authStore.token)
+				}
+
 				throw error
 			}
 		},
 		enabled: true,
-		staleTime: 0,
+		staleTime: 5 * 60 * 1000,
 		refetchOnMount: true,
 		refetchOnWindowFocus: false,
-		gcTime: 0
+		gcTime: 10 * 60 * 1000,
+		retry: 3,
+		retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000)
 	})
 
 	const loginMutation = useMutation({
@@ -127,24 +141,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 		mutationFn: async ({
 			email,
 			password,
-			passwordConfirm
+			passwordConfirm,
+			turnstileToken
 		}: {
 			email: string
 			password: string
 			passwordConfirm: string
+			turnstileToken: string
 		}) => {
-			const data = {
-				email,
-				password,
-				passwordConfirm,
-				auth_method: 'email',
-				source: 'defillama'
+			const response = await fetch(`${AUTH_SERVER}/auth/signup`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					email,
+					password,
+					passwordConfirm,
+					auth_method: 'email',
+					source: 'defillama',
+					turnstile_token: turnstileToken
+				})
+			})
+
+			if (!response.ok) {
+				const errorData = await response.json()
+				throw errorData
 			}
 
-			await pb.collection('users').create(data)
+			const { token } = await response.json()
 
-			await pb.collection('users').authWithPassword(email, password)
-			await pb.collection('users').requestVerification(email)
+			pb.authStore.save(token)
 		},
 		onSuccess: () => {
 			setIsAuthenticated(true)
@@ -155,23 +180,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 			toast.success('Account created! Please check your email to verify your account.', { duration: 5000 })
 		},
 		onError: (error: any) => {
-			let shownError = false
-			const data = error.data.data
-			console.log(data)
-			if (data) {
-				;['email', 'password', 'passwordConfirm'].forEach((key) => {
-					if (data[key]) {
-						let errorMsg = data[key].message
-
-						toast.error(errorMsg)
-
-						shownError = true
-					}
-				})
-
-				if (!shownError && data.message) {
-					toast.error(data.message)
-				}
+			if (error?.error === 'User with this email already exists') {
+				return
+			}
+			const message = error.error
+			if (message) {
+				toast.error(message)
 			} else {
 				toast.error('Failed to create account. Please try again.')
 			}
@@ -179,11 +193,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 	})
 
 	const signup = useCallback(
-		async (email: string, password: string, passwordConfirm: string, onSuccess?: () => void) => {
-			try {
-				await signupMutation.mutateAsync({ email, password, passwordConfirm })
-				onSuccess?.()
-			} catch (e) {}
+		async (
+			email: string,
+			password: string,
+			passwordConfirm: string,
+			turnstileToken: string,
+			onSuccess?: () => void
+		) => {
+			const result = await signupMutation.mutateAsync({ email, password, passwordConfirm, turnstileToken })
+			onSuccess?.()
+			return result
 		},
 		[signupMutation]
 	)
@@ -255,18 +274,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 			}
 
 			const { nonce } = await getNonce(address)
-			const message = new SiweMessage({
+			const issuedAt = new Date()
+			const message = createSiweMessage({
 				domain: window.location.host,
-				address,
+				address: address as `0x${string}`,
 				statement: 'Sign in with Ethereum to the app.',
 				uri: window.location.origin,
 				version: '1',
 				chainId: 1,
-				nonce: nonce
+				nonce: nonce,
+				issuedAt: issuedAt
 			})
 
 			const signature = await signMessageFunction({
-				message: message.prepareMessage(),
+				message: message,
 				account: address as `0x${string}`
 			})
 
@@ -274,7 +295,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 				const response = await fetch(`${AUTH_SERVER}/eth-auth`, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ message, signature, address })
+					body: JSON.stringify({ message, signature, address, issuedAt: issuedAt.toISOString() })
 				})
 
 				if (!response.ok) {

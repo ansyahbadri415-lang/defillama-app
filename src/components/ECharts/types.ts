@@ -36,6 +36,7 @@ export interface IChartProps {
 	hideOthersInTooltip?: boolean
 	hideDataZoom?: boolean
 	hideDownloadButton?: boolean
+	containerClassName?: string
 }
 
 export interface IBarChartProps extends Omit<IChartProps, 'stacks' | 'expandTo100Percent'> {
@@ -65,6 +66,31 @@ export interface ILineAndBarChartProps {
 	expandTo100Percent?: boolean
 	valueSymbol?: string
 	alwaysShowTooltip?: boolean
+	containerClassName?: string
+	solidChartAreaStyle?: boolean
+}
+
+export interface IMultiSeriesChartProps {
+	series?: Array<{
+		data: Array<[number, number]>
+		type: 'line' | 'bar'
+		name: string
+		color: string
+		logo?: string
+	}>
+	chartOptions?: {
+		[key: string]: {
+			[key: string]: Value | Array<Value> | ((params: any) => string)
+		}
+	}
+	height?: string
+	groupBy?: 'daily' | 'weekly' | 'monthly'
+	hallmarks?: [number, string][]
+	valueSymbol?: string
+	alwaysShowTooltip?: boolean
+	hideDataZoom?: boolean
+	hideDownloadButton?: boolean
+	title?: string
 }
 
 export interface IPieChartProps {

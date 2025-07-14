@@ -1,24 +1,21 @@
 import * as React from 'react'
 import { useRouter } from 'next/router'
-import dynamic from 'next/dynamic'
 import Layout from '~/layout'
 import { maxAgeForNext } from '~/api'
 import { getSimpleProtocolsPageData } from '~/api/categories/protocols'
-import { IChartProps } from '~/components/ECharts/types'
+import { ILineAndBarChartProps } from '~/components/ECharts/types'
 import { PROTOCOL_API } from '~/constants'
-import { slug, tokenIconPaletteUrl } from '~/utils'
-import { getColor } from '~/utils/getColor'
+import { slug, getNDistinctColors } from '~/utils'
 import { useLocalStorageSettingsManager } from '~/contexts/LocalStorage'
-import { formatProtocolsTvlChartData } from '~/containers/ProtocolOverview/Chart/useFetchAndFormatChartData'
-import { fuseProtocolData } from '~/api/categories/protocols'
 import { withPerformanceLogging } from '~/utils/perf'
 import { useQueries } from '@tanstack/react-query'
 import { SelectWithCombobox } from '~/components/SelectWithCombobox'
-import { primaryColor } from '~/constants/colors'
+import { fetchJson } from '~/utils/async'
+import { oldBlue } from '~/constants/colors'
 
-const AreaChart = dynamic(() => import('~/components/ECharts/AreaChart'), {
-	ssr: false
-}) as React.FC<IChartProps>
+const LineAndBarChart = React.lazy(
+	() => import('~/components/ECharts/LineAndBarChart')
+) as React.FC<ILineAndBarChartProps>
 
 export const getStaticProps = withPerformanceLogging('comparison', async () => {
 	const { protocols } = await getSimpleProtocolsPageData(['name', 'logo'])
@@ -35,14 +32,10 @@ const fetchProtocol = async (selectedProtocol: string | null) => {
 	if (!selectedProtocol) return null
 
 	try {
-		const data = await Promise.allSettled([
-			fetch(`${PROTOCOL_API}/${slug(selectedProtocol)}`).then((res) => res.json()),
-			getColor(tokenIconPaletteUrl(selectedProtocol))
-		])
-
+		const data = await fetchJson(`${PROTOCOL_API}/${slug(selectedProtocol)}`)
 		return {
-			protocolData: data[0].status === 'fulfilled' ? data[0].value : null,
-			color: data[1].status === 'fulfilled' ? data[1].value : null
+			protocolData: data,
+			protocolName: data.name
 		}
 	} catch (error) {
 		throw new Error(error instanceof Error ? error.message : 'Failed to fetch')
@@ -71,57 +64,64 @@ export default function CompareProtocolsTvls({ protocols }: { protocols: Array<s
 
 	const isLoading = results.some((r) => r.isLoading)
 
-	const { chartData, stackColors } = React.useMemo(() => {
-		const stackColors = {}
-
+	const { charts } = React.useMemo(() => {
 		const formattedData =
 			results
 				.filter((r) => r.data)
-				.map((res: any) => {
-					const { historicalChainTvls } = fuseProtocolData(res.data.protocolData)
+				.map((res: any) => ({
+					protocolChartData: res.data.protocolData.chainTvls ?? {},
+					protocolName: res.data.protocolData.name
+				})) ?? []
 
-					if (res.data.color) {
-						stackColors[res.data.protocolData.name] = res.data.color
+		// Generate distinct colors for all protocols
+		const protocolNames = formattedData.map((p) => p.protocolName)
+		const distinctColors = getNDistinctColors(protocolNames.length, oldBlue)
+		const stackColors = Object.fromEntries(protocolNames.map((name, index) => [name, distinctColors[index]]))
+
+		const chartsByProtocol = {}
+
+		for (const protocol of formattedData) {
+			if (!chartsByProtocol[protocol.protocolName]) {
+				chartsByProtocol[protocol.protocolName] = {}
+			}
+
+			for (const chain in protocol.protocolChartData) {
+				if (chain.includes('-') || chain === 'offers') continue
+				if (chain in extraTvlEnabled && !extraTvlEnabled[chain]) continue
+
+				for (const { date, totalLiquidityUSD } of protocol.protocolChartData[chain].tvl) {
+					const dateKey = date
+					if (!chartsByProtocol[protocol.protocolName][dateKey]) {
+						chartsByProtocol[protocol.protocolName][dateKey] = 0
 					}
 
-					return {
-						protocolChartData: formatProtocolsTvlChartData({ historicalChainTvls, extraTvlEnabled }),
-						protocolName: res.data.protocolData.name
-					}
-				}) ?? []
-
-		const chartData = {}
-
-		formattedData.forEach(({ protocolChartData, protocolName }) => {
-			protocolChartData.forEach(([date, tvl]) => {
-				if (chartData[date]) {
-					chartData[date] = { ...chartData[date], [protocolName]: tvl }
-				} else {
-					let closestTimestamp = 0
-
-					// +- 6hours
-					for (let i = Number(date) - 21600; i <= Number(date) + 21600; i++) {
-						if (chartData[i]) {
-							closestTimestamp = i
-						}
-					}
-
-					if (!closestTimestamp) {
-						chartData[date] = {}
-						closestTimestamp = Number(date)
-					}
-
-					chartData[closestTimestamp] = {
-						...chartData[closestTimestamp],
-						[protocolName]: tvl
-					}
+					chartsByProtocol[protocol.protocolName][dateKey] =
+						(chartsByProtocol[protocol.protocolName][dateKey] || 0) + totalLiquidityUSD
 				}
-			})
-		})
+			}
+		}
+
+		const charts = {}
+		let chartIndex = 0
+		for (const protocol in chartsByProtocol) {
+			const color = stackColors[protocol]
+
+			charts[protocol] = {
+				name: protocol,
+				stack: protocol,
+				type: 'line',
+				color,
+				data: []
+			}
+			for (const date in chartsByProtocol[protocol]) {
+				charts[protocol].data.push([+date * 1e3, chartsByProtocol[protocol][date]])
+			}
+
+			chartIndex++
+		}
 
 		return {
-			chartData: Object.keys(chartData).map((date) => ({ date, ...chartData[date] })),
-			stackColors: Object.values(stackColors).filter((c) => c === primaryColor).length <= 1 ? stackColors : null
+			charts
 		}
 	}, [results, extraTvlEnabled])
 
@@ -140,22 +140,28 @@ export default function CompareProtocolsTvls({ protocols }: { protocols: Array<s
 		)
 	}
 
+	const sortedProtocols = React.useMemo(() => {
+		const selectedSet = new Set(selectedProtocols)
+		const unselectedProtocols = protocols.filter((protocol) => !selectedSet.has(protocol))
+
+		return [...selectedProtocols, ...unselectedProtocols]
+	}, [selectedProtocols, protocols])
+
 	return (
 		<Layout title={`Compare Protocols - DefiLlama`} defaultSEO>
-			<div className="bg-[var(--cards-bg)] rounded-md isolate">
+			<div className="bg-(--cards-bg) rounded-md isolate">
 				<div className="flex items-center justify-between flex-wrap gap-2 p-3">
 					<h1 className="text-lg font-semibold mr-auto">Compare Protocols</h1>
 					<SelectWithCombobox
-						allValues={protocols}
+						allValues={sortedProtocols}
 						selectedValues={selectedProtocols}
 						setSelectedValues={setSelectedProtocols}
 						label="Selected Protocols"
 						clearAll={() => setSelectedProtocols([])}
-						toggleAll={() => setSelectedProtocols(protocols)}
 						labelType="smol"
 						triggerProps={{
 							className:
-								'flex items-center justify-between gap-2 p-2 text-xs rounded-md cursor-pointer flex-nowrap relative border border-[var(--form-control-border)] hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] text-black dark:text-white font-medium'
+								'flex items-center justify-between gap-2 p-2 text-xs rounded-md cursor-pointer flex-nowrap relative border border-(--form-control-border) hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) text-black dark:text-white font-medium'
 						}}
 					/>
 				</div>
@@ -165,14 +171,7 @@ export default function CompareProtocolsTvls({ protocols }: { protocols: Array<s
 					</div>
 				) : (
 					<React.Suspense fallback={<div className="min-h-[360px]" />}>
-						<AreaChart
-							chartData={chartData}
-							title=""
-							valueSymbol="$"
-							stacks={selectedProtocols}
-							stackColors={stackColors}
-							hideDefaultLegend
-						/>
+						<LineAndBarChart charts={charts} valueSymbol="$" />
 					</React.Suspense>
 				)}
 			</div>

@@ -7,6 +7,8 @@ import { DateFilter } from './DateFilter'
 import { TableWithSearch } from '~/components/Table/TableWithSearch'
 import Layout from '~/layout'
 import { Metrics } from '~/components/Metrics'
+import { INFLOWS_API } from '~/constants'
+import { fetchJson } from '~/utils/async'
 
 const getOutflowsByTimerange = async (startTime, endTime) => {
 	if (startTime && endTime) {
@@ -15,9 +17,7 @@ const getOutflowsByTimerange = async (startTime, endTime) => {
 				if (c.slug === undefined) {
 					return [null, null]
 				} else {
-					const res = await fetch(`https://api.llama.fi/inflows/${c.slug}/${startTime}?end=${endTime}`).then((r) =>
-						r.json()
-					)
+					const res = await fetchJson(`${INFLOWS_API}/${c.slug}/${startTime}?end=${endTime}`)
 
 					return [c.slug, res]
 				}

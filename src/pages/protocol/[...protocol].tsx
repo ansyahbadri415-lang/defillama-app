@@ -1,12 +1,11 @@
-import ProtocolContainer from '~/containers/ProtocolOverview'
 import { slug } from '~/utils'
-import { getProtocols } from '~/api/categories/protocols'
 import { withPerformanceLogging } from '~/utils/perf'
-import { getProtocolData } from '~/api/categories/protocols/getProtocolData'
-import { isCpusHot } from '~/utils/cache-client'
-import metadata from '~/utils/metadata'
-import { getProtocol } from '~/containers/ProtocolOverview/queries'
-const { protocolMetadata } = metadata
+import { getProtocolOverviewPageData } from '~/containers/ProtocolOverview/queries'
+import { maxAgeForNext } from '~/api'
+import { ProtocolOverview } from '~/containers/ProtocolOverview'
+import { IProtocolMetadata, IProtocolOverviewPageData } from '~/containers/ProtocolOverview/types'
+import { PROTOCOLS_API } from '~/constants'
+import { fetchJson } from '~/utils/async'
 
 export const getStaticProps = withPerformanceLogging(
 	'protocol/[...protocol]',
@@ -15,28 +14,35 @@ export const getStaticProps = withPerformanceLogging(
 			protocol: [protocol]
 		}
 	}) => {
-		let isHot = false
-		const IS_RUNTIME = !!process.env.IS_RUNTIME
-
-		if (IS_RUNTIME) {
-			isHot = await isCpusHot()
-		}
-
 		const normalizedName = slug(protocol)
-		const metadata = Object.entries(protocolMetadata).find((p) => p[1].name === normalizedName)?.[1]
+		const metadataCache = await import('~/utils/metadata').then((m) => m.default)
+		const { protocolMetadata } = metadataCache
+		let metadata: [string, IProtocolMetadata] | undefined
+		for (const key in protocolMetadata) {
+			if (protocolMetadata[key].name === normalizedName) {
+				metadata = [key, protocolMetadata[key]]
+				break
+			}
+		}
 
 		if (!metadata) {
 			return { notFound: true, props: null }
 		}
 
-		const protocolData = await getProtocol(protocol)
-		const data = await getProtocolData(protocol, protocolData, isHot, metadata)
-		return data
+		const data = await getProtocolOverviewPageData({
+			protocolId: metadata[0],
+			metadata: metadata[1]
+		})
+
+		if (!data) {
+			return { notFound: true, props: null }
+		}
+
+		return { props: data, revalidate: maxAgeForNext([22]) }
 	}
 )
-
 export async function getStaticPaths() {
-	const res = await getProtocols()
+	const res = await fetchJson(PROTOCOLS_API)
 
 	const paths: string[] = res.protocols.slice(0, 30).map(({ name }) => ({
 		params: { protocol: [slug(name)] }
@@ -45,8 +51,6 @@ export async function getStaticPaths() {
 	return { paths, fallback: 'blocking' }
 }
 
-export default function Protocols({ clientSide, protocolData, ...props }) {
-	return (
-		<ProtocolContainer title={`${protocolData.name} - DefiLlama`} protocolData={protocolData} {...(props as any)} />
-	)
+export default function Protocols(props: IProtocolOverviewPageData) {
+	return <ProtocolOverview {...props} />
 }

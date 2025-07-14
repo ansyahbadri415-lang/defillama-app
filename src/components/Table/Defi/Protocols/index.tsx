@@ -49,6 +49,7 @@ export enum TABLE_PERIODS {
 export const protocolsByChainTableColumns = [
 	{ name: 'Name', key: 'name' },
 	{ name: 'Category', key: 'category' },
+	{ name: 'Chains', key: 'chains' },
 	{ name: 'TVL', key: 'tvl', category: TABLE_CATEGORIES.TVL },
 	{ name: 'TVL 1d change', key: 'change_1d', category: TABLE_CATEGORIES.TVL, period: TABLE_PERIODS.ONE_DAY },
 	{ name: 'TVL 7d change', key: 'change_7d', category: TABLE_CATEGORIES.TVL, period: TABLE_PERIODS.SEVEN_DAYS },
@@ -113,6 +114,7 @@ export const protocolsByChainTableColumns = [
 export const defaultColumns = JSON.stringify({
 	name: true,
 	category: true,
+	chains: false,
 	tvl: true,
 	change_1d: true,
 	change_7d: true,
@@ -244,6 +246,14 @@ export function ProtocolsByChainTable({ data }: { data: Array<IProtocolRow> }) {
 		window.localStorage.setItem(optionsKey, JSON.stringify(ops))
 		window.dispatchEvent(new Event('storage'))
 	}
+
+	const addOnlyOneOption = (newOption) => {
+		const ops = Object.fromEntries(
+			protocolsByChainTableColumns.map((col) => [col.key, col.key === newOption ? true : false])
+		)
+		window.localStorage.setItem(optionsKey, JSON.stringify(ops))
+		window.dispatchEvent(new Event('storage'))
+	}
 	const setFilter = (key) => (newState) => {
 		const newOptions = Object.fromEntries(
 			protocolsByChainTableColumns.map((column) => [
@@ -268,7 +278,7 @@ export function ProtocolsByChainTable({ data }: { data: Array<IProtocolRow> }) {
 	}, [columnsInStorage])
 
 	return (
-		<div className="rounded-md bg-[var(--cards-bg)]">
+		<div className="rounded-md bg-(--cards-bg)">
 			<div className="flex items-center justify-between flex-wrap gap-2 p-3">
 				<h3 className="text-lg font-medium mr-auto">Protocol Rankings</h3>
 				<TagGroup
@@ -285,6 +295,7 @@ export function ProtocolsByChainTable({ data }: { data: Array<IProtocolRow> }) {
 					allValues={protocolsByChainTableColumns}
 					selectedValues={selectedOptions}
 					setSelectedValues={addOption}
+					selectOnlyOne={addOnlyOneOption}
 					toggleAll={toggleAllOptions}
 					clearAll={clearAllOptions}
 					nestedMenu={false}
@@ -292,7 +303,7 @@ export function ProtocolsByChainTable({ data }: { data: Array<IProtocolRow> }) {
 					labelType="smol"
 					triggerProps={{
 						className:
-							'flex items-center justify-between gap-2 p-2 text-xs rounded-md cursor-pointer flex-nowrap relative border border-[var(--form-control-border)] text-[#666] dark:text-[#919296] hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] font-medium'
+							'flex items-center justify-between gap-2 p-2 text-xs rounded-md cursor-pointer flex-nowrap relative border border-(--form-control-border) text-[#666] dark:text-[#919296] hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) font-medium'
 					}}
 				/>
 				<TVLRange variant="third" />
@@ -385,7 +396,7 @@ export function ProtocolsTableWithSearch({
 	}, [projectName, instance])
 
 	return (
-		<div className="bg-[var(--cards-bg)] rounded-md">
+		<div className="bg-(--cards-bg) border border-(--cards-border) rounded-md">
 			<div className="p-3 flex items-center justify-between gap-4">
 				<h1 className="text-lg font-semibold mr-auto">Protocol Rankings</h1>
 				<div className="relative w-full sm:max-w-[280px] ml-auto">
@@ -393,7 +404,7 @@ export function ProtocolsTableWithSearch({
 						name="search"
 						height={16}
 						width={16}
-						className="absolute text-[var(--text3)] top-0 bottom-0 my-auto left-2"
+						className="absolute text-(--text3) top-0 bottom-0 my-auto left-2"
 					/>
 					<input
 						value={projectName}
@@ -401,7 +412,7 @@ export function ProtocolsTableWithSearch({
 							setProjectName(e.target.value)
 						}}
 						placeholder="Search protocols..."
-						className="border border-[var(--form-control-border)] w-full pl-7 pr-2 py-[6px] bg-white dark:bg-black text-black dark:text-white rounded-md text-sm"
+						className="border border-(--form-control-border) w-full pl-7 pr-2 py-[6px] bg-white dark:bg-black text-black dark:text-white rounded-md text-sm"
 					/>
 				</div>
 			</div>

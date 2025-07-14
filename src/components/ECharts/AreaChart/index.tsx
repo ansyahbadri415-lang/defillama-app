@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState, useRef } from 'react'
 import * as echarts from 'echarts/core'
 import { useDarkModeManager } from '~/contexts/LocalStorage'
 import { stringToColour } from '../utils'
@@ -31,6 +31,7 @@ export default function AreaChart({
 	hideDefaultLegend,
 	hideDataZoom = false,
 	hideDownloadButton = false,
+	containerClassName,
 	...props
 }: IChartProps) {
 	const id = useId()
@@ -214,15 +215,17 @@ export default function AreaChart({
 		hideGradient
 	])
 
-	const createInstance = useCallback(() => {
-		const instance = echarts.getInstanceByDom(document.getElementById(id))
-
-		return instance || echarts.init(document.getElementById(id))
-	}, [id])
+	const chartRef = useRef<echarts.ECharts | null>(null)
 
 	useEffect(() => {
-		// create instance
-		const chartInstance = createInstance()
+		const chartDom = document.getElementById(id)
+		if (!chartDom) return
+
+		let chartInstance = echarts.getInstanceByDom(chartDom)
+		if (!chartInstance) {
+			chartInstance = echarts.init(chartDom)
+		}
+		chartRef.current = chartInstance
 
 		const { graphic, titleDefaults, grid, tooltip, xAxis, yAxis, dataZoom, legend } = defaultChartSettings
 
@@ -287,9 +290,23 @@ export default function AreaChart({
 
 		return () => {
 			window.removeEventListener('resize', resize)
-			chartInstance.dispose()
 		}
-	}, [createInstance, defaultChartSettings, series, chartOptions, expandTo100Percent, hideLegend])
+	}, [defaultChartSettings, series, chartOptions, expandTo100Percent, hideLegend, hideDataZoom, id, chartsStack])
+
+	useEffect(() => {
+		return () => {
+			const chartDom = document.getElementById(id)
+			if (chartDom) {
+				const chartInstance = echarts.getInstanceByDom(chartDom)
+				if (chartInstance) {
+					chartInstance.dispose()
+				}
+			}
+			if (chartRef.current) {
+				chartRef.current = null
+			}
+		}
+	}, [id])
 
 	const legendTitle = customLegendName === 'Category' && legendOptions.length > 1 ? 'Categories' : customLegendName
 
@@ -301,13 +318,16 @@ export default function AreaChart({
 						allValues={customLegendOptions}
 						selectedValues={legendOptions}
 						setSelectedValues={setLegendOptions}
+						selectOnlyOne={(newOption) => {
+							setLegendOptions([newOption])
+						}}
 						label={legendTitle}
 						clearAll={() => setLegendOptions([])}
 						toggleAll={() => setLegendOptions(customLegendOptions)}
 						labelType="smol"
 						triggerProps={{
 							className:
-								'flex items-center justify-between gap-2 p-2 text-xs rounded-md cursor-pointer flex-nowrap relative border border-[var(--form-control-border)] text-[#666] dark:text-[#919296] hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] font-medium'
+								'flex items-center justify-between gap-2 p-2 text-xs rounded-md cursor-pointer flex-nowrap relative border border-(--form-control-border) text-[#666] dark:text-[#919296] hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) font-medium'
 						}}
 						portal
 					/>
@@ -337,11 +357,15 @@ export default function AreaChart({
 							}
 						}}
 						smol
-						className="!bg-transparent border border-[var(--form-control-border)] !text-[#666] dark:!text-[#919296] hover:!bg-[var(--link-hover-bg)] focus-visible:!bg-[var(--link-hover-bg)]"
+						className="h-[30px] bg-transparent! border border-(--form-control-border) text-[#666]! dark:text-[#919296]! hover:bg-(--link-hover-bg)! focus-visible:bg-(--link-hover-bg)! ml-auto"
 					/>
 				)}
 			</div>
-			<div id={id} className="min-h-[360px] my-auto mx-0" style={height ? { height } : undefined} />
+			<div
+				id={id}
+				className={containerClassName ? containerClassName : 'min-h-[360px] my-auto mx-0'}
+				style={height ? { height } : undefined}
+			/>
 		</div>
 	)
 }

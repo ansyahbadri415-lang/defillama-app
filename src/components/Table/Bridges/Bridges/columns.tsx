@@ -8,7 +8,8 @@ import {
 	toNiceDayAndHour,
 	getBlockExplorer,
 	slug,
-	tokenIconUrl
+	tokenIconUrl,
+	formatUsdWithSign
 } from '~/utils'
 import { TokenLogo } from '~/components/TokenLogo'
 import { formatColumnOrder } from '../../utils'
@@ -35,11 +36,11 @@ export const bridgesColumn: ColumnDef<IBridge>[] = [
 
 			return (
 				<span className="flex items-center gap-2">
-					<span className="flex-shrink-0">{index + 1}</span>
+					<span className="shrink-0">{index + 1}</span>
 					{icon && <TokenLogo logo={iconLink} data-lgonly />}
 					<BasicLink
 						href={`/bridge/${linkValue}`}
-						className="text-sm font-medium text-[var(--link-text)] overflow-hidden text-ellipsis whitespace-nowrap"
+						className="text-sm font-medium text-(--link-text) overflow-hidden text-ellipsis whitespace-nowrap"
 					>
 						{value}
 					</BasicLink>
@@ -115,11 +116,11 @@ export const bridgeChainsColumn: ColumnDef<IBridgeChain>[] = [
 			const index = row.depth === 0 ? table.getSortedRowModel().rows.findIndex((x) => x.id === row.id) : row.index
 			return (
 				<span className="flex items-center gap-2">
-					<span className="flex-shrink-0">{index + 1}</span>
+					<span className="shrink-0">{index + 1}</span>
 					<TokenLogo logo={chainIconUrl(value)} data-lgonly />
 					<BasicLink
 						href={`/bridges/${value}`}
-						className="text-sm font-medium text-[var(--link-text)] overflow-hidden text-ellipsis whitespace-nowrap"
+						className="text-sm font-medium text-(--link-text) overflow-hidden text-ellipsis whitespace-nowrap"
 					>
 						{value}
 					</BasicLink>
@@ -135,11 +136,8 @@ export const bridgeChainsColumn: ColumnDef<IBridgeChain>[] = [
 			const value = info.getValue() as any
 			if (value) {
 				return (
-					<span
-						className="text-[var(--color)]"
-						style={{ '--color': (value as number) > 0 ? '#3fb950' : '#f85149' } as any}
-					>
-						${formattedNum(info.getValue())}
+					<span className="text-(--color)" style={{ '--color': (value as number) > 0 ? '#3fb950' : '#f85149' } as any}>
+						{formatUsdWithSign(value)}
 					</span>
 				)
 			}
@@ -175,11 +173,8 @@ export const bridgeChainsColumn: ColumnDef<IBridgeChain>[] = [
 			const value = info.getValue() as any
 			if (value) {
 				return (
-					<span
-						className="text-[var(--color)]"
-						style={{ '--color': (value as number) > 0 ? '#3fb950' : '#f85149' } as any}
-					>
-						${formattedNum(info.getValue())}
+					<span className="text-(--color)" style={{ '--color': (value as number) > 0 ? '#3fb950' : '#f85149' } as any}>
+						{formatUsdWithSign(value)}
 					</span>
 				)
 			}
@@ -240,7 +235,7 @@ export const largeTxsColumn: ColumnDef<IBridge>[] = [
 			return (
 				<BasicLink
 					href={`/bridge/${linkValue}`}
-					className="text-sm font-medium text-[var(--link-text)] overflow-hidden text-ellipsis whitespace-nowrap"
+					className="text-sm font-medium text-(--link-text) overflow-hidden text-ellipsis whitespace-nowrap"
 				>
 					{value}
 				</BasicLink>
@@ -254,7 +249,7 @@ export const largeTxsColumn: ColumnDef<IBridge>[] = [
 		cell: ({ getValue }) => {
 			const value = getValue() as boolean
 			return (
-				<span className="text-[var(--color)]" style={{ '--color': value ? '#f85149' : '#3fb950' } as any}>
+				<span className="text-(--color)" style={{ '--color': value ? '#f85149' : '#3fb950' } as any}>
 					{value ? 'Withdrawal' : 'Deposit'}
 				</span>
 			)

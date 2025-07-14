@@ -5,7 +5,7 @@ export * from './blockExplorers'
 import { colord, extend } from 'colord'
 import lchPlugin from 'colord/plugins/lch'
 import relativeTime from 'dayjs/plugin/relativeTime'
-import { fetchWithErrorLogging } from './async'
+import { fetchJson } from './async'
 
 extend([lchPlugin])
 dayjs.extend(utc)
@@ -45,7 +45,7 @@ export const toNiceHour = (date) => {
 	return dayjs.utc(dayjs.unix(date)).format('HH:mm')
 }
 export const toNiceDayMonthAndYear = (date) => {
-	return dayjs.utc(dayjs.unix(date)).format('D MMM, YYYY, HH:mm')
+	return dayjs.utc(dayjs.unix(date)).format('D MMM, YYYY')
 }
 
 export const toNiceDayMonthAndYearAndTime = (date) => {
@@ -188,37 +188,27 @@ export function chainIconPaletteUrl(chain) {
 
 export function tokenIconUrl(name) {
 	const x = name ?? ''
-	return `${ICONS_CDN}/protocols/${x
-		.trim()
-		.toLowerCase()
-		.split(' ')
-		.join('-')
-		.split('(')
-		.join('')
-		.split(')')
-		.join('')
-		.split("'")
-		.join('')
-		.split('’')
-		.join('')}?w=48&h=48`
+	return `${ICONS_CDN}/protocols/${
+		x
+			.trim()
+			.toLowerCase()
+			.replace(/[()'"]/g, '') // Remove parentheses and quotes
+			.replace(/\s+/g, '-') // Replace spaces with hyphens
+			.replace(/[^\w.-]/g, '') // Remove any other non-word chars except hyphens and dots
+	}?w=48&h=48`
 }
 
 export function tokenIconPaletteUrl(name) {
 	if (!name) return null
 
-	return `${ICONS_PALETTE_CDN}/protocols/${name
-		.trim()
-		.toLowerCase()
-		.split(' ')
-		.join('-')
-		.split('(')
-		.join('')
-		.split(')')
-		.join('')
-		.split("'")
-		.join('')
-		.split('’')
-		.join('')}`
+	return `${ICONS_PALETTE_CDN}/protocols/${
+		name
+			.trim()
+			.toLowerCase()
+			.replace(/[()'"]/g, '') // Remove parentheses and quotes
+			.replace(/\s+/g, '-') // Replace spaces with hyphens
+			.replace(/[^\w.-]/g, '') // Remove any other non-word chars except hyphens and dots
+	}`
 }
 
 /**
@@ -299,7 +289,7 @@ export function formattedPercent(percent, noSign = false, fontWeight = 400, retu
 	if (fontWeight > 400) {
 		return (
 			<span
-				className={`${noSign ? '' : color === 'green' ? 'text-[var(--pct-green)]' : 'text-[var(--pct-red)]'}`}
+				className={`${noSign ? '' : color === 'green' ? 'text-(--pct-green)' : 'text-(--pct-red)'}`}
 				style={{ fontWeight }}
 			>
 				{finalValue}
@@ -308,7 +298,7 @@ export function formattedPercent(percent, noSign = false, fontWeight = 400, retu
 	}
 
 	return (
-		<span className={`${noSign ? '' : color === 'green' ? 'text-[var(--pct-green)]' : 'text-[var(--pct-red)]'}`}>
+		<span className={`${noSign ? '' : color === 'green' ? 'text-(--pct-green)' : 'text-(--pct-red)'}`}>
 			{finalValue}
 		</span>
 	)
@@ -330,7 +320,12 @@ export const getPercentChange = (valueNow, value24HoursAgo) => {
 
 export const capitalizeFirstLetter = (word) => word.charAt(0).toUpperCase() + word.slice(1)
 
-export const slug = (name = '') => name?.toLowerCase().split(' ').join('-').split("'").join('')
+export const slug = (name = '') =>
+	name
+		?.toLowerCase()
+		.replace(/[()'"]/g, '') // Remove parentheses and quotes
+		.replace(/\s+/g, '-') // Replace spaces with hyphens
+		.replace(/[^\w.-]/g, '') // Remove any other non-word chars except hyphens and dots
 
 export function getRandomColor() {
 	var letters = '0123456789ABCDEF'
@@ -350,23 +345,116 @@ export function getNDistinctColors(n, colorToAvoid) {
 	// Use prime number for better distribution
 	const step = 0.618033988749895 // golden ratio
 
+	// Function to calculate color distance in HSL space
+	const getColorDistance = (hsl1, hsl2) => {
+		// Calculate hue difference (accounting for circular nature)
+		let hueDiff = Math.abs(hsl1.h - hsl2.h)
+		if (hueDiff > 180) hueDiff = 360 - hueDiff
+
+		// Normalize differences
+		const hueDistance = hueDiff / 180 // 0-1
+		const satDistance = Math.abs(hsl1.s - hsl2.s) / 100 // 0-1
+		const lightDistance = Math.abs(hsl1.l - hsl2.l) / 100 // 0-1
+
+		// Weighted distance (hue is most important for distinction)
+		return hueDistance * 0.7 + satDistance * 0.2 + lightDistance * 0.1
+	}
+
+	// Function to check if a color is too similar to any existing colors
+	const isTooSimilarToAny = (colorHsl, existingColors) => {
+		// Check against colorToAvoid
+		if (colorToAvoidHsl && getColorDistance(colorHsl, colorToAvoidHsl) < 0.3) {
+			return true
+		}
+
+		// Check against all existing colors
+		for (const existingColor of existingColors) {
+			const existingHsl = hexToHSL(existingColor)
+			if (getColorDistance(colorHsl, existingHsl) < 0.3) {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	// First pass: Generate n distinct colors
 	for (let i = 0; i < n; i++) {
-		// Vary saturation slightly for better distinction while keeping colors rich
-		const saturation = 85 + (i % 3) * 5
-		// Vary lightness slightly for better distinction while keeping colors dark
-		const lightness = 35 + (i % 2) * 10
+		let attempts = 0
+		let color
+		let colorHsl
 
-		let color = hslToHex(hue * 360, saturation, lightness)
+		do {
+			// Use larger modulo values to prevent repetition patterns
+			// Vary saturation for better distinction while keeping colors rich
+			const saturation = 65 + (i % 7) * 5 // 7 different saturation values: 65, 70, 75, 80, 85, 90, 95
+			// Keep colors dark (lightness 20-45)
+			const lightness = 20 + (i % 6) * 5 // 6 different lightness values: 20, 25, 30, 35, 40, 45
 
-		// If the generated color is too close to colorToAvoid, adjust the hue further
-		if (colorToAvoid === color) {
-			hue = (hue + 0.3) % 1 // Add 108 degrees to hue
+			color = hslToHex(hue * 360, saturation, lightness)
+			colorHsl = hexToHSL(color)
+
+			// Check if color is too similar to colorToAvoid or existing colors
+			const isTooSimilar = isTooSimilarToAny(colorHsl, colors)
+
+			if (!isTooSimilar) break
+
+			// If too similar, try different hue
+			hue = (hue + 0.2) % 1
+			attempts++
+		} while (attempts < 10) // Prevent infinite loop
+
+		// If we still can't find a distinct color, force a very different hue
+		if (attempts >= 10) {
+			hue = (hue + 0.5) % 1 // Jump to opposite side of color wheel
+			const saturation = 65 + (i % 7) * 5
+			const lightness = 20 + (i % 6) * 5
 			color = hslToHex(hue * 360, saturation, lightness)
 		}
 
 		colors.push(color)
 		hue += step
 		hue %= 1 // Keep in [0,1] range
+	}
+
+	// Second pass: Replace any colors that are still too similar to colorToAvoid
+	if (colorToAvoidHsl) {
+		for (let i = 0; i < colors.length; i++) {
+			const currentColorHsl = hexToHSL(colors[i])
+
+			// Check if current color is too similar to colorToAvoid
+			if (getColorDistance(currentColorHsl, colorToAvoidHsl) < 0.3) {
+				let replacementFound = false
+				let attempts = 0
+
+				// Try to find a replacement color
+				while (!replacementFound && attempts < 20) {
+					// Use a different hue strategy for replacement
+					const replacementHue = Math.random() * 360 // Random hue
+					const saturation = 65 + (attempts % 7) * 5
+					const lightness = 20 + (attempts % 6) * 5
+
+					const replacementColor = hslToHex(replacementHue, saturation, lightness)
+					const replacementHsl = hexToHSL(replacementColor)
+
+					// Check if replacement is distinct from colorToAvoid and all other colors
+					if (!isTooSimilarToAny(replacementHsl, colors)) {
+						colors[i] = replacementColor
+						replacementFound = true
+					}
+
+					attempts++
+				}
+
+				// If no replacement found, force a very different color
+				if (!replacementFound) {
+					const forcedHue = (colorToAvoidHsl.h + 180) % 360 // Opposite hue
+					const saturation = 80
+					const lightness = 30
+					colors[i] = hslToHex(forcedHue, saturation, lightness)
+				}
+			}
+		}
 	}
 
 	return colors
@@ -474,16 +562,27 @@ export function nearestUtcZeroHour(dateString) {
 		: Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
 }
 
+// TODO params & return value should be in seconds
 export function firstDayOfMonth(dateString) {
 	const date = new Date(dateString)
 	return Math.trunc(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1) / 1000)
 }
 
+export function firstDayOfQuarter(dateString) {
+	const date = new Date(dateString)
+	const month = date.getUTCMonth()
+	const quarterStartMonth = Math.floor(month / 3) * 3
+	return Math.trunc(Date.UTC(date.getUTCFullYear(), quarterStartMonth, 1) / 1000)
+}
+// TODO params & return value should be in seconds
 export function lastDayOfWeek(dateString) {
 	const date = new Date(dateString)
-	const weekDay = date.getUTCDay() === 0 ? 7 : date.getUTCDay()
-	const lastDayOfWeek = date.getUTCDate() - weekDay
-	return Math.trunc(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), lastDayOfWeek) / 1000)
+	const weekDay = date.getUTCDay()
+	// Calculate days to add to get to the end of the week (Sunday)
+	const daysToAdd = weekDay === 0 ? 0 : 7 - weekDay
+	// Create a new date by adding days (this handles month boundaries automatically)
+	const lastDayDate = new Date(date.getTime() + daysToAdd * 24 * 60 * 60 * 1000)
+	return Math.trunc(lastDayDate.getTime() / 1000)
 }
 
 function hexToHSL(hex) {
@@ -550,9 +649,9 @@ export async function batchFetchHistoricalPrices(priceReqs, batchSize = 15) {
 
 	for (const batch of batches) {
 		const batchReqs = Object.fromEntries(batch)
-		const response = await fetchWithErrorLogging(
+		const response = await fetchJson(
 			`https://coins.llama.fi/batchHistorical?coins=${JSON.stringify(batchReqs)}&searchWidth=6h`
-		).then((res) => res.json())
+		)
 
 		for (const coinId of batch) {
 			if (response.coins[coinId]?.prices) {
@@ -611,4 +710,9 @@ export function formatValue(value, formatType = 'auto') {
 	}
 	if (formatType === 'number') return formattedNum(value)
 	return String(value)
+}
+
+export function formatUsdWithSign(value) {
+	const absValue = Math.abs(value)
+	return value < 0 ? `-$${formattedNum(absValue)}` : `$${formattedNum(value)}`
 }

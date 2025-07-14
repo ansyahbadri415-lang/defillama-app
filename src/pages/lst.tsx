@@ -1,27 +1,21 @@
 import * as React from 'react'
-import dynamic from 'next/dynamic'
 import Layout from '~/layout'
 import { ProtocolsChainsSearch } from '~/components/Search/ProtocolsChains'
 import { maxAgeForNext } from '~/api'
 import { getLSDPageData } from '~/api/categories/protocols'
 import { withPerformanceLogging } from '~/utils/perf'
-import { formattedNum, toK } from '~/utils'
+import { formattedNum, firstDayOfMonth, lastDayOfWeek, toK } from '~/utils'
 import type { IBarChartProps, IChartProps, IPieChartProps } from '~/components/ECharts/types'
 import { TableWithSearch } from '~/components/Table/TableWithSearch'
 import { LSDColumn } from '~/components/Table/Defi/columns'
-import { groupDataByDays } from '~/containers/ProtocolOverview/Chart/useFetchAndFormatChartData'
+import { COINS_PRICES_API } from '~/constants'
+import { fetchJson } from '~/utils/async'
 
-const PieChart = dynamic(() => import('~/components/ECharts/PieChart'), {
-	ssr: false
-}) as React.FC<IPieChartProps>
+const PieChart = React.lazy(() => import('~/components/ECharts/PieChart')) as React.FC<IPieChartProps>
 
-const AreaChart = dynamic(() => import('~/components/ECharts/AreaChart'), {
-	ssr: false
-}) as React.FC<IChartProps>
+const AreaChart = React.lazy(() => import('~/components/ECharts/AreaChart')) as React.FC<IChartProps>
 
-const BarChart = dynamic(() => import('~/components/ECharts/BarChart'), {
-	ssr: false
-}) as React.FC<IBarChartProps>
+const BarChart = React.lazy(() => import('~/components/ECharts/BarChart')) as React.FC<IBarChartProps>
 
 export const getStaticProps = withPerformanceLogging('lsd', async () => {
 	const data = await getLSDPageData()
@@ -48,28 +42,58 @@ const PageView = ({
 	const [tab, setTab] = React.useState('breakdown')
 	const [groupBy, setGroupBy] = React.useState<'daily' | 'weekly' | 'monthly' | 'cumulative'>('weekly')
 
-	const inflowsData = groupDataByDays(inflowsChartData, groupBy, tokens, true)
+	const inflowsData = React.useMemo(() => {
+		const store = {}
+
+		const isWeekly = groupBy === 'weekly'
+		const isMonthly = groupBy === 'monthly'
+		const isCumulative = groupBy === 'cumulative'
+		const totalByToken = {}
+		for (const date in inflowsChartData) {
+			for (const token in inflowsChartData[date]) {
+				const dateKey = isWeekly ? lastDayOfWeek(+date * 1e3) : isMonthly ? firstDayOfMonth(+date * 1e3) : date
+				if (!store[dateKey]) {
+					store[dateKey] = {}
+				}
+				store[dateKey][token] =
+					(store[dateKey][token] || 0) + inflowsChartData[date][token] + (totalByToken[token] || 0)
+
+				if (isCumulative) {
+					totalByToken[token] = (totalByToken[token] || 0) + inflowsChartData[date][token]
+				}
+			}
+		}
+		const finalData = []
+
+		for (const date in store) {
+			const dateStore = store[date]
+			dateStore.date = date
+			finalData.push(dateStore)
+		}
+
+		return finalData
+	}, [inflowsChartData, groupBy])
 
 	return (
 		<>
 			<ProtocolsChainsSearch />
-			<div className="bg-[var(--cards-bg)] rounded-md">
+			<div className="bg-(--cards-bg) border border-(--cards-border) rounded-md">
 				<h1 className="text-xl font-semibold flex items-center justify-between gap-4 flex-wrap p-3">
 					<span>Total Value Locked ETH LSTs</span>
 					<span className="font-jetbrains">{`${formattedNum(stakedEthSum)} ETH ($${toK(stakedEthInUsdSum)})`}</span>
 				</h1>
 
-				<div className="bg-[var(--cards-bg)] rounded-md w-full flex flex-col">
-					<div className="flex flex-wrap overflow-x-auto border-y border-[var(--form-control-border)]">
+				<div className="bg-(--cards-bg) rounded-md w-full flex flex-col">
+					<div className="flex flex-wrap overflow-x-auto border-y border-(--form-control-border)">
 						<button
-							className="py-2 px-6 whitespace-nowrap border-[var(--form-control-border)] data-[selected=true]:border-b data-[selected=true]:border-b-[var(--primary1)] hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)]"
+							className="py-2 px-6 whitespace-nowrap border-(--form-control-border) data-[selected=true]:border-b data-[selected=true]:border-b-(--primary1) hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg)"
 							onClick={() => setTab('breakdown')}
 							data-selected={tab === 'breakdown'}
 						>
 							Breakdown
 						</button>
 						<button
-							className="py-2 px-6 whitespace-nowrap border-l border-[var(--form-control-border)] data-[selected=true]:border-b data-[selected=true]:border-b-[var(--primary1)] hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)]"
+							className="py-2 px-6 whitespace-nowrap border-l border-(--form-control-border) data-[selected=true]:border-b data-[selected=true]:border-b-(--primary1) hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg)"
 							onClick={() => setTab('inflows')}
 							data-selected={tab === 'inflows'}
 						>
@@ -79,26 +103,30 @@ const PageView = ({
 
 					<div className="flex flex-col items-center gap-4 min-h-[408px] w-full">
 						{tab === 'breakdown' ? (
-							<div className="w-full grid grid-cols-1 xl:grid-cols-2 *:col-span-1 pt-12 xl:[&[role='combobox']]:*:*:!-mt-9">
-								<PieChart chartData={pieChartData} stackColors={lsdColors} usdFormat={false} />
-								<AreaChart
-									chartData={areaChartData}
-									stacks={tokens}
-									stackColors={lsdColors}
-									customLegendName="LST"
-									customLegendOptions={tokens}
-									hideDefaultLegend
-									valueSymbol="%"
-									title=""
-									expandTo100Percent={true}
-								/>
+							<div className="w-full grid grid-cols-1 xl:grid-cols-2 *:col-span-1 pt-12 xl:*:*:[&[role='combobox']]:-mt-9!">
+								<React.Suspense fallback={<></>}>
+									<PieChart chartData={pieChartData} stackColors={lsdColors} usdFormat={false} />
+								</React.Suspense>
+								<React.Suspense fallback={<></>}>
+									<AreaChart
+										chartData={areaChartData}
+										stacks={tokens}
+										stackColors={lsdColors}
+										customLegendName="LST"
+										customLegendOptions={tokens}
+										hideDefaultLegend
+										valueSymbol="%"
+										title=""
+										expandTo100Percent={true}
+									/>
+								</React.Suspense>
 							</div>
 						) : (
 							<div className="flex flex-col w-full gap-1">
-								<div className="text-xs font-medium m-3 ml-auto flex items-center rounded-md overflow-x-auto flex-nowrap border border-[var(--form-control-border)] text-[#666] dark:text-[#919296]">
+								<div className="text-xs font-medium m-3 ml-auto flex items-center rounded-md overflow-x-auto flex-nowrap border border-(--form-control-border) text-[#666] dark:text-[#919296]">
 									<button
 										data-active={groupBy === 'daily'}
-										className="flex-shrink-0 py-2 px-3 whitespace-nowrap hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] data-[active=true]:bg-[var(--old-blue)] data-[active=true]:text-white"
+										className="shrink-0 py-2 px-3 whitespace-nowrap hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) data-[active=true]:bg-(--old-blue) data-[active=true]:text-white"
 										onClick={() => setGroupBy('daily')}
 									>
 										Daily
@@ -106,7 +134,7 @@ const PageView = ({
 
 									<button
 										data-active={groupBy === 'weekly'}
-										className="flex-shrink-0 py-2 px-3 whitespace-nowrap hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] data-[active=true]:bg-[var(--old-blue)] data-[active=true]:text-white"
+										className="shrink-0 py-2 px-3 whitespace-nowrap hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) data-[active=true]:bg-(--old-blue) data-[active=true]:text-white"
 										onClick={() => setGroupBy('weekly')}
 									>
 										Weekly
@@ -114,7 +142,7 @@ const PageView = ({
 
 									<button
 										data-active={groupBy === 'monthly'}
-										className="flex-shrink-0 py-2 px-3 whitespace-nowrap hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] data-[active=true]:bg-[var(--old-blue)] data-[active=true]:text-white"
+										className="shrink-0 py-2 px-3 whitespace-nowrap hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) data-[active=true]:bg-(--old-blue) data-[active=true]:text-white"
 										onClick={() => setGroupBy('monthly')}
 									>
 										Monthly
@@ -122,23 +150,40 @@ const PageView = ({
 
 									<button
 										data-active={groupBy === 'cumulative'}
-										className="flex-shrink-0 py-2 px-3 whitespace-nowrap hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] data-[active=true]:bg-[var(--old-blue)] data-[active=true]:text-white"
+										className="shrink-0 py-2 px-3 whitespace-nowrap hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) data-[active=true]:bg-(--old-blue) data-[active=true]:text-white"
 										onClick={() => setGroupBy('cumulative')}
 									>
 										Cumulative
 									</button>
 								</div>
 
-								<BarChart
-									chartData={inflowsData}
-									hideDefaultLegend
-									customLegendName="Protocol"
-									customLegendOptions={tokens}
-									stacks={barChartStacks}
-									stackColors={lsdColors}
-									valueSymbol="ETH"
-									title=""
-								/>
+								{groupBy === 'cumulative' ? (
+									<React.Suspense fallback={<></>}>
+										<AreaChart
+											chartData={inflowsData}
+											stacks={tokens}
+											stackColors={lsdColors}
+											customLegendName="LST"
+											customLegendOptions={tokens}
+											hideDefaultLegend
+											valueSymbol="ETH"
+											title=""
+										/>
+									</React.Suspense>
+								) : (
+									<React.Suspense fallback={<></>}>
+										<BarChart
+											chartData={inflowsData}
+											hideDefaultLegend
+											customLegendName="Protocol"
+											customLegendOptions={tokens}
+											stacks={barChartStacks}
+											stackColors={lsdColors}
+											valueSymbol="ETH"
+											title=""
+										/>
+									</React.Suspense>
+								)}
 							</div>
 						)}
 					</div>
@@ -194,8 +239,7 @@ async function getChartData({ chartData, lsdRates, lsdApy, lsdColors }) {
 	// Fetch ETH price from API
 	const fetchEthPrice = async () => {
 		try {
-			const response = await fetch('https://coins.llama.fi/prices/current/ethereum:0x0000000000000000000000000000000000000000')
-			const data = await response.json()
+			const data = await fetchJson(`${COINS_PRICES_API}/current/ethereum:0x0000000000000000000000000000000000000000`)
 			return data.coins['ethereum:0x0000000000000000000000000000000000000000'].price
 		} catch (error) {
 			console.error('Error fetching ETH price:', error)
@@ -317,7 +361,9 @@ async function getChartData({ chartData, lsdRates, lsdApy, lsdColors }) {
 				const calculatedEth = ethInUsd / ethPrice
 				const diff = Math.abs(calculatedEth - eth) / eth
 				if (diff > PRICE_DIFF_THRESHOLD) {
-					console.log(`Correcting ${protocol.name} stakedEth from ${eth} to ${calculatedEth} (${diff * 100}% difference)`)
+					console.log(
+						`Correcting ${protocol.name} stakedEth from ${eth} to ${calculatedEth} (${diff * 100}% difference)`
+					)
 					correctedEth = calculatedEth
 				}
 			}

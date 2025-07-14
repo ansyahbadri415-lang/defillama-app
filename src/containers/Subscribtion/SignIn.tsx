@@ -5,6 +5,8 @@ import { useAccount, useSignMessage } from 'wagmi'
 import { useAuthContext } from '~/containers/Subscribtion/auth'
 import { Icon } from '~/components/Icon'
 import { LocalLoader } from '~/components/LocalLoader'
+import { BasicLink } from '~/components/Link'
+import { Turnstile } from '~/components/Turnstile'
 
 export const SignIn = ({ text, className }: { text?: string; className?: string }) => {
 	const dialogState = Ariakit.useDialogStore()
@@ -17,6 +19,8 @@ export const SignIn = ({ text, className }: { text?: string; className?: string 
 	const [confirmPassword, setConfirmPassword] = useState('')
 	const [passwordError, setPasswordError] = useState('')
 	const [confirmPasswordError, setConfirmPasswordError] = useState('')
+	const [turnstileToken, setTurnstileToken] = useState('')
+	const [emailError, setEmailError] = useState('')
 
 	const { login, signup, signInWithEthereum, signInWithGithub, resetPassword, isAuthenticated, loaders } =
 		useAuthContext()
@@ -53,6 +57,10 @@ export const SignIn = ({ text, className }: { text?: string; className?: string 
 	const handleEmailSignUp = async (e: FormEvent<HTMLFormElement>) => {
 		e.preventDefault()
 
+		setEmailError('')
+		setPasswordError('')
+		setConfirmPasswordError('')
+
 		const isPasswordValid = validatePassword(password)
 		const isConfirmPasswordValid = validateConfirmPassword(password, confirmPassword)
 
@@ -60,11 +68,33 @@ export const SignIn = ({ text, className }: { text?: string; className?: string 
 			return
 		}
 
+		if (!turnstileToken) {
+			return
+		}
+
 		try {
-			await signup(email, password, confirmPassword)
+			await signup(email, password, confirmPassword, turnstileToken)
 			dialogState.hide()
-		} catch (error) {
+			setTurnstileToken('')
+		} catch (error: any) {
 			console.error('Error signing up:', error)
+
+			if (typeof error?.error === 'string') {
+				setEmailError(`${error.error}. Please reset your password or use another email.`)
+				return
+			}
+
+			if (error?.error) {
+				if (error.error.email?.message) {
+					setEmailError(error.error.email.message)
+				}
+				if (error.error.password?.message) {
+					setPasswordError(error.error.password.message)
+				}
+				if (error.error.passwordConfirm?.message) {
+					setConfirmPasswordError(error.error.passwordConfirm.message)
+				}
+			}
 		}
 	}
 
@@ -133,7 +163,7 @@ export const SignIn = ({ text, className }: { text?: string; className?: string 
 				}}
 			>
 				<div className="flex items-center justify-between mb-5">
-					<Ariakit.DialogHeading className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#5C5CF9] to-[#8A8AFF]">
+					<Ariakit.DialogHeading className="text-2xl font-bold bg-clip-text text-transparent bg-linear-to-r from-[#5C5CF9] to-[#8A8AFF]">
 						{flow === 'signin' ? 'Sign In' : flow === 'signup' ? 'Create Account' : 'Reset Password'}
 					</Ariakit.DialogHeading>
 					<button
@@ -147,7 +177,7 @@ export const SignIn = ({ text, className }: { text?: string; className?: string 
 
 				<div className="flex flex-col gap-3 w-full">
 					<button
-						className="w-full py-3 rounded-lg bg-gradient-to-r from-[#5C5CF9] to-[#6E6EFA] hover:from-[#4A4AF0] hover:to-[#5A5AF5] text-white relative disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center gap-2 transition-all duration-200 shadow-lg hover:shadow-[#5C5CF9]/20 font-medium"
+						className="w-full py-3 rounded-lg bg-linear-to-r from-[#5C5CF9] to-[#6E6EFA] hover:from-[#4A4AF0] hover:to-[#5A5AF5] text-white relative disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center gap-2 transition-all duration-200 shadow-lg hover:shadow-[#5C5CF9]/20 font-medium"
 						onClick={handleWalletSignIn}
 						disabled={loaders.signInWithEthereum}
 					>
@@ -166,9 +196,9 @@ export const SignIn = ({ text, className }: { text?: string; className?: string 
 				</div>
 
 				<div className="relative flex items-center my-2">
-					<div className="flex-grow border-t border-[#39393E]"></div>
-					<span className="flex-shrink mx-4 text-sm text-[#9a9da1]">or continue with email</span>
-					<div className="flex-grow border-t border-[#39393E]"></div>
+					<div className="grow border-t border-[#39393E]"></div>
+					<span className="shrink mx-4 text-sm text-[#9a9da1]">or continue with email</span>
+					<div className="grow border-t border-[#39393E]"></div>
 				</div>
 
 				{flow === 'signin' ? (
@@ -185,7 +215,7 @@ export const SignIn = ({ text, className }: { text?: string; className?: string 
 									id={`${text || 'default'}-signin-email`}
 									type="email"
 									required
-									className="w-full p-3 pl-10 rounded-lg bg-[#222429] border border-[#39393E] text-white placeholder:text-[#8a8c90] focus:outline-none focus:ring-1 focus:ring-[#5C5CF9] focus:border-[#5C5CF9] transition-all duration-200"
+									className="w-full p-3 pl-10 rounded-lg bg-[#222429] border border-[#39393E] text-white placeholder:text-[#8a8c90] focus:outline-hidden focus:ring-1 focus:ring-[#5C5CF9] focus:border-[#5C5CF9] transition-all duration-200"
 									value={email}
 									onChange={(e) => setEmail(e.target.value)}
 								/>
@@ -200,7 +230,7 @@ export const SignIn = ({ text, className }: { text?: string; className?: string 
 								id="signin-password"
 								type="password"
 								required
-								className="w-full p-3 rounded-lg bg-[#222429] border border-[#39393E] text-white placeholder:text-[#8a8c90] focus:outline-none focus:ring-1 focus:ring-[#5C5CF9] focus:border-[#5C5CF9] transition-all duration-200"
+								className="w-full p-3 rounded-lg bg-[#222429] border border-[#39393E] text-white placeholder:text-[#8a8c90] focus:outline-hidden focus:ring-1 focus:ring-[#5C5CF9] focus:border-[#5C5CF9] transition-all duration-200"
 								value={password}
 								onChange={(e) => setPassword(e.target.value)}
 							/>
@@ -217,7 +247,7 @@ export const SignIn = ({ text, className }: { text?: string; className?: string 
 						</div>
 
 						<button
-							className="w-full py-3 mt-1 rounded-lg bg-gradient-to-r from-[#5C5CF9] to-[#6E6EFA] hover:from-[#4A4AF0] hover:to-[#5A5AF5] text-white font-medium transition-all duration-200 shadow-lg hover:shadow-[#5C5CF9]/20 disabled:opacity-50 disabled:cursor-not-allowed"
+							className="w-full py-3 mt-1 rounded-lg bg-linear-to-r from-[#5C5CF9] to-[#6E6EFA] hover:from-[#4A4AF0] hover:to-[#5A5AF5] text-white font-medium transition-all duration-200 shadow-lg hover:shadow-[#5C5CF9]/20 disabled:opacity-50 disabled:cursor-not-allowed"
 							disabled={loaders.login}
 						>
 							{loaders.login ? (
@@ -274,11 +304,17 @@ export const SignIn = ({ text, className }: { text?: string; className?: string 
 									id={`${text || 'default'}-signup-email`}
 									type="email"
 									required
-									className="w-full p-3 pl-10 rounded-lg bg-[#222429] border border-[#39393E] text-white placeholder:text-[#8a8c90] focus:outline-none focus:ring-1 focus:ring-[#5C5CF9] focus:border-[#5C5CF9] transition-all duration-200"
+									className={`w-full p-3 pl-10 rounded-lg bg-[#222429] border ${
+										emailError ? 'border-red-500' : 'border-[#39393E]'
+									} text-white placeholder:text-[#8a8c90] focus:outline-hidden focus:ring-1 focus:ring-[#5C5CF9] focus:border-[#5C5CF9] transition-all duration-200`}
 									value={email}
-									onChange={(e) => setEmail(e.target.value)}
+									onChange={(e) => {
+										setEmail(e.target.value)
+										setEmailError('')
+									}}
 								/>
 							</div>
+							{emailError && <p className="text-xs text-red-500 mt-1">{emailError}</p>}
 						</div>
 
 						<div className="space-y-1.5">
@@ -291,11 +327,15 @@ export const SignIn = ({ text, className }: { text?: string; className?: string 
 								required
 								className={`w-full p-3 rounded-lg bg-[#222429] border ${
 									passwordError ? 'border-red-500' : 'border-[#39393E]'
-								} text-white placeholder:text-[#8a8c90] focus:outline-none focus:ring-1 focus:ring-[#5C5CF9] focus:border-[#5C5CF9] transition-all duration-200`}
+								} text-white placeholder:text-[#8a8c90] focus:outline-hidden focus:ring-1 focus:ring-[#5C5CF9] focus:border-[#5C5CF9] transition-all duration-200`}
 								value={password}
 								onChange={(e) => {
 									setPassword(e.target.value)
-									validatePassword(e.target.value)
+									// Only validate locally on change, don't clear server errors
+									const localValidation = validatePassword(e.target.value)
+									if (localValidation) {
+										setPasswordError('')
+									}
 									if (confirmPassword) {
 										validateConfirmPassword(e.target.value, confirmPassword)
 									}
@@ -314,7 +354,7 @@ export const SignIn = ({ text, className }: { text?: string; className?: string 
 								required
 								className={`w-full p-3 rounded-lg bg-[#222429] border ${
 									confirmPasswordError ? 'border-red-500' : 'border-[#39393E]'
-								} text-white placeholder:text-[#8a8c90] focus:outline-none focus:ring-1 focus:ring-[#5C5CF9] focus:border-[#5C5CF9] transition-all duration-200`}
+								} text-white placeholder:text-[#8a8c90] focus:outline-hidden focus:ring-1 focus:ring-[#5C5CF9] focus:border-[#5C5CF9] transition-all duration-200`}
 								value={confirmPassword}
 								onChange={(e) => {
 									setConfirmPassword(e.target.value)
@@ -324,9 +364,43 @@ export const SignIn = ({ text, className }: { text?: string; className?: string 
 							{confirmPasswordError && <p className="text-xs text-red-500 mt-1">{confirmPasswordError}</p>}
 						</div>
 
+						<label className="flex items-center gap-2">
+							<input type="checkbox" className="w-4 h-4" required />
+							<span className="text-sm text-[#b4b7bc]">
+								I agree to the{' '}
+								<BasicLink
+									href="/terms"
+									target="_blank"
+									className="text-[#5C5CF9] hover:text-[#7C7CFF] transition-colors font-medium"
+								>
+									Terms of Service
+								</BasicLink>{' '}
+								and{' '}
+								<BasicLink
+									href="/subscription/privacy-policy"
+									target="_blank"
+									className="text-[#5C5CF9] hover:text-[#7C7CFF] transition-colors font-medium"
+								>
+									Privacy Policy
+								</BasicLink>
+							</span>
+						</label>
+
+						<div className="mt-4">
+							<Turnstile
+								onVerify={(token) => setTurnstileToken(token)}
+								onError={() => {
+									setTurnstileToken('')
+									console.error('Turnstile verification failed')
+								}}
+								onExpire={() => setTurnstileToken('')}
+								className="flex justify-center"
+							/>
+						</div>
+
 						<button
-							className="w-full py-3 mt-1 rounded-lg bg-gradient-to-r from-[#5C5CF9] to-[#6E6EFA] hover:from-[#4A4AF0] hover:to-[#5A5AF5] text-white font-medium transition-all duration-200 shadow-lg hover:shadow-[#5C5CF9]/20 disabled:opacity-50 disabled:cursor-not-allowed"
-							disabled={loaders.signup}
+							className="w-full py-3 mt-4 rounded-lg bg-linear-to-r from-[#5C5CF9] to-[#6E6EFA] hover:from-[#4A4AF0] hover:to-[#5A5AF5] text-white font-medium transition-all duration-200 shadow-lg hover:shadow-[#5C5CF9]/20 disabled:opacity-50 disabled:cursor-not-allowed"
+							disabled={loaders.signup || !turnstileToken}
 						>
 							{loaders.signup ? (
 								<span className="flex items-center justify-center gap-2">
@@ -388,7 +462,7 @@ export const SignIn = ({ text, className }: { text?: string; className?: string 
 									id={`${text || 'default'}-forgot-email`}
 									type="email"
 									required
-									className="w-full p-3 pl-10 rounded-lg bg-[#222429] border border-[#39393E] text-white placeholder:text-[#8a8c90] focus:outline-none focus:ring-1 focus:ring-[#5C5CF9] focus:border-[#5C5CF9] transition-all duration-200"
+									className="w-full p-3 pl-10 rounded-lg bg-[#222429] border border-[#39393E] text-white placeholder:text-[#8a8c90] focus:outline-hidden focus:ring-1 focus:ring-[#5C5CF9] focus:border-[#5C5CF9] transition-all duration-200"
 									value={email}
 									onChange={(e) => setEmail(e.target.value)}
 								/>
@@ -396,7 +470,7 @@ export const SignIn = ({ text, className }: { text?: string; className?: string 
 						</div>
 
 						<button
-							className="w-full py-3 mt-1 rounded-lg bg-gradient-to-r from-[#5C5CF9] to-[#6E6EFA] hover:from-[#4A4AF0] hover:to-[#5A5AF5] text-white font-medium transition-all duration-200 shadow-lg hover:shadow-[#5C5CF9]/20 disabled:opacity-50 disabled:cursor-not-allowed"
+							className="w-full py-3 mt-1 rounded-lg bg-linear-to-r from-[#5C5CF9] to-[#6E6EFA] hover:from-[#4A4AF0] hover:to-[#5A5AF5] text-white font-medium transition-all duration-200 shadow-lg hover:shadow-[#5C5CF9]/20 disabled:opacity-50 disabled:cursor-not-allowed"
 							disabled={loaders.resetPassword}
 						>
 							{loaders.resetPassword ? (

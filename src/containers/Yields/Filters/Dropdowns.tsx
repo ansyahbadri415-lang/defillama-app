@@ -125,11 +125,11 @@ export function YieldFilterDropdowns({
 
 			{attributes && <YieldAttributes pathname={pathname || router.pathname} nestedMenu={nestedMenu} />}
 
-			{tvlRange && <TVLRange nestedMenu={nestedMenu} variant="secondary" />}
+			{tvlRange && <TVLRange nestedMenu={nestedMenu} variant="secondary" placement="bottom-start" />}
 
-			{apyRange && <APYRange nestedMenu={nestedMenu} />}
+			{apyRange && <APYRange nestedMenu={nestedMenu} placement="bottom-start" />}
 
-			{availableRange && <AvailableRange nestedMenu={nestedMenu} />}
+			{availableRange && <AvailableRange nestedMenu={nestedMenu} placement="bottom-start" />}
 
 			{(show7dBaseApy ||
 				show7dIL ||
@@ -311,7 +311,7 @@ export function YieldFilterDropdowns({
 				<CSVDownloadButton
 					className={
 						nestedMenu
-							? 'rounded-md py-2 px-3 text-xs whitespace-nowrap sm:ml-auto bg-[var(--link-active-bg)] text-white max-sm:mx-3 max-sm:my-6'
+							? 'rounded-md py-2 px-3 text-xs whitespace-nowrap sm:ml-auto bg-(--link-active-bg) text-white max-sm:mx-3 max-sm:my-6'
 							: 'ml-auto'
 					}
 					onClick={onCSVDownload}

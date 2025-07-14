@@ -1,5 +1,4 @@
-import { useMemo } from 'react'
-import dynamic from 'next/dynamic'
+import { lazy, Suspense, useMemo } from 'react'
 import { formatChartTvlsByDay } from '~/hooks/data'
 import { formattedNum, getPercentChange, getTokenDominance } from '~/utils'
 import { formatDataWithExtraTvls } from '~/hooks/data/defi'
@@ -8,10 +7,7 @@ import { ProtocolsTableWithSearch } from '~/components/Table/Defi/Protocols'
 import type { ILineAndBarChartProps } from '~/components/ECharts/types'
 import { oldBlue } from '~/constants/colors'
 
-const LineAndBarChart = dynamic(() => import('~/components/ECharts/LineAndBarChart'), {
-	ssr: false,
-	loading: () => <></>
-}) as React.FC<ILineAndBarChartProps>
+const LineAndBarChart = lazy(() => import('~/components/ECharts/LineAndBarChart')) as React.FC<ILineAndBarChartProps>
 
 export const ForksByProtocol = ({ chartData, filteredProtocols, parentTokens }) => {
 	const [extraTvlsEnabled] = useLocalStorageSettingsManager('tvl')
@@ -66,7 +62,7 @@ export const ForksByProtocol = ({ chartData, filteredProtocols, parentTokens }) 
 	return (
 		<>
 			<div className="grid grid-cols-2 relative isolate xl:grid-cols-3 gap-1">
-				<div className="bg-[var(--cards-bg)] rounded-md flex flex-col gap-6 p-5 col-span-2 w-full xl:col-span-1 overflow-x-auto">
+				<div className="bg-(--cards-bg) rounded-md flex flex-col gap-6 p-5 col-span-2 w-full xl:col-span-1 overflow-x-auto">
 					<p className="flex flex-col gap-1 text-base">
 						<span className="text-[#545757] dark:text-[#cccccc]">Total Value Locked</span>
 						<span className="font-jetbrains font-semibold text-2xl">{tvl}</span>
@@ -82,8 +78,10 @@ export const ForksByProtocol = ({ chartData, filteredProtocols, parentTokens }) 
 						<span className="font-jetbrains font-semibold text-2xl">{dominance}%</span>
 					</p>
 				</div>
-				<div className="bg-[var(--cards-bg)] rounded-md flex flex-col col-span-2 min-h-[360px]">
-					<LineAndBarChart charts={charts} alwaysShowTooltip />
+				<div className="bg-(--cards-bg) rounded-md flex flex-col col-span-2 min-h-[360px]">
+					<Suspense fallback={<div className="flex items-center justify-center m-auto min-h-[360px]" />}>
+						<LineAndBarChart charts={charts} alwaysShowTooltip />
+					</Suspense>
 				</div>
 			</div>
 

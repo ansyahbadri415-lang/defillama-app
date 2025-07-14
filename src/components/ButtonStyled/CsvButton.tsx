@@ -1,5 +1,5 @@
-import { ReactNode, useState, useEffect } from 'react'
-import dynamic from 'next/dynamic'
+import { ReactNode, useState } from 'react'
+import { useRouter } from 'next/router'
 import { Icon } from '~/components/Icon'
 import { useSubscribe } from '~/hooks/useSubscribe'
 import { useAuthContext } from '~/containers/Subscribtion/auth'
@@ -11,6 +11,7 @@ export const CSVDownloadButton = ({
 	onClick,
 	customText = '',
 	className,
+	customClassName,
 	smol,
 	isLoading: loading
 }: {
@@ -18,6 +19,7 @@ export const CSVDownloadButton = ({
 	isLight?: boolean
 	customText?: ReactNode
 	className?: string
+	customClassName?: string
 	smol?: boolean
 	isLoading?: boolean
 }) => {
@@ -26,13 +28,17 @@ export const CSVDownloadButton = ({
 	const isLoading = loaders.userLoading || isSubscriptionLoading || loading
 	const [showSubscribeModal, setShowSubscribeModal] = useState(false)
 	const isClient = useIsClient()
+	const router = useRouter()
 
 	return (
 		<>
 			<button
-				className={`flex items-center gap-1 justify-center py-2 px-2 whitespace-nowrap text-xs rounded-md text-[var(--link-text)] bg-[var(--link-bg)] hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed ${
-					className ?? ''
-				}`}
+				className={
+					customClassName ||
+					`flex items-center gap-1 justify-center py-2 px-2 whitespace-nowrap text-xs rounded-md text-(--link-text) bg-(--link-bg) hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) disabled:opacity-50 disabled:cursor-not-allowed min-w-fit ${
+						className ?? ''
+					}`
+				}
 				onClick={() => {
 					if (isLoading) return
 
@@ -46,7 +52,7 @@ export const CSVDownloadButton = ({
 			>
 				{isClient && isLoading ? (
 					<svg
-						className="animate-spin mx-auto h-[14px] w-[14px"
+						className="animate-spin mx-auto h-[14px] w-[14px] shrink-0"
 						xmlns="http://www.w3.org/2000/svg"
 						fill="none"
 						viewBox="0 0 24 24"
@@ -62,14 +68,14 @@ export const CSVDownloadButton = ({
 					<span>{customText}</span>
 				) : (
 					<>
-						<Icon name="download-paper" className="h-3 w-3" />
+						<Icon name="download-paper" className="h-3 w-3 shrink-0" />
 						<span>{smol ? '' : 'Download'} .csv</span>
 					</>
 				)}
 			</button>
 			{isClient && (
 				<SubscribeModal isOpen={showSubscribeModal} onClose={() => setShowSubscribeModal(false)}>
-					<SubscribePlusCard context="modal" />
+					<SubscribePlusCard context="modal" returnUrl={router.asPath} />
 				</SubscribeModal>
 			)}
 		</>

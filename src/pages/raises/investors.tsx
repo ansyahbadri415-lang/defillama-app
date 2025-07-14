@@ -15,7 +15,7 @@ import { RAISES_API } from '~/constants'
 import Layout from '~/layout'
 import { withPerformanceLogging } from '~/utils/perf'
 
-import { fetchWithErrorLogging } from '~/utils/async'
+import { fetchJson } from '~/utils/async'
 import { TagGroup } from '~/components/TagGroup'
 import { Announcement } from '~/components/Announcement'
 import { Icon } from '~/components/Icon'
@@ -40,13 +40,11 @@ const findMedian = (arr) => {
 	}
 }
 
-const fetch = fetchWithErrorLogging
-
 const getRaisesByPeriod = (data, days) =>
 	data.filter((raise) => raise.date && raise.date * 1000 >= Date.now() - days * 24 * 60 * 60 * 1000)
 
 export const getStaticProps = withPerformanceLogging('raises/active-investors', async () => {
-	const data = await fetch(RAISES_API).then((r) => r.json())
+	const data = await fetchJson(RAISES_API)
 
 	return {
 		props: {
@@ -96,7 +94,7 @@ const ActiveInvestors = ({ data }) => {
 						.sort((a: [string, number], b: [string, number]) => b[1] - a[1])
 						.map((val) => val[0])
 
-					const medianAmount = findMedian(raises.map((r) => r?.amount))?.toFixed(2)
+					const medianAmount = findMedian(raises.map((r) => r?.amount).filter(Boolean))?.toFixed(2)
 
 					const totalAmount = sumBy(normalizedRaises, 'amount')
 					const averageAmount = totalAmount / normalizedRaises?.length || 0
@@ -144,14 +142,14 @@ const ActiveInvestors = ({ data }) => {
 
 	return (
 		<Layout title={`Investors - DefiLlama`} defaultSEO className="gap-4">
-			<Announcement notCancellable>
+			{/* <Announcement notCancellable>
 				<span>Looking for investors?</span>{' '}
-				<a href="/pitch" className="text-[var(--blue)] underline font-medium" target="_blank" rel="noopener noreferrer">
+				<a href="/pitch" className="text-(--blue) underline font-medium" target="_blank" rel="noopener noreferrer">
 					Send your pitch to selected ones through us
 				</a>
-			</Announcement>
+			</Announcement> */}
 
-			<div className="bg-[var(--cards-bg)] rounded-md">
+			<div className="bg-(--cards-bg) border border-(--cards-border) rounded-md">
 				<div className="flex items-center gap-2 justify-end flex-wrap p-3">
 					<h1 className="text-xl font-semibold mr-auto">Investors</h1>
 					<div className="relative w-full sm:max-w-[280px]">
@@ -159,7 +157,7 @@ const ActiveInvestors = ({ data }) => {
 							name="search"
 							height={16}
 							width={16}
-							className="absolute text-[var(--text3)] top-0 bottom-0 my-auto left-2"
+							className="absolute text-(--text3) top-0 bottom-0 my-auto left-2"
 						/>
 						<input
 							value={investorName}
@@ -167,7 +165,7 @@ const ActiveInvestors = ({ data }) => {
 								setInvestorName(e.target.value)
 							}}
 							placeholder="Search investors..."
-							className="border border-[var(--form-control-border)] w-full p-[6px] pl-7 bg-white dark:bg-black text-black dark:text-white rounded-md text-sm"
+							className="border border-(--form-control-border) w-full p-[6px] pl-7 bg-white dark:bg-black text-black dark:text-white rounded-md text-sm"
 						/>
 					</div>
 					<TagGroup

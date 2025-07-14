@@ -25,7 +25,7 @@ export const getStaticProps = withPerformanceLogging(`${adapterType}/chains`, as
 
 const REVByChain = (props: IChainsByREVPageData) => {
 	return (
-		<Layout title="REV by chain - DefiLlama">
+		<Layout title="REV by chain - DefiLlama" className="gap-2">
 			<ProtocolsChainsSearch hideFilters />
 			<Metrics currentMetric="REV" isChains />
 			<TableWithSearch
@@ -34,6 +34,8 @@ const REVByChain = (props: IChainsByREVPageData) => {
 				placeholder={'Search protocols...'}
 				columnToSearch={'name'}
 				header="Protocol Rankings"
+				rowSize={64}
+				compact
 			/>
 		</Layout>
 	)
@@ -51,14 +53,14 @@ const columns: ColumnDef<IChainsByREVPageData['chains'][0]>[] = [
 
 			return (
 				<span className="flex items-center gap-2 relative">
-					<span className="flex-shrink-0">{index + 1}</span>
+					<span className="shrink-0">{index + 1}</span>
 
 					<TokenLogo logo={row.original.logo} data-lgonly />
 
 					<span className="flex flex-col -my-2">
 						<BasicLink
 							href={`/chain/${row.original.slug}`}
-							className="text-sm font-medium text-[var(--link-text)] overflow-hidden whitespace-nowrap text-ellipsis hover:underline"
+							className="text-sm font-medium text-(--link-text) overflow-hidden whitespace-nowrap text-ellipsis hover:underline"
 						>
 							{value}
 						</BasicLink>
@@ -75,7 +77,7 @@ const columns: ColumnDef<IChainsByREVPageData['chains'][0]>[] = [
 		cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 		sortUndefined: 'last',
 		meta: {
-			align: 'end',
+			align: 'center',
 			headerHelperText: 'Chain fees and MEV tips in the last 24 hours'
 		},
 		size: 128
@@ -87,7 +89,7 @@ const columns: ColumnDef<IChainsByREVPageData['chains'][0]>[] = [
 		cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 		sortUndefined: 'last',
 		meta: {
-			align: 'end',
+			align: 'center',
 			headerHelperText: 'Chain fees and MEV tips in the last 30 days'
 		},
 		size: 128

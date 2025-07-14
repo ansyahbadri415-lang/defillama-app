@@ -158,7 +158,7 @@ export function ChainsByAdapter(props: IProps) {
 					<span>Are we missing any protocol?</span>{' '}
 					<a
 						href="https://airtable.com/shrtBA9lvj6E036Qx"
-						className="text-[var(--blue)] underline font-medium"
+						className="text-(--blue) underline font-medium"
 						target="_blank"
 						rel="noopener noreferrer"
 					>
@@ -171,14 +171,14 @@ export function ChainsByAdapter(props: IProps) {
 			{props.adapterType !== 'fees' && (
 				<ChainsByAdapterChart chartData={props.chartData} allChains={props.allChains} type={props.type} />
 			)}
-			<div className="bg-[var(--cards-bg)] rounded-md">
-				<div className="flex items-center justify-end flex-wrap gap-4 p-3">
+			<div className="bg-(--cards-bg) border border-(--cards-border) rounded-md">
+				<div className="flex items-center justify-end flex-wrap gap-4 p-2">
 					<div className="relative w-full sm:max-w-[280px] mr-auto">
 						<Icon
 							name="search"
 							height={16}
 							width={16}
-							className="absolute text-[var(--text3)] top-0 bottom-0 my-auto left-2"
+							className="absolute text-(--text3) top-0 bottom-0 my-auto left-2"
 						/>
 						<input
 							value={projectName}
@@ -186,12 +186,12 @@ export function ChainsByAdapter(props: IProps) {
 								setProjectName(e.target.value)
 							}}
 							placeholder="Search..."
-							className="border border-[var(--form-control-border)] w-full pl-7 pr-2 py-[6px] bg-white dark:bg-black text-black dark:text-white rounded-md text-sm"
+							className="border border-(--form-control-border) w-full pl-7 pr-2 py-[6px] bg-white dark:bg-black text-black dark:text-white rounded-md text-sm"
 						/>
 					</div>
 					<CSVDownloadButton onClick={downloadCsv} className="min-h-8" />
 				</div>
-				<VirtualTable instance={instance} />
+				<VirtualTable instance={instance} rowSize={64} compact />
 			</div>
 		</>
 	)
@@ -213,13 +213,13 @@ const NameColumn = (route: string): ColumnDef<IChainsByAdapterPageData['chains']
 
 			return (
 				<span className="flex items-center gap-2 relative">
-					<span className="flex-shrink-0">{index + 1}</span>
+					<span className="shrink-0">{index + 1}</span>
 
 					<TokenLogo logo={row.original.logo} data-lgonly />
 
 					<BasicLink
 						href={route ? `/${route}/chain/${slug(value)}` : `/chain/${slug(value)}`}
-						className="text-sm font-medium text-[var(--link-text)] overflow-hidden whitespace-nowrap text-ellipsis hover:underline"
+						className="text-sm font-medium text-(--link-text) overflow-hidden whitespace-nowrap text-ellipsis hover:underline"
 					>
 						{value}
 					</BasicLink>
@@ -240,7 +240,7 @@ const columnsByType: Record<IProps['type'], ColumnDef<IChainsByAdapterPageData['
 			cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 			sortUndefined: 'last',
 			meta: {
-				align: 'end',
+				align: 'center',
 				headerHelperText:
 					'Fees paid by users to all the protocols on the chain in the last 24 hours, updated daily at 00:00 UTC'
 			},
@@ -253,7 +253,7 @@ const columnsByType: Record<IProps['type'], ColumnDef<IChainsByAdapterPageData['
 			cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 			sortUndefined: 'last',
 			meta: {
-				align: 'end',
+				align: 'center',
 				headerHelperText: 'Fees paid by users to all the protocols on the chain in the last 30 days'
 			},
 			size: 128
@@ -268,7 +268,7 @@ const columnsByType: Record<IProps['type'], ColumnDef<IChainsByAdapterPageData['
 			cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 			sortUndefined: 'last',
 			meta: {
-				align: 'end',
+				align: 'center',
 				headerHelperText:
 					'Revenue earned by all the protocols on the chain in the last 24 hours, updated daily at 00:00 UTC'
 			},
@@ -281,7 +281,7 @@ const columnsByType: Record<IProps['type'], ColumnDef<IChainsByAdapterPageData['
 			cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 			sortUndefined: 'last',
 			meta: {
-				align: 'end',
+				align: 'center',
 				headerHelperText: 'Revenue earned by all the protocols on the chain in the last 30 days'
 			},
 			size: 128
@@ -296,7 +296,7 @@ const columnsByType: Record<IProps['type'], ColumnDef<IChainsByAdapterPageData['
 			cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 			sortUndefined: 'last',
 			meta: {
-				align: 'end',
+				align: 'center',
 				headerHelperText:
 					'Revenue earned by token holders of all the protocols on the chain in the last 24 hours, updated daily at 00:00 UTC'
 			},
@@ -309,7 +309,7 @@ const columnsByType: Record<IProps['type'], ColumnDef<IChainsByAdapterPageData['
 			cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 			sortUndefined: 'last',
 			meta: {
-				align: 'end',
+				align: 'center',
 				headerHelperText: 'Revenue earned by token holders of all the protocols on the chain in the last 30 days'
 			},
 			size: 180
@@ -324,7 +324,7 @@ const columnsByType: Record<IProps['type'], ColumnDef<IChainsByAdapterPageData['
 			cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 			sortUndefined: 'last',
 			meta: {
-				align: 'end',
+				align: 'center',
 				headerHelperText:
 					'Total revenue earned by the apps on the chain, updated daily at 00:00 UTC. Excludes liquid staking apps and gas fees'
 			},
@@ -337,7 +337,7 @@ const columnsByType: Record<IProps['type'], ColumnDef<IChainsByAdapterPageData['
 			cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 			sortUndefined: 'last',
 			meta: {
-				align: 'end',
+				align: 'center',
 				headerHelperText:
 					'Total revenue earned by the apps on the chain in the last 30 days. Excludes liquid staking apps and gas fees'
 			},
@@ -353,7 +353,7 @@ const columnsByType: Record<IProps['type'], ColumnDef<IChainsByAdapterPageData['
 			cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 			sortUndefined: 'last',
 			meta: {
-				align: 'end',
+				align: 'center',
 				headerHelperText:
 					'Sum of value paid buying and selling options on all options exchanges on the chain in the last 24 hours, updated daily at 00:00 UTC'
 			},
@@ -366,7 +366,7 @@ const columnsByType: Record<IProps['type'], ColumnDef<IChainsByAdapterPageData['
 			cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 			sortUndefined: 'last',
 			meta: {
-				align: 'end',
+				align: 'center',
 				headerHelperText:
 					'Sum of value paid buying and selling options on all options exchanges on the chain in the last 30 days'
 			},
@@ -382,7 +382,7 @@ const columnsByType: Record<IProps['type'], ColumnDef<IChainsByAdapterPageData['
 			cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 			sortUndefined: 'last',
 			meta: {
-				align: 'end',
+				align: 'center',
 				headerHelperText:
 					'Sum of the notional value of all options that have been traded on all options exchanges on the chain in the last 24 hours, updated daily at 00:00 UTC'
 			},
@@ -395,7 +395,7 @@ const columnsByType: Record<IProps['type'], ColumnDef<IChainsByAdapterPageData['
 			cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 			sortUndefined: 'last',
 			meta: {
-				align: 'end',
+				align: 'center',
 				headerHelperText:
 					'Sum of the notional value of all options that have been traded on all options exchanges on the chain in the last 30 days'
 			},
@@ -411,7 +411,7 @@ const columnsByType: Record<IProps['type'], ColumnDef<IChainsByAdapterPageData['
 			cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 			sortUndefined: 'last',
 			meta: {
-				align: 'end',
+				align: 'center',
 				headerHelperText:
 					'Volume of all spot swaps on all dexs on the chain in the last 24 hours, updated daily at 00:00 UTC'
 			},
@@ -424,7 +424,7 @@ const columnsByType: Record<IProps['type'], ColumnDef<IChainsByAdapterPageData['
 			cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 			sortUndefined: 'last',
 			meta: {
-				align: 'end',
+				align: 'center',
 				headerHelperText: 'Volume of all spot swaps on all dexs on the chain in the last 30 days'
 			},
 			size: 152
@@ -439,7 +439,7 @@ const columnsByType: Record<IProps['type'], ColumnDef<IChainsByAdapterPageData['
 			cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 			sortUndefined: 'last',
 			meta: {
-				align: 'end',
+				align: 'center',
 				headerHelperText:
 					'Notional volume of all trades on all perp exchanges on the chain, including leverage in the last 24 hours, updated daily at 00:00 UTC'
 			},
@@ -452,7 +452,7 @@ const columnsByType: Record<IProps['type'], ColumnDef<IChainsByAdapterPageData['
 			cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 			sortUndefined: 'last',
 			meta: {
-				align: 'end',
+				align: 'center',
 				headerHelperText:
 					'Notional volume of all trades on all perp exchanges on the chain, including leverage in the last 30 days'
 			},
@@ -473,7 +473,7 @@ const columnsByType: Record<IProps['type'], ColumnDef<IChainsByAdapterPageData['
 			cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 			sortUndefined: 'last',
 			meta: {
-				align: 'end',
+				align: 'center',
 				headerHelperText:
 					'Notional volume of all trades on all perp aggregators on the chain, including leverage in the last 24 hours, updated daily at 00:00 UTC'
 			},
@@ -491,7 +491,7 @@ const columnsByType: Record<IProps['type'], ColumnDef<IChainsByAdapterPageData['
 			cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 			sortUndefined: 'last',
 			meta: {
-				align: 'end',
+				align: 'center',
 				headerHelperText:
 					'Notional volume of all trades on all perp aggregators on the chain, including leverage in the last 30 days'
 			},
@@ -512,7 +512,7 @@ const columnsByType: Record<IProps['type'], ColumnDef<IChainsByAdapterPageData['
 			cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 			sortUndefined: 'last',
 			meta: {
-				align: 'end',
+				align: 'center',
 				headerHelperText:
 					'Sum of value of all assets that were bridged through all the bridge Aggregators on the chain in the last 24 hours, updated daily at 00:00 UTC'
 			},
@@ -530,7 +530,7 @@ const columnsByType: Record<IProps['type'], ColumnDef<IChainsByAdapterPageData['
 			cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 			sortUndefined: 'last',
 			meta: {
-				align: 'end',
+				align: 'center',
 				headerHelperText:
 					'Sum of value of all assets that were bridged through all the bridge Aggregators on the chain in the last 30 days'
 			},
@@ -551,7 +551,7 @@ const columnsByType: Record<IProps['type'], ColumnDef<IChainsByAdapterPageData['
 			cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 			sortUndefined: 'last',
 			meta: {
-				align: 'end',
+				align: 'center',
 				headerHelperText:
 					'Volume of spot token swaps on all the DEX aggregators on the chain in the last 24 hours, updated daily at 00:00 UTC'
 			},
@@ -569,7 +569,7 @@ const columnsByType: Record<IProps['type'], ColumnDef<IChainsByAdapterPageData['
 			cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 			sortUndefined: 'last',
 			meta: {
-				align: 'end',
+				align: 'center',
 				headerHelperText: 'Volume of spot token swaps on all the DEX aggregators on the chain in the last 30 days'
 			},
 			size: 160

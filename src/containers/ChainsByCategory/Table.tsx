@@ -95,6 +95,14 @@ export function ChainsByCategoryTable({ data }: { data: Array<IFormattedDataWith
 		window.dispatchEvent(new Event('storage'))
 	}
 
+	const addOnlyOneColumn = (newOption) => {
+		const ops = Object.fromEntries(
+			instance.getAllLeafColumns().map((col) => [col.id, col.id === newOption ? true : false])
+		)
+		window.localStorage.setItem(optionsKey, JSON.stringify(ops))
+		window.dispatchEvent(new Event('storage'))
+	}
+
 	const selectedColumns = instance
 		.getAllLeafColumns()
 		.filter((col) => col.getIsVisible())
@@ -132,19 +140,33 @@ export function ChainsByCategoryTable({ data }: { data: Array<IFormattedDataWith
 		}
 	}
 
+	const addOnlyOneAggrOption = (newOption) => {
+		DEFI_CHAINS_SETTINGS.forEach((item) => {
+			if (item.key === newOption) {
+				if (!selectedAggregateTypes.includes(item.key)) {
+					updater(item.key)
+				}
+			} else {
+				if (selectedAggregateTypes.includes(item.key)) {
+					updater(item.key)
+				}
+			}
+		})
+	}
+
 	const selectedAggregateTypes = React.useMemo(() => {
 		return DEFI_CHAINS_SETTINGS.filter((key) => groupTvls[key.key]).map((option) => option.key)
 	}, [groupTvls])
 
 	return (
-		<div className="bg-[var(--cards-bg)] rounded-md isolate">
-			<div className="flex items-center justify-end flex-wrap gap-2 p-3">
+		<div className="bg-(--cards-bg) rounded-md isolate border border-(--cards-border)">
+			<div className="flex items-center justify-end flex-wrap gap-2 p-2">
 				<div className="relative w-full sm:max-w-[280px] mr-auto">
 					<Icon
 						name="search"
 						height={16}
 						width={16}
-						className="absolute text-[var(--text3)] top-0 bottom-0 my-auto left-2"
+						className="absolute text-(--text3) top-0 bottom-0 my-auto left-2"
 					/>
 					<input
 						value={projectName}
@@ -152,39 +174,46 @@ export function ChainsByCategoryTable({ data }: { data: Array<IFormattedDataWith
 							setProjectName(e.target.value)
 						}}
 						placeholder="Search..."
-						className="border border-[var(--form-control-border)] w-full pl-7 pr-2 py-[6px] bg-white dark:bg-black text-black dark:text-white rounded-md text-sm"
+						className="border border-(--form-control-border) w-full pl-7 pr-2 py-[6px] bg-white dark:bg-black text-black dark:text-white rounded-md text-sm"
 					/>
 				</div>
-				<SelectWithCombobox
-					allValues={DEFI_CHAINS_SETTINGS}
-					selectedValues={selectedAggregateTypes}
-					setSelectedValues={addAggrOption}
-					toggleAll={toggleAllAggrOptions}
-					clearAll={clearAllAggrOptions}
-					nestedMenu={false}
-					label={'Group Chains'}
-					labelType="smol"
-					triggerProps={{
-						className:
-							'flex items-center justify-between gap-2 p-2 text-xs rounded-md cursor-pointer flex-nowrap relative border border-[var(--form-control-border)] text-[#666] dark:text-[#919296] hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] font-medium'
-					}}
-				/>
-				<SelectWithCombobox
-					allValues={columnOptions}
-					selectedValues={selectedColumns}
-					setSelectedValues={addColumn}
-					toggleAll={toggleAllColumns}
-					clearAll={clearAllColumns}
-					nestedMenu={false}
-					label={'Columns'}
-					labelType="smol"
-					triggerProps={{
-						className:
-							'flex items-center justify-between gap-2 p-2 text-xs rounded-md cursor-pointer flex-nowrap relative border border-[var(--form-control-border)] text-[#666] dark:text-[#919296] hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] font-medium'
-					}}
-				/>
 
-				<TVLRange variant="third" />
+				<div className="flex items-center gap-2 max-sm:w-full max-sm:flex-col">
+					<div className="flex items-center gap-2 w-full sm:w-auto">
+						<SelectWithCombobox
+							allValues={DEFI_CHAINS_SETTINGS}
+							selectedValues={selectedAggregateTypes}
+							setSelectedValues={addAggrOption}
+							selectOnlyOne={addOnlyOneAggrOption}
+							toggleAll={toggleAllAggrOptions}
+							clearAll={clearAllAggrOptions}
+							nestedMenu={false}
+							label={'Group Chains'}
+							labelType="smol"
+							triggerProps={{
+								className:
+									'flex items-center justify-between gap-2 p-2 text-xs rounded-md cursor-pointer flex-nowrap relative border border-(--form-control-border) text-[#666] dark:text-[#919296] hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) font-medium w-full sm:w-auto'
+							}}
+						/>
+						<SelectWithCombobox
+							allValues={columnOptions}
+							selectedValues={selectedColumns}
+							setSelectedValues={addColumn}
+							selectOnlyOne={addOnlyOneColumn}
+							toggleAll={toggleAllColumns}
+							clearAll={clearAllColumns}
+							nestedMenu={false}
+							label={'Columns'}
+							labelType="smol"
+							triggerProps={{
+								className:
+									'flex items-center justify-between gap-2 p-2 text-xs rounded-md cursor-pointer flex-nowrap relative border border-(--form-control-border) text-[#666] dark:text-[#919296] hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) font-medium w-full sm:w-auto'
+							}}
+						/>
+					</div>
+
+					<TVLRange variant="third" triggerClassName="w-full sm:w-auto" />
+				</div>
 			</div>
 			<VirtualTable instance={instance} />
 		</div>
@@ -289,11 +318,11 @@ const columns: ColumnDef<IFormattedDataWithExtraTvl>[] = [
 							)}
 						</button>
 					)}
-					<span className="flex-shrink-0">{index + 1}</span>
+					<span className="shrink-0">{index + 1}</span>
 					<TokenLogo logo={chainIconUrl(getValue())} />
 					<BasicLink
 						href={`/chain/${slug(getValue() as string)}`}
-						className="text-sm font-medium text-[var(--link-text)] overflow-hidden whitespace-nowrap text-ellipsis hover:underline"
+						className="text-sm font-medium text-(--link-text) overflow-hidden whitespace-nowrap text-ellipsis hover:underline"
 					>
 						{getValue() as string | null}
 					</BasicLink>

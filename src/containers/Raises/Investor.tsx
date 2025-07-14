@@ -1,5 +1,4 @@
 import * as React from 'react'
-import dynamic from 'next/dynamic'
 import Layout from '~/layout'
 import {
 	useReactTable,
@@ -24,13 +23,9 @@ import { CSVDownloadButton } from '~/components/ButtonStyled/CsvButton'
 import { Icon } from '~/components/Icon'
 import { oldBlue } from '~/constants/colors'
 
-const BarChart = dynamic(() => import('~/components/ECharts/BarChart'), {
-	ssr: false
-}) as React.FC<IBarChartProps>
+const BarChart = React.lazy(() => import('~/components/ECharts/BarChart')) as React.FC<IBarChartProps>
 
-const PieChart = dynamic(() => import('~/components/ECharts/PieChart'), {
-	ssr: false
-}) as React.FC<IPieChartProps>
+const PieChart = React.lazy(() => import('~/components/ECharts/PieChart')) as React.FC<IPieChartProps>
 
 const columnResizeMode = 'onChange'
 
@@ -80,14 +75,14 @@ function RaisesTable({ raises, downloadCsv }) {
 	}, [projectName, instance])
 
 	return (
-		<div className="bg-[var(--cards-bg)] rounded-md">
+		<div className="bg-(--cards-bg) border border-(--cards-border) rounded-md">
 			<div className="flex items-center justify-end gap-2 flex-wrap p-3">
 				<div className="relative w-full sm:max-w-[280px] mr-auto">
 					<Icon
 						name="search"
 						height={16}
 						width={16}
-						className="absolute text-[var(--text3)] top-0 bottom-0 my-auto left-2"
+						className="absolute text-(--text3) top-0 bottom-0 my-auto left-2"
 					/>
 					<input
 						value={projectName}
@@ -95,7 +90,7 @@ function RaisesTable({ raises, downloadCsv }) {
 							setProjectName(e.target.value)
 						}}
 						placeholder="Search projects..."
-						className="border border-[var(--form-control-border)] w-full p-[6px] pl-7 bg-white dark:bg-black text-black dark:text-white rounded-md text-sm"
+						className="border border-(--form-control-border) w-full p-[6px] pl-7 bg-white dark:bg-black text-black dark:text-white rounded-md text-sm"
 					/>
 				</div>
 				<CSVDownloadButton onClick={downloadCsv} className="min-h-[34px]" />
@@ -136,7 +131,7 @@ export const InvestorContainer = ({ raises, investors, rounds, sectors, chains, 
 				<span>Are we missing any funding round?</span>{' '}
 				<a
 					href="https://airtable.com/shrON6sFMgyFGulaq"
-					className="text-[var(--blue)] underline font-medium"
+					className="text-(--blue) underline font-medium"
 					target="_blank"
 					rel="noopener noreferrer"
 				>
@@ -158,7 +153,7 @@ export const InvestorContainer = ({ raises, investors, rounds, sectors, chains, 
 			/>
 
 			<div className="grid grid-cols-2 relative isolate xl:grid-cols-3 gap-1">
-				<div className="bg-[var(--cards-bg)] rounded-md flex flex-col gap-6 p-5 col-span-2 w-full xl:col-span-1 overflow-x-auto">
+				<div className="bg-(--cards-bg) rounded-md flex flex-col gap-6 p-5 col-span-2 w-full xl:col-span-1 overflow-x-auto">
 					<h1 className="font-semibold text-2xl">{investorName}</h1>
 
 					<details className="group text-base">
@@ -184,17 +179,23 @@ export const InvestorContainer = ({ raises, investors, rounds, sectors, chains, 
 						))}
 					</details>
 				</div>
-				<div className="bg-[var(--cards-bg)] rounded-md col-span-2 min-h-[360px]">
-					<BarChart chartData={fundingRoundsByMonth} title="" groupBy="monthly" color={oldBlue} valueSymbol="" />
+				<div className="bg-(--cards-bg) rounded-md col-span-2 min-h-[360px]">
+					<React.Suspense fallback={<></>}>
+						<BarChart chartData={fundingRoundsByMonth} title="" groupBy="monthly" color={oldBlue} valueSymbol="" />
+					</React.Suspense>
 				</div>
 			</div>
 
 			<div className="grid grid-cols-2 gap-1">
-				<LazyChart className="relative col-span-full pt-3 min-h-[372px] bg-[var(--cards-bg)] rounded-md flex flex-col xl:col-span-1 xl:[&:last-child:nth-child(2n_-_1)]:col-span-full">
-					<PieChart chartData={investmentByRounds} title="Investment by Rounds" usdFormat={false} />
+				<LazyChart className="relative col-span-full pt-3 min-h-[372px] bg-(--cards-bg) rounded-md flex flex-col xl:col-span-1 xl:[&:last-child:nth-child(2n-1)]:col-span-full">
+					<React.Suspense fallback={<></>}>
+						<PieChart chartData={investmentByRounds} title="Investment by Rounds" usdFormat={false} />
+					</React.Suspense>
 				</LazyChart>
-				<LazyChart className="relative col-span-full pt-3 min-h-[372px] bg-[var(--cards-bg)] rounded-md flex flex-col xl:col-span-1 xl:[&:last-child:nth-child(2n_-_1)]:col-span-full">
-					<PieChart chartData={raisesByCategory} title="Investments by Category" usdFormat={false} />
+				<LazyChart className="relative col-span-full pt-3 min-h-[372px] bg-(--cards-bg) rounded-md flex flex-col xl:col-span-1 xl:[&:last-child:nth-child(2n-1)]:col-span-full">
+					<React.Suspense fallback={<></>}>
+						<PieChart chartData={raisesByCategory} title="Investments by Category" usdFormat={false} />
+					</React.Suspense>
 				</LazyChart>
 			</div>
 

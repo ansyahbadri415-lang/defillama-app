@@ -1,4 +1,3 @@
-import dynamic from 'next/dynamic'
 import { ILineAndBarChartProps } from '~/components/ECharts/types'
 import { Icon } from '~/components/Icon'
 import { BasicLink } from '~/components/Link'
@@ -11,11 +10,9 @@ import { Tooltip } from '~/components/Tooltip'
 import { chainIconUrl, formattedNum, formattedPercent, slug } from '~/utils'
 import { ITotalBorrowedByChainPageData } from './queries'
 import { ColumnDef } from '@tanstack/react-table'
+import { lazy, Suspense } from 'react'
 
-const LineAndBarChart = dynamic(() => import('~/components/ECharts/LineAndBarChart'), {
-	ssr: false,
-	loading: () => <div className="flex items-center justify-center m-auto min-h-[360px]" />
-}) as React.FC<ILineAndBarChartProps>
+const LineAndBarChart = lazy(() => import('~/components/ECharts/LineAndBarChart')) as React.FC<ILineAndBarChartProps>
 
 export function BorrowedByChain(props: ITotalBorrowedByChainPageData) {
 	return (
@@ -24,7 +21,7 @@ export function BorrowedByChain(props: ITotalBorrowedByChainPageData) {
 			<Metrics currentMetric="Total Borrowed" />
 			<RowLinksWithDropdown links={props.chains} activeLink={props.chain} />
 			<div className="grid grid-cols-2 relative isolate xl:grid-cols-3 gap-1">
-				<div className="bg-[var(--cards-bg)] rounded-md flex flex-col gap-6 p-5 col-span-3 w-full xl:col-span-1 overflow-x-auto text-base">
+				<div className="bg-(--cards-bg) rounded-md flex flex-col gap-6 p-5 col-span-3 w-full xl:col-span-1 overflow-x-auto text-base">
 					{props.chain !== 'All' && (
 						<h1 className="flex items-center flex-nowrap gap-2">
 							<TokenLogo logo={chainIconUrl(props.chain)} size={24} />
@@ -44,7 +41,7 @@ export function BorrowedByChain(props: ITotalBorrowedByChainPageData) {
 							<p className="flex items-center flex-nowrap gap-2 relative bottom-[2px] text-sm">
 								<span
 									className={`text-right font-jetbrains text-ellipsis ${
-										props.change24h >= 0 ? 'text-[var(--pct-green)]' : 'text-[var(--pct-red)]'
+										props.change24h >= 0 ? 'text-(--pct-green)' : 'text-(--pct-red)'
 									}`}
 								>
 									{`${props.change24h >= 0 ? '+' : ''}${props.change24h}%`}
@@ -54,8 +51,10 @@ export function BorrowedByChain(props: ITotalBorrowedByChainPageData) {
 						) : null}
 					</div>
 				</div>
-				<div className="bg-[var(--cards-bg)] rounded-md flex flex-col col-span-2 pt-3">
-					<LineAndBarChart charts={props.charts} />
+				<div className="bg-(--cards-bg) rounded-md flex flex-col col-span-2 pt-3">
+					<Suspense fallback={<div className="flex items-center justify-center m-auto min-h-[360px]" />}>
+						<LineAndBarChart charts={props.charts} />
+					</Suspense>
 				</div>
 			</div>
 			<TableWithSearch
@@ -112,19 +111,19 @@ const columns: ColumnDef<ITotalBorrowedByChainPageData['protocols'][0]>[] = [
 						</button>
 					) : null}
 
-					<span className="flex-shrink-0">{index + 1}</span>
+					<span className="shrink-0">{index + 1}</span>
 
 					<TokenLogo logo={row.original.logo} data-lgonly />
 
 					<span className="flex flex-col -my-2">
 						<BasicLink
 							href={`/protocol/${row.original.slug}?borrowed=true`}
-							className="text-sm font-medium text-[var(--link-text)] overflow-hidden whitespace-nowrap text-ellipsis hover:underline"
+							className="text-sm font-medium text-(--link-text) overflow-hidden whitespace-nowrap text-ellipsis hover:underline"
 						>
 							{value}
 						</BasicLink>
 
-						<Tooltip content={<Chains />} className="text-[0.7rem] text-[var(--text-disabled)]">
+						<Tooltip content={<Chains />} className="text-[0.7rem] text-(--text-disabled)">
 							{`${row.original.chains.length} chain${row.original.chains.length > 1 ? 's' : ''}`}
 						</Tooltip>
 					</span>
@@ -140,10 +139,7 @@ const columns: ColumnDef<ITotalBorrowedByChainPageData['protocols'][0]>[] = [
 		enableSorting: false,
 		cell: ({ getValue }) =>
 			getValue() ? (
-				<BasicLink
-					href={`/protocols/${slug(getValue() as string)}`}
-					className="text-sm font-medium text-[var(--link-text)]"
-				>
+				<BasicLink href={`/protocols/${slug(getValue() as string)}`} className="text-sm font-medium text-(--link-text)">
 					{getValue() as string}
 				</BasicLink>
 			) : (

@@ -5,7 +5,7 @@ import { useInstantSearch, useSearchBox } from 'react-instantsearch'
 import { SearchV2 } from '../InstantSearch'
 import { useIsClient } from '~/hooks'
 import { useCallback, useMemo } from 'react'
-import { protocolsAndChainsOptions } from '~/components/Filters/options'
+import { tvlOptions } from '~/components/Filters/options'
 import { useProtocolsFilterState } from '~/components/Filters/useProtocolFilterState'
 import { Select } from '~/components/Select'
 
@@ -26,7 +26,7 @@ export const ProtocolsChainsSearch = ({ hideFilters, ...props }: IProtocolsChain
 	}
 
 	return (
-		<span className="hidden lg:block min-h-[44px]">
+		<span className="hidden lg:block min-h-[32px]">
 			<SearchV2 indexName="protocols">
 				<Search {...props} hideFilters={hideFilters} />
 			</SearchV2>
@@ -46,6 +46,16 @@ const Search = ({ hideFilters = false, options, ...props }: IProtocolsChainsSear
 		[refine]
 	)
 
+	const sortedResults = results.hits.sort((a, b) => {
+		if (a.deprecated && !b.deprecated) {
+			return 1
+		}
+		if (b.deprecated && !a.deprecated) {
+			return -1
+		}
+		return 0
+	})
+
 	const memoizedFilters = useMemo(
 		() => (hideFilters || (options && options.length === 0) ? null : <TvlOptions options={options} />),
 		[hideFilters, options]
@@ -55,15 +65,7 @@ const Search = ({ hideFilters = false, options, ...props }: IProtocolsChainsSear
 		<>
 			<DesktopSearch
 				{...props}
-				data={results.hits.sort((a, b) => {
-					if (a.deprecated && !b.deprecated) {
-						return 1
-					}
-					if (b.deprecated && !a.deprecated) {
-						return -1
-					}
-					return 0
-				})}
+				data={sortedResults}
 				loading={status !== 'idle'}
 				filters={memoizedFilters}
 				onSearchTermChange={onSearchTermChange}
@@ -76,21 +78,24 @@ const Search = ({ hideFilters = false, options, ...props }: IProtocolsChainsSear
 const TvlOptions = ({ options }: { options?: { name: string; key: string }[] }) => {
 	const router = useRouter()
 
-	const tvlOptions = useMemo(() => {
-		return options || protocolsAndChainsOptions
+	const finalTvlOptions = useMemo(() => {
+		return options || tvlOptions
 	}, [options])
 
-	const { selectedValues, setSelectedValues } = useProtocolsFilterState(tvlOptions)
+	const { selectedValues, setSelectedValues } = useProtocolsFilterState(finalTvlOptions)
 
 	if (router.pathname?.includes('/protocol/')) {
-		if (!tvlOptions || tvlOptions.length === 0) return null
-		const hasFees = tvlOptions.find((o) => ['bribes', 'tokentax'].includes(o.key))
+		if (!finalTvlOptions || finalTvlOptions.length === 0) return null
+		const hasFees = finalTvlOptions.find((o) => ['bribes', 'tokentax'].includes(o.key))
 		return (
 			<>
 				<Select
-					allValues={tvlOptions}
+					allValues={finalTvlOptions}
 					selectedValues={selectedValues}
 					setSelectedValues={setSelectedValues}
+					selectOnlyOne={(newOption) => {
+						setSelectedValues([newOption])
+					}}
 					label={hasFees ? 'Include in TVL, Fees' : 'Include in TVL'}
 					triggerProps={{
 						className:
@@ -104,27 +109,19 @@ const TvlOptions = ({ options }: { options?: { name: string; key: string }[] }) 
 	return (
 		<>
 			<Select
-				allValues={tvlOptions}
+				allValues={finalTvlOptions}
 				selectedValues={selectedValues}
 				setSelectedValues={setSelectedValues}
+				selectOnlyOne={(newOption) => {
+					setSelectedValues([newOption])
+				}}
 				label="Include in TVL"
 				triggerProps={{
 					className:
 						'flex items-center gap-2 py-2 px-3 text-xs rounded-md cursor-pointer flex-nowrap bg-[#E2E2E2] dark:bg-[#181A1C]'
 				}}
+				placement="bottom-end"
 			/>
 		</>
 	)
 }
-
-// const { selectedValues, setSelectedValues } = useTvlAndFeesFilterState({ options })
-// <Select
-// allValues={options}
-// selectedValues={selectedValues}
-// setSelectedValues={setSelectedValues}
-// label="Include in Stats"
-// triggerProps={{
-// 	className:
-// 		'flex items-center gap-2 py-2 px-3 text-xs rounded-md cursor-pointer flex-nowrap bg-[#E2E2E2] dark:bg-[#181A1C]'
-// }}
-// />

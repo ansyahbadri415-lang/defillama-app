@@ -5,7 +5,7 @@ export const convertToNumberFormat = (data: any[], convertToSeconds: boolean = f
 		typeof date === 'string'
 			? convertToSeconds
 				? parseInt(date, 10) / 1000
-				: parseInt(date, 10) / 1000
+				: parseInt(date, 10) / 1
 			: date / (convertToSeconds ? 1000 : 1),
 		typeof value === 'string' ? parseFloat(value) : value
 	])
@@ -22,9 +22,15 @@ export const getStartOfMonth = (date: Date): Date => {
 	return new Date(date.getFullYear(), date.getMonth(), 1)
 }
 
+export const getStartOfQuarter = (date: Date): Date => {
+	const month = date.getMonth()
+	const quarterStartMonth = Math.floor(month / 3) * 3
+	return new Date(date.getFullYear(), quarterStartMonth, 1)
+}
+
 export const groupData = (
 	data: [string, number][] | undefined,
-	grouping: 'day' | 'week' | 'month' = 'day'
+	grouping: 'day' | 'week' | 'month' | 'quarter' = 'day'
 ): [string, number][] => {
 	if (!data || data.length === 0) return []
 
@@ -42,6 +48,8 @@ export const groupData = (
 			groupKeyDate = getStartOfWeek(date)
 		} else if (grouping === 'month') {
 			groupKeyDate = getStartOfMonth(date)
+		} else if (grouping === 'quarter') {
+			groupKeyDate = getStartOfQuarter(date)
 		} else {
 			groupKeyDate = date
 		}
@@ -59,6 +67,18 @@ export const groupData = (
 	return Object.entries(groupedData).sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
 }
 
+export const convertToCumulative = (data: [string, number][] | undefined): [string, number][] => {
+	if (!data || data.length === 0) return []
+
+	const sorted = [...data].sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
+	let cumulative = 0
+
+	return sorted.map(([timestamp, value]) => {
+		cumulative += value
+		return [timestamp, cumulative]
+	})
+}
+
 // Icon URL helper functions
 export const getItemIconUrl = (itemType: 'chain' | 'protocol', itemInfo: any, itemIdentifier: string): string => {
 	if (itemType === 'chain') {
@@ -68,4 +88,12 @@ export const getItemIconUrl = (itemType: 'chain' | 'protocol', itemInfo: any, it
 		// Protocol icon logic
 		return itemInfo?.logo || `https://icons.llamao.fi/icons/protocols/${itemInfo?.id || itemIdentifier}.jpg`
 	}
+}
+
+import { generateConsistentChartColor } from './utils/colorManager'
+
+export const generateChartColor = (itemName: string, fallbackColor: string): string => {
+	const itemType = itemName?.includes('_') ? 'protocol' : 'chain'
+
+	return generateConsistentChartColor(itemName, fallbackColor, itemType)
 }

@@ -8,6 +8,7 @@ import { TokenLogo } from '~/components/TokenLogo'
 import { PROTOCOLS_TREASURY } from '~/constants'
 import Layout from '~/layout'
 import { formattedNum, slug } from '~/utils'
+import { fetchJson } from '~/utils/async'
 import { withPerformanceLogging } from '~/utils/perf'
 
 interface INetProjectTreasuryByChain {
@@ -15,7 +16,7 @@ interface INetProjectTreasuryByChain {
 }
 
 export const getStaticProps = withPerformanceLogging(`net-project-treasury/index`, async () => {
-	const treasuries = await fetch(PROTOCOLS_TREASURY).then((res) => res.json())
+	const treasuries = await fetchJson(PROTOCOLS_TREASURY)
 
 	const protocols = treasuries
 		.map((t) => {
@@ -25,10 +26,11 @@ export const getStaticProps = withPerformanceLogging(`net-project-treasury/index
 					netTreasury += t.tokenBreakdowns[category]
 				}
 			}
+			const name = t.name.replace(' (treasury)', '')
 			return {
-				name: t.name,
+				name,
 				logo: `${t.logo.replace('https://icons.llama.fi', 'https://icons.llamao.fi/icons/protocols')}?w=48&h=48`,
-				slug: slug(t.name),
+				slug: slug(name),
 				netTreasury
 			}
 		})
@@ -69,14 +71,14 @@ const columns: ColumnDef<INetProjectTreasuryByChain['protocols'][0]>[] = [
 
 			return (
 				<span className="flex items-center gap-2 relative">
-					<span className="flex-shrink-0">{index + 1}</span>
+					<span className="shrink-0">{index + 1}</span>
 
 					<TokenLogo logo={row.original.logo} data-lgonly />
 
 					<span className="flex flex-col -my-2">
 						<BasicLink
-							href={`/protocol/${row.original.slug}?borrowed=true`}
-							className="text-sm font-medium text-[var(--link-text)] overflow-hidden whitespace-nowrap text-ellipsis hover:underline"
+							href={`/protocol/treasury/${row.original.slug}`}
+							className="text-sm font-medium text-(--link-text) overflow-hidden whitespace-nowrap text-ellipsis hover:underline"
 						>
 							{value}
 						</BasicLink>

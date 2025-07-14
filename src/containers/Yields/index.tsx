@@ -20,7 +20,8 @@ const YieldPage = ({ pools, projectList, chainList, categoryList, tokens, tokenS
 		includeTokens,
 		excludeTokens,
 		exactTokens,
-		selectedCategories
+		selectedCategories,
+		pairTokens
 	} = useFormatYieldQueryParams({ projectList, chainList, categoryList })
 
 	React.useEffect(() => {
@@ -41,9 +42,16 @@ const YieldPage = ({ pools, projectList, chainList, categoryList, tokens, tokenS
 		excludeTokens,
 		exactTokens,
 		selectedCategories,
-		pools
+		pools,
+		pairTokens
 	])
+
 	const poolsData = React.useMemo(() => {
+		const pair_tokens = pairTokens.map((token) => token.toLowerCase())
+		const include_tokens = includeTokens.map((token) => token.toLowerCase())
+		const exclude_tokens = excludeTokens.map((token) => token.toLowerCase())
+		const exact_tokens = exactTokens.map((token) => token.toLowerCase())
+
 		return pools.reduce((acc, curr) => {
 			const toFilter = toFilterPool({
 				curr,
@@ -51,14 +59,15 @@ const YieldPage = ({ pools, projectList, chainList, categoryList, tokens, tokenS
 				selectedProjects,
 				selectedChains,
 				selectedAttributes,
-				includeTokens,
-				excludeTokens,
-				exactTokens,
+				includeTokens: include_tokens,
+				excludeTokens: exclude_tokens,
+				exactTokens: exact_tokens,
 				selectedCategories,
 				minTvl,
 				maxTvl,
 				minApy,
-				maxApy
+				maxApy,
+				pairTokens: pair_tokens
 			})
 
 			if (toFilter) {
@@ -115,7 +124,8 @@ const YieldPage = ({ pools, projectList, chainList, categoryList, tokens, tokenS
 		includeTokens,
 		excludeTokens,
 		exactTokens,
-		pathname
+		pathname,
+		pairTokens
 	])
 	const downloadCSV = React.useCallback(() => {
 		const headers = [
@@ -191,7 +201,7 @@ const YieldPage = ({ pools, projectList, chainList, categoryList, tokens, tokenS
 					<Announcement notCancellable>
 						Do you want to see only pools that have a single token? Click{' '}
 						<a
-							className="text-[var(--blue)] underline font-medium"
+							className="text-(--blue) underline font-medium"
 							onClick={() => {
 								push(
 									{
@@ -251,7 +261,7 @@ const YieldPage = ({ pools, projectList, chainList, categoryList, tokens, tokenS
 			) : poolsData.length > 0 ? (
 				<YieldsPoolsTable data={poolsData} />
 			) : (
-				<p className="p-5 bg-[var(--cards-bg)] rounded-md text-center">Couldn't find any pools for these filters</p>
+				<p className="p-5 bg-(--cards-bg) rounded-md text-center">Couldn't find any pools for these filters</p>
 			)}
 		</>
 	)

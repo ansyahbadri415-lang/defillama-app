@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
 	reactStrictMode: true,
+	// Increase timeout for static page generation (default is 60 seconds)
+	staticPageGenerationTimeout: 300, // 5 minutes
 	async redirects() {
 		return [
 			{
@@ -305,6 +307,11 @@ const nextConfig = {
 				permanent: true
 			},
 			{
+				source: '/dex/chains',
+				destination: '/dexs/chains',
+				permanent: true
+			},
+			{
 				source: '/dexs/chain',
 				destination: '/dexs/chains',
 				permanent: true
@@ -557,17 +564,6 @@ const nextConfig = {
 	},
 	images: {
 		domains: ['icons.llama.fi', 'assets.coingecko.com', 'yield-charts.llama.fi', 'icons.llamao.fi']
-	},
-	compiler: {
-		styledComponents: true
-	},
-	generateBuildId: async () => {
-		// get the latest git commit hash here
-		const commitHash = Math.random().toString() //require('child_process').execSync('git rev-parse HEAD').toString().trim()
-		return commitHash
-	},
-	experimental: {
-		largePageDataBytes: 6_000_000
 	}
 }
 

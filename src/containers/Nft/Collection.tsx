@@ -2,7 +2,6 @@ import * as React from 'react'
 import Layout from '~/layout'
 import { TokenLogo } from '~/components/TokenLogo'
 import { FormattedName } from '~/components/FormattedName'
-import dynamic from 'next/dynamic'
 import type { ICollectionScatterChartProps, IOrderBookChartProps } from './types'
 import { IChartProps } from '~/components/ECharts/types'
 import { useRouter } from 'next/router'
@@ -14,17 +13,13 @@ import { Icon } from '~/components/Icon'
 import { LazyChart } from '~/components/LazyChart'
 import { Switch } from '~/components/Switch'
 
-const CollectionScatterChart = dynamic(() => import('./CollectionScatterChart'), {
-	ssr: false
-}) as React.FC<ICollectionScatterChartProps>
+const CollectionScatterChart = React.lazy(
+	() => import('./CollectionScatterChart')
+) as React.FC<ICollectionScatterChartProps>
 
-const AreaChart = dynamic(() => import('~/components/ECharts/AreaChart'), {
-	ssr: false
-}) as React.FC<IChartProps>
+const AreaChart = React.lazy(() => import('~/components/ECharts/AreaChart')) as React.FC<IChartProps>
 
-const OrderbookChart = dynamic(() => import('./OrderbookChart'), {
-	ssr: false
-}) as React.FC<IOrderBookChartProps>
+const OrderbookChart = React.lazy(() => import('./OrderbookChart')) as React.FC<IOrderBookChartProps>
 
 export function NFTCollectionContainer() {
 	const router = useRouter()
@@ -56,7 +51,7 @@ export function NFTCollectionContainer() {
 			<NFTsSearch />
 
 			<div className="grid grid-cols-2 relative isolate xl:grid-cols-3 gap-1">
-				<div className="bg-[var(--cards-bg)] rounded-md flex flex-col gap-6 p-5 col-span-2 w-full xl:col-span-1 overflow-x-auto">
+				<div className="bg-(--cards-bg) rounded-md flex flex-col gap-6 p-5 col-span-2 w-full xl:col-span-1 overflow-x-auto">
 					<h1 className="flex items-center gap-2 text-xl">
 						<TokenLogo logo={data[0].image} fallbackLogo={data?.[0]?.image} size={48} />
 						<FormattedName text={name} fontWeight={700} />
@@ -85,13 +80,13 @@ export function NFTCollectionContainer() {
 						href={`https://etherscan.io/token/${address.split(':')[0]}`}
 						target="_blank"
 						rel="noopener noreferrer"
-						className="flex items-center gap-1 justify-center py-1 px-2 whitespace-nowrap text-xs rounded-md text-[var(--link-text)] bg-[var(--link-bg)] hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] mt-auto mr-auto"
+						className="flex items-center gap-1 justify-center py-1 px-2 whitespace-nowrap text-xs rounded-md text-(--link-text) bg-(--link-bg) hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) mt-auto mr-auto"
 					>
 						<span>View on Etherscan</span> <Icon name="arrow-up-right" height={14} width={14} />
 					</a>
 				</div>
 
-				<div className="bg-[var(--cards-bg)] rounded-md col-span-2 min-h-[392px]">
+				<div className="bg-(--cards-bg) rounded-md col-span-2 min-h-[392px]">
 					<div className="flex items-center justify-end p-3 pb-0 w-full">
 						<Switch
 							label="Include Outliers"
@@ -108,20 +103,26 @@ export function NFTCollectionContainer() {
 							}
 						/>
 					</div>
-					<CollectionScatterChart
-						sales={includeOutliers ? sales : salesExOutliers}
-						salesMedian1d={salesMedian1d as any}
-						volume={stats}
-					/>
+					<React.Suspense fallback={<></>}>
+						<CollectionScatterChart
+							sales={includeOutliers ? sales : salesExOutliers}
+							salesMedian1d={salesMedian1d as any}
+							volume={stats}
+						/>
+					</React.Suspense>
 				</div>
 			</div>
 
 			<div className="grid grid-cols-2 gap-1">
-				<LazyChart className="bg-[var(--cards-bg)] pt-3 rounded-md relative col-span-full min-h-[372px] flex flex-col xl:col-span-1 xl:[&:last-child:nth-child(2n_-_1)]:col-span-full">
-					<AreaChart chartData={floorHistory} hideDefaultLegend valueSymbol="ETH" title="Floor Price" />
+				<LazyChart className="bg-(--cards-bg) pt-3 rounded-md relative col-span-full min-h-[372px] flex flex-col xl:col-span-1 xl:[&:last-child:nth-child(2n-1)]:col-span-full">
+					<React.Suspense fallback={<></>}>
+						<AreaChart chartData={floorHistory} hideDefaultLegend valueSymbol="ETH" title="Floor Price" />
+					</React.Suspense>
 				</LazyChart>
-				<LazyChart className="bg-[var(--cards-bg)] pt-3 rounded-md relative col-span-full min-h-[372px] flex flex-col xl:col-span-1 xl:[&:last-child:nth-child(2n_-_1)]:col-span-full">
-					<OrderbookChart chartData={orderbook} />
+				<LazyChart className="bg-(--cards-bg) pt-3 rounded-md relative col-span-full min-h-[372px] flex flex-col xl:col-span-1 xl:[&:last-child:nth-child(2n-1)]:col-span-full">
+					<React.Suspense fallback={<></>}>
+						<OrderbookChart chartData={orderbook} />
+					</React.Suspense>
 				</LazyChart>
 			</div>
 		</Layout>

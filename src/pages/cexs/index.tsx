@@ -4,9 +4,8 @@ import { withPerformanceLogging } from '~/utils/perf'
 
 import 'react-datepicker/dist/react-datepicker.css'
 import { Cexs } from '~/containers/Cexs'
-import { fetchWithErrorLogging } from '~/utils/async'
-
-const fetch = fetchWithErrorLogging
+import { fetchJson } from '~/utils/async'
+import { COINS_PRICES_API, INFLOWS_API, PROTOCOL_API } from '~/constants'
 
 interface ICex {
 	name: string
@@ -681,17 +680,17 @@ export const getStaticProps = withPerformanceLogging('cexs/index', async () => {
 			}
 		}
 	] = await Promise.all([
-		fetch(`https://pro-api.coingecko.com/api/v3/exchanges?per_page=250`, {
+		fetchJson(`https://pro-api.coingecko.com/api/v3/exchanges?per_page=250`, {
 			headers: {
 				'x-cg-pro-api-key': process.env.CG_KEY
 			}
-		}).then((r) => r.json()),
-		fetch(`https://pro-api.coingecko.com/api/v3/derivatives/exchanges?per_page=1000`, {
+		}),
+		fetchJson(`https://pro-api.coingecko.com/api/v3/derivatives/exchanges?per_page=1000`, {
 			headers: {
 				'x-cg-pro-api-key': process.env.CG_KEY
 			}
-		}).then((r) => r.json()),
-		fetch(`https://coins.llama.fi/prices/current/coingecko:bitcoin`).then((r) => r.json())
+		}),
+		fetchJson(`${COINS_PRICES_API}/current/coingecko:bitcoin`)
 	])
 	const cexs = await Promise.all(
 		cexData.map(async (c) => {
@@ -699,16 +698,10 @@ export const getStaticProps = withPerformanceLogging('cexs/index', async () => {
 				return c
 			} else {
 				const res = await Promise.allSettled([
-					fetch(`https://api.llama.fi/updatedProtocol/${c.slug}`).then((r) => r.json()),
-					fetch(`https://api.llama.fi/inflows/${c.slug}/${hour24ms}?tokensToExclude=${c.coin ?? ''}`).then((r) =>
-						r.json()
-					),
-					fetch(`https://api.llama.fi/inflows/${c.slug}/${hour7dms}?tokensToExclude=${c.coin ?? ''}`).then((r) =>
-						r.json()
-					),
-					fetch(`https://api.llama.fi/inflows/${c.slug}/${hour1mms}?tokensToExclude=${c.coin ?? ''}`).then((r) =>
-						r.json()
-					)
+					fetchJson(`${PROTOCOL_API}/${c.slug}`).catch(() => ({ chainTvls: {} })),
+					fetchJson(`${INFLOWS_API}/${c.slug}/${hour24ms}?tokensToExclude=${c.coin ?? ''}`),
+					fetchJson(`${INFLOWS_API}/${c.slug}/${hour7dms}?tokensToExclude=${c.coin ?? ''}`),
+					fetchJson(`${INFLOWS_API}/${c.slug}/${hour1mms}?tokensToExclude=${c.coin ?? ''}`)
 				]).catch((e) => null)
 				if (res === null) {
 					return c
@@ -785,4 +778,4 @@ export default function Protocols({ cexs }) {
 	return <Cexs cexs={cexs} />
 }
 
-//trigger server
+//trigger server gogo

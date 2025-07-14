@@ -11,22 +11,17 @@ import {
 	PROTOCOL_GOVERNANCE_COMPOUND_API,
 	PROTOCOL_GOVERNANCE_TALLY_API
 } from '~/constants'
-import dynamic from 'next/dynamic'
 import { IBarChartProps } from '~/components/ECharts/types'
 import { formatGovernanceData } from '~/api/categories/protocols'
 import { GovernanceTable } from '~/containers/ProtocolOverview/Governance'
 import { withPerformanceLogging } from '~/utils/perf'
 
-import { fetchWithErrorLogging } from '~/utils/async'
+import { fetchJson } from '~/utils/async'
 import { Icon } from '~/components/Icon'
 import { LazyChart } from '~/components/LazyChart'
 import { ProtocolsChainsSearch } from '~/components/Search/ProtocolsChains'
 
-const fetch = fetchWithErrorLogging
-
-const BarChart = dynamic(() => import('~/components/ECharts/BarChart'), {
-	ssr: false
-}) as React.FC<IBarChartProps>
+const BarChart = React.lazy(() => import('~/components/ECharts/BarChart')) as React.FC<IBarChartProps>
 
 export const getStaticProps = withPerformanceLogging(
 	'governance/[...project]',
@@ -40,9 +35,9 @@ export const getStaticProps = withPerformanceLogging(
 			{ [key: string]: { name: string; id: string } },
 			{ [key: string]: { name: string; id: string } }
 		] = await Promise.all([
-			fetch(GOVERNANCE_SNAPSHOT_API).then((res) => res.json()),
-			fetch(GOVERNANCE_COMPOUND_API).then((res) => res.json()),
-			fetch(GOVERNANCE_TALLY_API).then((res) => res.json())
+			fetchJson(GOVERNANCE_SNAPSHOT_API),
+			fetchJson(GOVERNANCE_COMPOUND_API),
+			fetchJson(GOVERNANCE_TALLY_API)
 		])
 
 		const snapshotProjectId = Object.values(snapshot).find((p) => slug(p.name) === project)?.id
@@ -79,7 +74,7 @@ export const getStaticProps = withPerformanceLogging(
 					[month: string]: { total: number; successful: number; proposals: Array<string> }
 				}
 			}
-		} = await fetch(api).then((res) => res.json())
+		} = await fetchJson(api)
 
 		const recentMonth = Object.keys(data.stats.months).sort().pop()
 		const missingMonths = getDateRange(recentMonth)
@@ -116,7 +111,7 @@ export default function Protocol({ data, governanceType }) {
 	return (
 		<Layout title={`${data.metadata.name} Governance - DefiLlama`} defaultSEO>
 			<ProtocolsChainsSearch />
-			<div className="flex flex-col gap-9 p-6 relative isolate xl:grid-cols-[auto_1fr] bg-[var(--cards-bg)] rounded-md">
+			<div className="flex flex-col gap-9 p-6 relative isolate xl:grid-cols-[auto_1fr] bg-(--cards-bg) rounded-md">
 				<h1 className="flex items-center gap-2 text-xl font-semibold">
 					<TokenLogo logo={tokenIconUrl(data.metadata.name)} />
 					<span>{data.metadata.name}</span>
@@ -170,23 +165,32 @@ export default function Protocol({ data, governanceType }) {
 				</div>
 
 				<div className="grid grid-cols-2">
-					<LazyChart className="relative col-span-full min-h-[360px] flex flex-col xl:col-span-1 xl:[&:last-child:nth-child(2n_-_1)]:col-span-full">
-						<BarChart title={'Activity'} chartData={data.activity} stacks={simpleStack} stackColors={barChartColors} />
+					<LazyChart className="relative col-span-full min-h-[360px] flex flex-col xl:col-span-1 xl:[&:last-child:nth-child(2n-1)]:col-span-full">
+						<React.Suspense fallback={<></>}>
+							<BarChart
+								title={'Activity'}
+								chartData={data.activity}
+								stacks={simpleStack}
+								stackColors={barChartColors}
+							/>
+						</React.Suspense>
 					</LazyChart>
-					<LazyChart className="relative col-span-full min-h-[360px] flex flex-col xl:col-span-1 xl:[&:last-child:nth-child(2n_-_1)]:col-span-full">
-						<BarChart
-							title={'Max Votes'}
-							chartData={data.maxVotes}
-							stacks={maxVotesStack}
-							stackColors={barChartColors}
-						/>
+					<LazyChart className="relative col-span-full min-h-[360px] flex flex-col xl:col-span-1 xl:[&:last-child:nth-child(2n-1)]:col-span-full">
+						<React.Suspense fallback={<></>}>
+							<BarChart
+								title={'Max Votes'}
+								chartData={data.maxVotes}
+								stacks={maxVotesStack}
+								stackColors={barChartColors}
+							/>
+						</React.Suspense>
 					</LazyChart>
 				</div>
 
 				<div className="flex flex-wrap items-center gap-9">
 					{data.metadata.domain && (
 						<a
-							className="flex items-center gap-1 justify-center py-1 px-2 whitespace-nowrap text-xs rounded-md text-[var(--link-text)] bg-[var(--link-bg)] hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)]"
+							className="flex items-center gap-1 justify-center py-1 px-2 whitespace-nowrap text-xs rounded-md text-(--link-text) bg-(--link-bg) hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg)"
 							target="_blank"
 							rel="noopener noreferrer"
 							href={`https://${data.metadata.domain}`}
@@ -197,7 +201,7 @@ export default function Protocol({ data, governanceType }) {
 
 					{data.metadata.twitter && (
 						<a
-							className="flex items-center gap-1 justify-center py-1 px-2 whitespace-nowrap text-xs rounded-md text-[var(--link-text)] bg-[var(--link-bg)] hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)]"
+							className="flex items-center gap-1 justify-center py-1 px-2 whitespace-nowrap text-xs rounded-md text-(--link-text) bg-(--link-bg) hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg)"
 							target="_blank"
 							rel="noopener noreferrer"
 							href={`https://twitter.com/${data.metadata.twitter}`}
@@ -208,7 +212,7 @@ export default function Protocol({ data, governanceType }) {
 
 					{data.metadata.github && (
 						<a
-							className="flex items-center gap-1 justify-center py-1 px-2 whitespace-nowrap text-xs rounded-md text-[var(--link-text)] bg-[var(--link-bg)] hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)]"
+							className="flex items-center gap-1 justify-center py-1 px-2 whitespace-nowrap text-xs rounded-md text-(--link-text) bg-(--link-bg) hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg)"
 							target="_blank"
 							rel="noopener noreferrer"
 							href={`https://github.com/${data.metadata.github}`}
@@ -220,7 +224,7 @@ export default function Protocol({ data, governanceType }) {
 
 					{data.metadata.coingecko && (
 						<a
-							className="flex items-center gap-1 justify-center py-1 px-2 whitespace-nowrap text-xs rounded-md text-[var(--link-text)] bg-[var(--link-bg)] hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)]"
+							className="flex items-center gap-1 justify-center py-1 px-2 whitespace-nowrap text-xs rounded-md text-(--link-text) bg-(--link-bg) hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg)"
 							target="_blank"
 							rel="noopener noreferrer"
 							href={`https://www.coingecko.com/en/coins/${data.metadata.coingecko}`}

@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { Menu } from '~/components/Menu'
 import { YieldsPoolsTable } from '~/containers/Yields/Tables/Pools'
 import { useIsClient } from '~/hooks'
-import { DEFAULT_PORTFOLIO_NAME, useWatchlist } from '~/contexts/LocalStorage'
+import { DEFAULT_PORTFOLIO_NAME, useWatchlistManager } from '~/contexts/LocalStorage'
 import { Switch } from '~/components/Switch'
 import { useRouter } from 'next/router'
 import { Icon } from '~/components/Icon'
@@ -27,14 +27,12 @@ export function YieldsWatchlistContainer({ protocolsDict }) {
 
 	const isClient = useIsClient()
 
-	const { addPortfolio, removePortfolio, savedProtocols, portfolios, selectedPortfolio, setSelectedPortfolio } =
-		useWatchlist()
-
-	const savedProtocolsInWatchlist = Object.values(savedProtocols)
+	const { portfolios, selectedPortfolio, savedProtocols, addPortfolio, removePortfolio, setSelectedPortfolio } =
+		useWatchlistManager('yields')
 
 	const filteredProtocols = useMemo(() => {
 		if (isClient) {
-			const list = protocolsDict.filter((p) => savedProtocolsInWatchlist.includes(p.pool))
+			const list = protocolsDict.filter((p) => savedProtocols.has(p.pool))
 			return list.map((t) => ({
 				pool: t.symbol,
 				configID: t.pool,
@@ -72,12 +70,12 @@ export function YieldsWatchlistContainer({ protocolsDict }) {
 				lsdTokenOnly: t.lsdTokenOnly
 			}))
 		} else return []
-	}, [isClient, savedProtocolsInWatchlist, protocolsDict])
+	}, [isClient, savedProtocols, protocolsDict])
 
 	return (
 		<>
 			<WatchListTabs />
-			<div className="bg-[var(--cards-bg)] rounded-md">
+			<div className="bg-(--cards-bg) border border-(--cards-border) rounded-md">
 				<h1 className="text-xl font-semibold p-3">Saved Pools</h1>
 
 				<div className="flex items-center flex-wrap gap-4 p-3">
@@ -86,13 +84,20 @@ export function YieldsWatchlistContainer({ protocolsDict }) {
 						name={selectedPortfolio}
 						options={portfolios}
 						onItemClick={(value) => setSelectedPortfolio(value)}
-						className="flex items-center justify-between gap-2 p-2 text-xs rounded-md cursor-pointer flex-nowrap relative border border-[var(--form-control-border)] text-[#666] dark:text-[#919296] hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] font-medium"
+						className="flex items-center justify-between gap-2 p-2 text-xs rounded-md cursor-pointer flex-nowrap relative border border-(--form-control-border) text-[#666] dark:text-[#919296] hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) font-medium"
 					/>
-					<button onClick={addPortfolio}>
+					<button
+						onClick={() => {
+							const newPortfolio = prompt('Enter a name for the new portfolio')
+							if (newPortfolio) {
+								addPortfolio(newPortfolio)
+							}
+						}}
+					>
 						<Icon name="folder-plus" height={24} width={24} />
 					</button>
 					{selectedPortfolio !== DEFAULT_PORTFOLIO_NAME && (
-						<button onClick={removePortfolio}>
+						<button onClick={() => removePortfolio(selectedPortfolio)}>
 							<Icon name="trash-2" height={24} width={24} />
 						</button>
 					)}
@@ -224,7 +229,7 @@ export function YieldsWatchlistContainer({ protocolsDict }) {
 				{filteredProtocols.length ? (
 					<YieldsPoolsTable data={filteredProtocols} />
 				) : (
-					<p className="p-5 bg-[var(--cards-bg)] rounded-md text-center">You have not saved any pools.</p>
+					<p className="p-5 bg-(--cards-bg) rounded-md text-center">You have not saved any pools.</p>
 				)}
 			</div>
 		</>
@@ -234,11 +239,11 @@ export function YieldsWatchlistContainer({ protocolsDict }) {
 export const WatchListTabs = () => {
 	const router = useRouter()
 	return (
-		<nav className="text-xs font-semibold flex items-center gap-2 border-b-2 border-[var(--form-control-border)] w-full max-w-fit relative">
+		<nav className="text-xs font-semibold flex items-center gap-2 border-b-2 border-(--form-control-border) w-full max-w-fit relative">
 			<BasicLink
 				href={'/watchlist'}
 				data-active={router.pathname === '/watchlist'}
-				className="flex-shrink-0 py-1 px-[10px] whitespace-nowrap hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] border-b-2 border-transparent data-[active=true]:border-[var(--old-blue)] relative bottom-[-2px] z-10"
+				className="shrink-0 py-1 px-[10px] whitespace-nowrap hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) border-b-2 border-transparent data-[active=true]:border-(--old-blue) relative bottom-[-2px]"
 			>
 				DeFi
 			</BasicLink>
@@ -246,7 +251,7 @@ export const WatchListTabs = () => {
 			<BasicLink
 				href={'/yields/watchlist'}
 				data-active={router.pathname === '/yields/watchlist'}
-				className="flex-shrink-0 py-1 px-[10px] whitespace-nowrap hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] border-b-2 border-transparent data-[active=true]:border-[var(--old-blue)] relative bottom-[-2px] z-10"
+				className="shrink-0 py-1 px-[10px] whitespace-nowrap hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) border-b-2 border-transparent data-[active=true]:border-(--old-blue) relative bottom-[-2px]"
 			>
 				Yields
 			</BasicLink>

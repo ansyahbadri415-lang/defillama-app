@@ -1,6 +1,4 @@
 import * as React from 'react'
-
-import dynamic from 'next/dynamic'
 import { GroupStablecoins } from '~/components/MultiSelect/Stablecoins'
 import { PeggedSearch } from '~/components/Search/Stablecoins'
 import { ChartSelector } from '~/containers/Stablecoins/ChartSelector'
@@ -18,13 +16,9 @@ import { Icon } from '~/components/Icon'
 import { Tooltip } from '~/components/Tooltip'
 import { Metrics } from '~/components/Metrics'
 
-const AreaChart = dynamic(() => import('~/components/ECharts/AreaChart'), {
-	ssr: false
-}) as React.FC<IChartProps>
+const AreaChart = React.lazy(() => import('~/components/ECharts/AreaChart')) as React.FC<IChartProps>
 
-const PieChart = dynamic(() => import('~/components/ECharts/PieChart'), {
-	ssr: false
-}) as React.FC<IPieChartProps>
+const PieChart = React.lazy(() => import('~/components/ECharts/PieChart')) as React.FC<IPieChartProps>
 
 function PeggedChainsOverview({
 	chainCirculatings,
@@ -148,7 +142,7 @@ function PeggedChainsOverview({
 			<Metrics currentMetric="Stablecoin Supply" isChains={true} />
 
 			<div className="grid grid-cols-2 relative isolate xl:grid-cols-3 gap-1">
-				<div className="bg-[var(--cards-bg)] rounded-md flex flex-col gap-3 p-5 col-span-2 w-full xl:col-span-1 overflow-x-auto">
+				<div className="bg-(--cards-bg) rounded-md flex flex-col gap-3 p-5 col-span-2 w-full xl:col-span-1 overflow-x-auto">
 					<p className="flex flex-col">
 						<span className="text-[#545757] dark:text-[#cccccc]">Total Stablecoins Market Cap</span>
 						<span className="font-semibold text-2xl font-jetbrains">{mcapToDisplay}</span>
@@ -169,7 +163,7 @@ function PeggedChainsOverview({
 									<span className="font-semibold text-2xl font-jetbrains">{change7d_nol}</span>
 									<span
 										className={`${
-											change7d.startsWith('-') ? 'text-[var(--pct-red)]' : 'text-[var(--pct-green)]'
+											change7d.startsWith('-') ? 'text-(--pct-red)' : 'text-(--pct-green)'
 										} font-jetbrains overflow-hidden whitespace-nowrap text-ellipsis`}
 									>{`${change7d}%`}</span>
 								</span>
@@ -181,7 +175,7 @@ function PeggedChainsOverview({
 							<Tooltip
 								content={change1d_nol}
 								className={`font-jetbrains overflow-hidden whitespace-nowrap text-ellipsis underline decoration-dotted ${
-									change1d.startsWith('-') ? 'text-[var(--pct-red)]' : 'text-[var(--pct-green)]'
+									change1d.startsWith('-') ? 'text-(--pct-red)' : 'text-(--pct-green)'
 								}`}
 							>
 								{`${change1d}%`}
@@ -192,7 +186,7 @@ function PeggedChainsOverview({
 							<Tooltip
 								content={change30d_nol}
 								className={`font-jetbrains overflow-hidden whitespace-nowrap text-ellipsis underline decoration-dotted ${
-									change30d.startsWith('-') ? 'text-[var(--pct-red)]' : 'text-[var(--pct-green)]'
+									change30d.startsWith('-') ? 'text-(--pct-red)' : 'text-(--pct-green)'
 								}`}
 							>
 								{`${change30d}%`}
@@ -207,45 +201,55 @@ function PeggedChainsOverview({
 
 					<CSVDownloadButton onClick={downloadCsv} className="mt-auto mr-auto" />
 				</div>
-				<div className="bg-[var(--cards-bg)] rounded-md flex flex-col col-span-2 min-h-[406px]">
+				<div className="bg-(--cards-bg) rounded-md flex flex-col col-span-2 min-h-[406px]">
 					<ChartSelector options={chartTypeList} selectedChart={chartType} onClick={setChartType} />
 					{chartType === 'Total Market Cap' && (
-						<AreaChart
-							title=""
-							chartData={peggedAreaTotalData}
-							stacks={totalMcapLabel}
-							color={'lightcoral'}
-							hideDefaultLegend={true}
-							valueSymbol="$"
-							hideGradient={true}
-						/>
+						<React.Suspense fallback={<></>}>
+							<AreaChart
+								title=""
+								chartData={peggedAreaTotalData}
+								stacks={totalMcapLabel}
+								color={'lightcoral'}
+								hideDefaultLegend={true}
+								valueSymbol="$"
+								hideGradient={true}
+							/>
+						</React.Suspense>
 					)}
 					{chartType === 'Chain Market Caps' && (
-						<AreaChart
-							title=""
-							chartData={peggedAreaChartData}
-							stacks={chainList}
-							valueSymbol="$"
-							hideDefaultLegend={true}
-							hideGradient={true}
-						/>
+						<React.Suspense fallback={<></>}>
+							<AreaChart
+								title=""
+								chartData={peggedAreaChartData}
+								stacks={chainList}
+								valueSymbol="$"
+								hideDefaultLegend={true}
+								hideGradient={true}
+							/>
+						</React.Suspense>
 					)}
 					{chartType === 'Dominance' && (
-						<AreaChart
-							title=""
-							valueSymbol="%"
-							chartData={dataWithExtraPeggedAndDominanceByDay}
-							stacks={chainList}
-							hideDefaultLegend={true}
-							hideGradient={true}
-							expandTo100Percent={true}
-						/>
+						<React.Suspense fallback={<></>}>
+							<AreaChart
+								title=""
+								valueSymbol="%"
+								chartData={dataWithExtraPeggedAndDominanceByDay}
+								stacks={chainList}
+								hideDefaultLegend={true}
+								hideGradient={true}
+								expandTo100Percent={true}
+							/>
+						</React.Suspense>
 					)}
-					{chartType === 'Pie' && <PieChart chartData={chainsCirculatingValues} />}
+					{chartType === 'Pie' && (
+						<React.Suspense fallback={<></>}>
+							<PieChart chartData={chainsCirculatingValues} />
+						</React.Suspense>
+					)}
 				</div>
 			</div>
 
-			<div className="flex flex-col gap-1 bg-[var(--cards-bg)] rounded-md p-3">
+			<div className="flex flex-col gap-1 bg-(--cards-bg) rounded-md p-3">
 				<h2 className="font-semibold text-sm">Filters</h2>
 				<GroupStablecoins label="Filters" />
 			</div>

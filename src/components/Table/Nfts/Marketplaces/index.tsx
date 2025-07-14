@@ -43,19 +43,14 @@ export function NftsMarketplaceTable({ data }: { data: Array<INftMarketplace> })
 	return (
 		<>
 			<div className="relative w-full sm:max-w-[280px] ml-auto -mb-6">
-				<Icon
-					name="search"
-					height={16}
-					width={16}
-					className="absolute text-[var(--text3)] top-0 bottom-0 my-auto left-2"
-				/>
+				<Icon name="search" height={16} width={16} className="absolute text-(--text3) top-0 bottom-0 my-auto left-2" />
 				<input
 					value={collectionName}
 					onChange={(e) => {
 						setCollectionName(e.target.value)
 					}}
 					placeholder="Search marketplace..."
-					className="border border-[var(--form-control-border)] w-full pl-7 pr-2 py-[6px] bg-white dark:bg-black text-black dark:text-white rounded-md text-sm"
+					className="border border-(--form-control-border) w-full pl-7 pr-2 py-[6px] bg-white dark:bg-black text-black dark:text-white rounded-md text-sm"
 				/>
 			</div>
 			<VirtualTable instance={instance} />

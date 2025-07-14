@@ -2,13 +2,14 @@ import { maxAgeForNext } from '~/api'
 import { getAllProtocolEmissionsWithHistory } from '~/api/categories/protocols'
 import * as React from 'react'
 import Layout from '~/layout'
-import { useWatchlist } from '~/contexts/LocalStorage'
+import { useWatchlistManager } from '~/contexts/LocalStorage'
 import { slug } from '~/utils'
 import { Icon } from '~/components/Icon'
 import { withPerformanceLogging } from '~/utils/perf'
 import { CalendarView } from '~/components/Unlocks/CalendarView'
 import { Announcement } from '~/components/Announcement'
 import dayjs from 'dayjs'
+import type { PrecomputedData } from '~/components/Unlocks/types'
 
 const determineUnlockType = (
 	event: { timestamp: number; noOfTokens: number[]; description?: string; category?: string },
@@ -48,6 +49,11 @@ const determineUnlockType = (
 export const getStaticProps = withPerformanceLogging('unlocks-calendar', async () => {
 	const data = await getAllProtocolEmissionsWithHistory()
 	const unlocksData: { [date: string]: { totalValue: number; events: Array<any> } } = {}
+
+	const precomputedData = {
+		monthlyMaxValues: {} as { [monthKey: string]: number },
+		listEvents: {} as { [startDateKey: string]: Array<{ date: string; event: any }> }
+	}
 
 	data?.forEach((protocol) => {
 		if (!protocol.events || protocol.tPrice === null || protocol.tPrice === undefined) {
@@ -120,9 +126,50 @@ export const getStaticProps = withPerformanceLogging('unlocks-calendar', async (
 		unlocksData[date].events.sort((a, b) => b.value - a.value)
 	})
 
+	const currentYear = new Date().getFullYear()
+	for (let year = currentYear - 1; year <= currentYear + 2; year++) {
+		for (let month = 0; month < 12; month++) {
+			const startOfMonth = dayjs().year(year).month(month).startOf('month')
+			const endOfMonth = startOfMonth.endOf('month')
+			const monthKey = `${year}-${month.toString().padStart(2, '0')}`
+
+			let maxValue = 0
+			Object.entries(unlocksData).forEach(([dateStr, dailyData]) => {
+				const date = dayjs(dateStr)
+				if (date.isBetween(startOfMonth.subtract(1, 'day'), endOfMonth.add(1, 'day'))) {
+					if (dailyData.totalValue > maxValue) {
+						maxValue = dailyData.totalValue
+					}
+				}
+			})
+			precomputedData.monthlyMaxValues[monthKey] = maxValue
+		}
+	}
+
+	const now = dayjs()
+	for (let i = 0; i < 6; i++) {
+		const startDate = now.add(i * 30, 'days').startOf('day')
+		const endDate = startDate.add(30, 'days')
+		const startDateKey = startDate.format('YYYY-MM-DD')
+
+		const events: Array<{ date: string; event: any }> = []
+		Object.entries(unlocksData).forEach(([dateStr, dailyData]) => {
+			const date = dayjs(dateStr)
+			if (date.isBetween(startDate.subtract(1, 'day'), endDate)) {
+				dailyData.events.forEach((event) => {
+					events.push({ date: dateStr, event })
+				})
+			}
+		})
+
+		events.sort((a, b) => dayjs(a.date).valueOf() - dayjs(b.date).valueOf())
+		precomputedData.listEvents[startDateKey] = events
+	}
+
 	return {
 		props: {
-			unlocksData
+			unlocksData,
+			precomputedData
 		},
 		revalidate: maxAgeForNext([22])
 	}
@@ -141,10 +188,16 @@ interface UnlocksData {
 	}
 }
 
-export default function UnlocksCalendar({ unlocksData: initialUnlocksData }: { unlocksData: UnlocksData }) {
+export default function UnlocksCalendar({
+	unlocksData: initialUnlocksData,
+	precomputedData
+}: {
+	unlocksData: UnlocksData
+	precomputedData: PrecomputedData
+}) {
 	const [showOnlyWatchlist, setShowOnlyWatchlist] = React.useState(false)
 	const [showOnlyInsider, setShowOnlyInsider] = React.useState(false)
-	const { savedProtocols } = useWatchlist()
+	const { savedProtocols } = useWatchlistManager('defi')
 
 	const unlocksData = React.useMemo(() => {
 		let filteredData = initialUnlocksData
@@ -156,7 +209,7 @@ export default function UnlocksCalendar({ unlocksData: initialUnlocksData }: { u
 				let filteredEvents = dailyData.events
 
 				if (showOnlyWatchlist) {
-					filteredEvents = filteredEvents.filter((event) => savedProtocols[slug(event.protocol)])
+					filteredEvents = filteredEvents.filter((event) => savedProtocols.has(event.protocol))
 				}
 
 				if (showOnlyInsider) {
@@ -182,7 +235,7 @@ export default function UnlocksCalendar({ unlocksData: initialUnlocksData }: { u
 				<span>Are we missing any protocol?</span>{' '}
 				<a
 					href="https://airtable.com/shrD1bSGYNcdFQ6kd"
-					className="text-[var(--blue)] underline font-medium"
+					className="text-(--blue) underline font-medium"
 					target="_blank"
 					rel="noopener noreferrer"
 				>
@@ -190,12 +243,12 @@ export default function UnlocksCalendar({ unlocksData: initialUnlocksData }: { u
 				</a>
 			</Announcement>
 
-			<div className="flex items-center justify-between gap-2 p-3 bg-[var(--cards-bg)] rounded-md">
+			<div className="flex items-center justify-between gap-2 p-3 bg-(--cards-bg) rounded-md">
 				<h1 className="text-xl font-semibold">Token Unlocks Calendar</h1>
 				<div className="flex items-center gap-2">
 					<button
 						onClick={() => setShowOnlyWatchlist((prev) => !prev)}
-						className="border border-[var(--form-control-border)] p-[6px] px-3 bg-white dark:bg-black text-black dark:text-white rounded-md text-sm flex items-center gap-2 w-[200px] justify-center"
+						className="border border-(--form-control-border) p-[6px] px-3 bg-white dark:bg-black text-black dark:text-white rounded-md text-sm flex items-center gap-2 w-[200px] justify-center"
 					>
 						<Icon
 							name="bookmark"
@@ -208,7 +261,7 @@ export default function UnlocksCalendar({ unlocksData: initialUnlocksData }: { u
 
 					<button
 						onClick={() => setShowOnlyInsider((prev) => !prev)}
-						className="border border-[var(--form-control-border)] p-[6px] px-3 bg-white dark:bg-black text-black dark:text-white rounded-md text-sm flex items-center gap-2 w-[200px] justify-center"
+						className="border border-(--form-control-border) p-[6px] px-3 bg-white dark:bg-black text-black dark:text-white rounded-md text-sm flex items-center gap-2 w-[200px] justify-center"
 					>
 						<Icon name="key" height={16} width={16} style={{ fill: showOnlyInsider ? 'var(--text1)' : 'none' }} />
 						{showOnlyInsider ? 'Show All' : 'Show Insiders Only'}
@@ -216,8 +269,8 @@ export default function UnlocksCalendar({ unlocksData: initialUnlocksData }: { u
 				</div>
 			</div>
 
-			<div className="bg-[var(--cards-bg)] rounded-md p-3">
-				<CalendarView unlocksData={unlocksData} />
+			<div className="bg-(--cards-bg) rounded-md p-3">
+				<CalendarView unlocksData={unlocksData} precomputedData={precomputedData} />
 			</div>
 		</Layout>
 	)

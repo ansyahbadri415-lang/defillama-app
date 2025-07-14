@@ -65,7 +65,7 @@ export function CoinsPicker({ coinsData, selectCoin, dialogStore, selectedCoins,
 									onError={(e) => {
 										e.currentTarget.src = '/placeholder.png'
 									}}
-									className="inline-block object-cover aspect-square rounded-full bg-[var(--bg3)] flex-shrink-0"
+									className="inline-block object-cover aspect-square rounded-full bg-(--bg3) shrink-0"
 								/>
 								<span>
 									{coin.name} ({coin.symbol.toUpperCase()})
@@ -76,7 +76,7 @@ export function CoinsPicker({ coinsData, selectCoin, dialogStore, selectedCoins,
 
 					{resultsLength < filteredCoins.length ? (
 						<button
-							className="text-left w-full pt-4 px-4 pb-7 text-[var(--link)] hover:bg-[var(--bg2)] focus-visible:bg-[var(--bg2)]"
+							className="text-left w-full pt-4 px-4 pb-7 text-(--link) hover:bg-(--bg2) focus-visible:bg-(--bg2)"
 							onClick={showMoreResults}
 						>
 							See more...
@@ -90,9 +90,13 @@ export function CoinsPicker({ coinsData, selectCoin, dialogStore, selectedCoins,
 
 export default function Correlations({ coinsData }) {
 	const router = useRouter()
-	const queryCoins = router.query?.coin || ([] as Array<string>)
-	const selectedCoins = useMemo<Record<string, IResponseCGMarketsAPI>>(
-		() =>
+	const queryParamString = JSON.stringify(router.query ?? {})
+	const queryCoins = useMemo(() => {
+		const routerQuery = JSON.parse(queryParamString)
+		return routerQuery?.coin || ([] as Array<string>)
+	}, [queryParamString])
+	const selectedCoins = useMemo<Record<string, IResponseCGMarketsAPI>>(() => {
+		return (
 			(queryCoins &&
 				Object.fromEntries(
 					coinsData
@@ -101,9 +105,10 @@ export default function Correlations({ coinsData }) {
 						)
 						.map((coin) => [coin.id, coin])
 				)) ||
-			{},
-		[queryCoins]
-	)
+			{}
+		)
+	}, [queryCoins])
+
 	const [period, setPeriod] = useState(365)
 	const { data: priceChart, isLoading } = usePriceCharts(Object.keys(selectedCoins))
 	const coins = Object.values(selectedCoins).filter(Boolean)
@@ -150,33 +155,31 @@ export default function Correlations({ coinsData }) {
 	const isClient = useIsClient()
 
 	if (!isClient) {
-		return (
-			<h1 className="bg-[var(--cards-bg)] rounded-md p-3 text-center text-xl font-semibold">Correlations Matrix</h1>
-		)
+		return <h1 className="bg-(--cards-bg) rounded-md p-3 text-center text-xl font-semibold">Correlations Matrix</h1>
 	}
 
 	return (
 		<>
 			<ProtocolsChainsSearch />
-			<div className="p-3 bg-[var(--cards-bg)] rounded-md flex items-center flex-wrap justify-between gap-4">
+			<div className="p-3 bg-(--cards-bg) rounded-md flex items-center flex-wrap justify-between gap-4">
 				<h1 className="text-xl font-semibold">Correlations Matrix</h1>
-				<div className="text-xs font-medium ml-auto flex items-center rounded-md overflow-x-auto flex-nowrap border border-[var(--form-control-border)] text-[#666] dark:text-[#919296]">
+				<div className="text-xs font-medium ml-auto flex items-center rounded-md overflow-x-auto flex-nowrap border border-(--form-control-border) text-[#666] dark:text-[#919296]">
 					<button
-						className="flex-shrink-0 py-2 px-3 whitespace-nowrap hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] data-[active=true]:bg-[var(--old-blue)] data-[active=true]:text-white"
+						className="shrink-0 py-2 px-3 whitespace-nowrap hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) data-[active=true]:bg-(--old-blue) data-[active=true]:text-white"
 						onClick={() => setPeriod(7)}
 						data-active={period === 7}
 					>
 						7d
 					</button>
 					<button
-						className="flex-shrink-0 py-2 px-3 whitespace-nowrap hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] data-[active=true]:bg-[var(--old-blue)] data-[active=true]:text-white"
+						className="shrink-0 py-2 px-3 whitespace-nowrap hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) data-[active=true]:bg-(--old-blue) data-[active=true]:text-white"
 						onClick={() => setPeriod(30)}
 						data-active={period === 30}
 					>
 						1m
 					</button>
 					<button
-						className="flex-shrink-0 py-2 px-3 whitespace-nowrap hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] data-[active=true]:bg-[var(--old-blue)] data-[active=true]:text-white"
+						className="shrink-0 py-2 px-3 whitespace-nowrap hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) data-[active=true]:bg-(--old-blue) data-[active=true]:text-white"
 						onClick={() => setPeriod(365)}
 						data-active={period === 365}
 					>
@@ -185,7 +188,7 @@ export default function Correlations({ coinsData }) {
 				</div>
 			</div>
 
-			<div className="p-3 bg-[var(--cards-bg)] rounded-md flex flex-col gap-4 items-center justify-center">
+			<div className="p-3 bg-(--cards-bg) rounded-md flex flex-col gap-4 items-center justify-center">
 				<div className="flex flex-col sm:flex-row">
 					<div className="no-scrollbar overflow-auto mr-8 flex flex-col">
 						<h2 className="text-lg font-medium">Selected Coins</h2>
@@ -217,7 +220,7 @@ export default function Correlations({ coinsData }) {
 										onError={(e) => {
 											e.currentTarget.src = '/placeholder.png'
 										}}
-										className="inline-block object-cover aspect-square rounded-full bg-[var(--bg3)] flex-shrink-0"
+										className="inline-block object-cover aspect-square rounded-full bg-(--bg3) shrink-0"
 									/>
 									<span>{coin.symbol.toUpperCase()}</span>
 									<Icon name="x" height={14} width={14} className="ml-auto" />
@@ -268,7 +271,7 @@ export default function Correlations({ coinsData }) {
 													onError={(e) => {
 														e.currentTarget.src = '/placeholder.png'
 													}}
-													className="inline-block object-cover aspect-square rounded-full bg-[var(--bg3)] flex-shrink-0"
+													className="inline-block object-cover aspect-square rounded-full bg-(--bg3) shrink-0"
 												/>
 											</td>
 										) : (
@@ -318,7 +321,7 @@ export default function Correlations({ coinsData }) {
 						}}
 					/>
 				</div>
-				<p className="text-center mx-auto text-sm max-w-xl text-[var(--text2)]">
+				<p className="text-center mx-auto text-sm max-w-xl text-(--text2)">
 					Correlation is calculated by using each day as a single data point, and this calculation depends on the
 					selected period. For example, if you select a period of one year, the correlation will be computed from 365
 					data points.

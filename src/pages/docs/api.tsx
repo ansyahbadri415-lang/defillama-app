@@ -1,15 +1,12 @@
 import Layout from '~/layout'
 import yamlApiSpec from '~/docs/resolvedSpec.json'
 import { useEffect } from 'react'
-import 'swagger-ui/dist/swagger-ui.css'
-import Head from 'next/head'
-import { useIsClient } from '~/hooks'
 import { useRouter } from 'next/router'
+import SwaggerUI from 'swagger-ui-react'
+import 'swagger-ui-react/swagger-ui.css'
 
-export function ApiDocs({ spec = yamlApiSpec }: { spec: any }) {
+export function ApiDocs({ spec }: { spec: any }) {
 	const router = useRouter()
-	const isClient = useIsClient()
-	if (!isClient) return null
 
 	const downloadSpec = () => {
 		const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(spec, null, 2))
@@ -21,10 +18,17 @@ export function ApiDocs({ spec = yamlApiSpec }: { spec: any }) {
 		downloadAnchorNode.remove()
 	}
 
+	useEffect(() => {
+		const link = document.createElement('link')
+		link.rel = 'stylesheet'
+		link.href = '/swagger-dark.css'
+		document.head.appendChild(link)
+	}, [])
+
 	return (
 		<>
 			{router.pathname === '/docs/api' ? (
-				<div className="relative p-3 text-sm text-black dark:text-white text-center rounded-md bg-[hsl(215deg_79%_51%_/_12%)]">
+				<div className="relative p-3 text-sm text-black dark:text-white text-center rounded-md bg-[hsl(215deg_79%_51%/12%)]">
 					<div className="flex flex-col items-center">
 						<div className="flex flex-col items-start gap-4">
 							<p>
@@ -62,42 +66,74 @@ export function ApiDocs({ spec = yamlApiSpec }: { spec: any }) {
 					Download API Spec
 				</button>
 			</div>
-			<Swagger spec={spec} />
-		</>
-	)
-}
-
-function Swagger({ spec }) {
-	useEffect(() => {
-		async function init() {
-			const { default: SwaggerUI } = await import('swagger-ui')
-			SwaggerUI({
-				dom_id: '#swagger',
-				defaultModelsExpandDepth: -1,
-				spec: spec,
-				syntaxHighlight: {
+			<SwaggerUI
+				defaultModelsExpandDepth={-1}
+				spec={spec}
+				syntaxHighlight={{
 					activated: false,
 					theme: 'agate'
-				},
-				requestInterceptor: (request) => {
+				}}
+				requestInterceptor={(request) => {
 					request.url = request.url.replace(/%3A/g, ':').replace(/%2C/g, ',')
 					return request
-				}
-			})
-		}
+				}}
+				responseInterceptor={(response) => {
+					if (response.url.includes('https://api.llama.fi/protocols')) {
+						const data = response.body.slice(0, 10)
+						response.body = data
+						response.data = JSON.stringify(data)
+						response.text = JSON.stringify(data)
+						response.obj = data
+						return response
+					}
 
-		init()
-	}, [])
+					if (response.url.includes('https://api.llama.fi/protocol/')) {
+						try {
+							const tokens = response.body.tokens?.slice(0, 2) ?? []
+							const tokensInUsd = response.body.tokensInUsd?.slice(0, 2) ?? []
+							const tvl = response.body.tvl?.slice(0, 2) ?? []
+							const chainTvls = {}
+							for (const chain of Object.keys(response.body.chainTvls ?? {}).slice(0, 2)) {
+								chainTvls[chain] = {}
+								chainTvls[chain].tokens = response.body.chainTvls[chain].tokens?.slice(0, 2) ?? null
+								chainTvls[chain].tokensInUsd = response.body.chainTvls[chain].tokensInUsd?.slice(0, 2) ?? null
+								chainTvls[chain].tvl = response.body.chainTvls[chain].tvl?.slice(0, 2) ?? null
+							}
 
-	return <div id="swagger" />
+							const data = response.body
+
+							if (data.tokens) {
+								data.tokens = tokens
+							}
+							if (data.tokensInUsd) {
+								data.tokensInUsd = tokensInUsd
+							}
+							if (data.tvl) {
+								data.tvl = tvl
+							}
+
+							data.chainTvls = chainTvls
+
+							response.body = data
+							response.data = JSON.stringify(data)
+							response.text = JSON.stringify(data)
+							response.obj = data
+							return response
+						} catch (e) {
+							console.warn('Could not process response for size limiting:', e)
+						}
+					}
+
+					return response
+				}}
+			/>
+		</>
+	)
 }
 
 export default function ApiDocsPage() {
 	return (
 		<Layout title="DefiLlama API Docs">
-			<Head>
-				<link rel="stylesheet" type="text/css" href="/swagger-dark.css" />
-			</Head>
 			<ApiDocs spec={yamlApiSpec} />
 		</Layout>
 	)

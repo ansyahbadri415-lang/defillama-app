@@ -62,7 +62,7 @@ export const protocolsByChainColumns: ColumnDef<IProtocolRow>[] = [
 						<Bookmark readableProtocolName={value} data-lgonly data-bookmark />
 					)}
 
-					<span className="flex-shrink-0">{index + 1}</span>
+					<span className="shrink-0">{index + 1}</span>
 
 					<TokenLogo logo={tokenIconUrl(value)} data-lgonly />
 
@@ -70,7 +70,7 @@ export const protocolsByChainColumns: ColumnDef<IProtocolRow>[] = [
 						{row.original?.deprecated ? (
 							<BasicLink
 								href={`/protocol/${slug(value)}`}
-								className="text-sm font-medium text-[var(--link-text)] overflow-hidden whitespace-nowrap text-ellipsis hover:underline flex items-center gap-1"
+								className="text-sm font-medium text-(--link-text) overflow-hidden whitespace-nowrap text-ellipsis hover:underline flex items-center gap-1"
 							>
 								<span className="overflow-hidden whitespace-nowrap text-ellipsis hover:underline">{value}</span>
 								<Tooltip
@@ -83,7 +83,7 @@ export const protocolsByChainColumns: ColumnDef<IProtocolRow>[] = [
 						) : (
 							<BasicLink
 								href={`/protocol/${slug(value)}`}
-								className="text-sm font-medium text-[var(--link-text)] overflow-hidden whitespace-nowrap text-ellipsis hover:underline"
+								className="text-sm font-medium text-(--link-text) overflow-hidden whitespace-nowrap text-ellipsis hover:underline"
 							>{`${value}`}</BasicLink>
 						)}
 
@@ -108,7 +108,7 @@ export const protocolsByChainColumns: ColumnDef<IProtocolRow>[] = [
 		enableSorting: false,
 		cell: ({ getValue }) =>
 			getValue() ? (
-				<BasicLink href={`/protocols/${getValue()}`} className="text-sm font-medium text-[var(--link-text)]">
+				<BasicLink href={`/protocols/${getValue()}`} className="text-sm font-medium text-(--link-text)">
 					{getValue() as string | null}
 				</BasicLink>
 			) : (
@@ -118,6 +118,18 @@ export const protocolsByChainColumns: ColumnDef<IProtocolRow>[] = [
 		meta: {
 			align: 'end'
 		}
+	},
+	{
+		id: 'chains',
+		header: 'Chains',
+		accessorKey: 'chains',
+		enableSorting: false,
+		cell: ({ getValue }) => <IconsRow links={getValue() as Array<string>} url="/chain" iconType="chain" />,
+		meta: {
+			align: 'end',
+			headerHelperText: "Chains are ordered by protocol's highest TVL on each chain"
+		},
+		size: 200
 	},
 	columnHelper.group({
 		id: 'tvl',
@@ -184,7 +196,7 @@ export const protocolsByChainColumns: ColumnDef<IProtocolRow>[] = [
 		columns: [
 			columnHelper.accessor('fees_24h', {
 				header: 'Fees 24h',
-				cell: (info) => <>{info.getValue() || info.getValue() === 0 ? formattedNum(info.getValue(), true) : null}</>,
+				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
 					align: 'end',
@@ -194,7 +206,7 @@ export const protocolsByChainColumns: ColumnDef<IProtocolRow>[] = [
 			}),
 			columnHelper.accessor('revenue_24h', {
 				header: 'Revenue 24h',
-				cell: (info) => <>{info.getValue() || info.getValue() === 0 ? formattedNum(info.getValue(), true) : null}</>,
+				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
 					align: 'end',
@@ -204,7 +216,7 @@ export const protocolsByChainColumns: ColumnDef<IProtocolRow>[] = [
 			}),
 			columnHelper.accessor('fees_7d', {
 				header: 'Fees 7d',
-				cell: (info) => <>{info.getValue() || info.getValue() === 0 ? formattedNum(info.getValue(), true) : null}</>,
+				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
 					align: 'end',
@@ -214,7 +226,7 @@ export const protocolsByChainColumns: ColumnDef<IProtocolRow>[] = [
 			}),
 			columnHelper.accessor('revenue_7d', {
 				header: 'Revenue 7d',
-				cell: (info) => <>{info.getValue() || info.getValue() === 0 ? formattedNum(info.getValue(), true) : null}</>,
+				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
 					align: 'end',
@@ -224,7 +236,7 @@ export const protocolsByChainColumns: ColumnDef<IProtocolRow>[] = [
 			}),
 			columnHelper.accessor('fees_30d', {
 				header: 'Fees 30d',
-				cell: (info) => <>{info.getValue() || info.getValue() === 0 ? formattedNum(info.getValue(), true) : null}</>,
+				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
 					align: 'end',
@@ -234,7 +246,7 @@ export const protocolsByChainColumns: ColumnDef<IProtocolRow>[] = [
 			}),
 			columnHelper.accessor('revenue_30d', {
 				header: 'Revenue 30d',
-				cell: (info) => <>{info.getValue() || info.getValue() === 0 ? formattedNum(info.getValue(), true) : null}</>,
+				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
 					align: 'end',
@@ -244,7 +256,7 @@ export const protocolsByChainColumns: ColumnDef<IProtocolRow>[] = [
 			}),
 			columnHelper.accessor('fees_1y', {
 				header: 'Monthly Avg 1Y Fees',
-				cell: (info) => <>{info.getValue() || info.getValue() === 0 ? formattedNum(info.getValue(), true) : null}</>,
+				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
 					align: 'end',
@@ -254,7 +266,7 @@ export const protocolsByChainColumns: ColumnDef<IProtocolRow>[] = [
 			}),
 			columnHelper.accessor('revenue_1y', {
 				header: 'Revenue 1Y',
-				cell: (info) => <>{info.getValue() || info.getValue() === 0 ? formattedNum(info.getValue(), true) : null}</>,
+				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
 					align: 'end',
@@ -262,18 +274,19 @@ export const protocolsByChainColumns: ColumnDef<IProtocolRow>[] = [
 				},
 				size: 120
 			}),
-			// columnHelper.accessor('average_revenue_1y', {
-			// 	header: 'Monthly Avg 1Y Rev',
-			// 	cell: (info) => <>{info.getValue() || info.getValue() === 0 ? formattedNum(info.getValue(), true) : null}</>,
-			// 	sortUndefined: 'last',
-			// 	meta: {
-			// 		align: 'end'
-			// 	},
-			// 	size: 180
-			// }),
+			columnHelper.accessor('average_revenue_1y', {
+				header: 'Monthly Avg 1Y Rev',
+				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
+				sortUndefined: 'last',
+				meta: {
+					align: 'end',
+					headerHelperText: 'Average monthly revenue earned by the protocol in the last 12 months'
+				},
+				size: 180
+			}),
 			columnHelper.accessor('holdersRevenue30d', {
 				header: 'Holders Revenue 30d',
-				cell: (info) => <>{info.getValue() || info.getValue() === 0 ? formattedNum(info.getValue(), true) : null}</>,
+				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
 					align: 'end',
@@ -284,7 +297,7 @@ export const protocolsByChainColumns: ColumnDef<IProtocolRow>[] = [
 			}),
 			// columnHelper.accessor('userFees_24h', {
 			// 	header: 'User Fees 24h',
-			// 	cell: (info) => <>{info.getValue() || info.getValue() === 0 ? formattedNum(info.getValue(), true) : null}</>,
+			// 	cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 			// 	sortUndefined: 'last',
 			// 	meta: {
 			// 		align: 'end',
@@ -294,7 +307,7 @@ export const protocolsByChainColumns: ColumnDef<IProtocolRow>[] = [
 			// }),
 			columnHelper.accessor('cumulativeFees', {
 				header: 'Cumulative Fees',
-				cell: (info) => <>{info.getValue() || info.getValue() === 0 ? formattedNum(info.getValue(), true) : null}</>,
+				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
 					align: 'end',
@@ -304,7 +317,7 @@ export const protocolsByChainColumns: ColumnDef<IProtocolRow>[] = [
 			}),
 			columnHelper.accessor('holderRevenue_24h', {
 				header: 'Holders Revenue 24h',
-				cell: (info) => <>{info.getValue() || info.getValue() === 0 ? formattedNum(info.getValue(), true) : null}</>,
+				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
 					align: 'end',
@@ -316,7 +329,7 @@ export const protocolsByChainColumns: ColumnDef<IProtocolRow>[] = [
 			,
 			// columnHelper.accessor('treasuryRevenue_24h', {
 			// 	header: 'Treasury Revenue 24h',
-			// 	cell: (info) => <>{info.getValue() || info.getValue() === 0 ? formattedNum(info.getValue(), true) : null}</>,
+			// 	cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 			// 	sortUndefined: 'last',
 			// 	meta: {
 			// 		align: 'end'
@@ -325,7 +338,7 @@ export const protocolsByChainColumns: ColumnDef<IProtocolRow>[] = [
 			// }),
 			// columnHelper.accessor('supplySideRevenue_24h', {
 			// 	header: 'Supply Side Revenue 24h',
-			// 	cell: (info) => <>{info.getValue() || info.getValue() === 0 ? formattedNum(info.getValue(), true) : null}</>,
+			// 	cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 			// 	sortUndefined: 'last',
 			// 	meta: {
 			// 		align: 'end'
@@ -334,7 +347,7 @@ export const protocolsByChainColumns: ColumnDef<IProtocolRow>[] = [
 			// }),
 			columnHelper.accessor('pf', {
 				header: 'P/F',
-				cell: (info) => <>{info.getValue() || info.getValue() === 0 ? info.getValue() + 'x' : null}</>,
+				cell: (info) => <>{info.getValue() != null ? info.getValue() + 'x' : null}</>,
 				sortUndefined: 'last',
 				meta: {
 					align: 'end',
@@ -344,7 +357,7 @@ export const protocolsByChainColumns: ColumnDef<IProtocolRow>[] = [
 			}),
 			columnHelper.accessor('ps', {
 				header: 'P/S',
-				cell: (info) => <>{info.getValue() || info.getValue() === 0 ? info.getValue() + 'x' : null}</>,
+				cell: (info) => <>{info.getValue() != null ? info.getValue() + 'x' : null}</>,
 				sortUndefined: 'last',
 				meta: {
 					align: 'end',
@@ -364,7 +377,7 @@ export const protocolsByChainColumns: ColumnDef<IProtocolRow>[] = [
 		columns: [
 			columnHelper.accessor('volume_24h', {
 				header: 'Spot Volume 24h',
-				cell: (info) => <>{info.getValue() || info.getValue() === 0 ? formattedNum(info.getValue(), true) : null}</>,
+				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
 					align: 'end',
@@ -374,7 +387,7 @@ export const protocolsByChainColumns: ColumnDef<IProtocolRow>[] = [
 			}),
 			columnHelper.accessor('volume_7d', {
 				header: 'Spot Volume 7d',
-				cell: (info) => <>{info.getValue() || info.getValue() === 0 ? formattedNum(info.getValue(), true) : null}</>,
+				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
 					align: 'end',
@@ -394,7 +407,7 @@ export const protocolsByChainColumns: ColumnDef<IProtocolRow>[] = [
 			}),
 			columnHelper.accessor('cumulativeVolume', {
 				header: 'Spot Cumulative Volume',
-				cell: (info) => <>{info.getValue() || info.getValue() === 0 ? formattedNum(info.getValue(), true) : null}</>,
+				cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 				sortUndefined: 'last',
 				meta: {
 					align: 'end',
@@ -456,7 +469,7 @@ export const protocolsColumns: ColumnDef<IProtocolRow>[] = [
 						<Bookmark readableProtocolName={value} data-lgonly data-bookmark />
 					)}
 
-					<span className="flex-shrink-0">{index + 1}</span>
+					<span className="shrink-0">{index + 1}</span>
 
 					<TokenLogo logo={tokenIconUrl(value)} data-lgonly />
 
@@ -464,7 +477,7 @@ export const protocolsColumns: ColumnDef<IProtocolRow>[] = [
 						{row.original?.deprecated ? (
 							<BasicLink
 								href={`/protocol/${slug(value)}`}
-								className="text-sm font-medium text-[var(--link-text)] overflow-hidden whitespace-nowrap text-ellipsis hover:underline flex items-center gap-1"
+								className="text-sm font-medium text-(--link-text) overflow-hidden whitespace-nowrap text-ellipsis hover:underline flex items-center gap-1"
 							>
 								<span className="overflow-hidden whitespace-nowrap text-ellipsis hover:underline">{value}</span>
 								<span className="text-red-600 dark:text-red-400 text-xs font-medium overflow-hidden whitespace-nowrap text-ellipsis hover:underline">
@@ -474,7 +487,7 @@ export const protocolsColumns: ColumnDef<IProtocolRow>[] = [
 						) : (
 							<BasicLink
 								href={`/protocol/${slug(value)}`}
-								className="text-sm font-medium text-[var(--link-text)] overflow-hidden whitespace-nowrap text-ellipsis hover:underline"
+								className="text-sm font-medium text-(--link-text) overflow-hidden whitespace-nowrap text-ellipsis hover:underline"
 							>{`${value}`}</BasicLink>
 						)}
 
@@ -497,7 +510,7 @@ export const protocolsColumns: ColumnDef<IProtocolRow>[] = [
 		accessorKey: 'category',
 		cell: ({ getValue }) =>
 			getValue() ? (
-				<BasicLink href={`/protocols/${getValue()}`} className="text-sm font-medium text-[var(--link-text)]">
+				<BasicLink href={`/protocols/${getValue()}`} className="text-sm font-medium text-(--link-text)">
 					{getValue() as string | null}
 				</BasicLink>
 			) : (
@@ -557,6 +570,115 @@ export const protocolsColumns: ColumnDef<IProtocolRow>[] = [
 		meta: {
 			align: 'end'
 		}
+	}
+]
+
+export const protocolsOracleColumns: ColumnDef<IProtocolRow>[] = [
+	{
+		header: 'Name',
+		accessorKey: 'name',
+		enableSorting: false,
+		cell: ({ getValue, row, table }) => {
+			const value = getValue() as string
+			const index = row.depth === 0 ? table.getSortedRowModel().rows.findIndex((x) => x.id === row.id) : row.index
+			const Chains = () => (
+				<span className="flex flex-col gap-1">
+					{row.original.chains.map((chain) => (
+						<span key={`/protocolll/${value}/${chain}`} className="flex items-center gap-1">
+							<TokenLogo logo={chainIconUrl(chain)} size={14} />
+							<span>{chain}</span>
+						</span>
+					))}
+				</span>
+			)
+
+			return (
+				<span
+					className="flex items-center gap-2 relative"
+					style={{ paddingLeft: row.depth ? row.depth * 48 : row.depth === 0 ? 24 : 0 }}
+				>
+					{row.subRows?.length > 0 ? (
+						<button
+							className="absolute -left-[2px]"
+							{...{
+								onClick: row.getToggleExpandedHandler()
+							}}
+						>
+							{row.getIsExpanded() ? (
+								<>
+									<Icon name="chevron-down" height={16} width={16} />
+									<span className="sr-only">View child protocols</span>
+								</>
+							) : (
+								<>
+									<Icon name="chevron-right" height={16} width={16} />
+									<span className="sr-only">Hide child protocols</span>
+								</>
+							)}
+						</button>
+					) : (
+						<Bookmark readableProtocolName={value} data-lgonly data-bookmark />
+					)}
+
+					<span className="shrink-0">{index + 1}</span>
+
+					<TokenLogo logo={tokenIconUrl(value)} data-lgonly />
+
+					<span className="flex flex-col -my-2">
+						{row.original?.deprecated ? (
+							<BasicLink
+								href={`/protocol/${slug(value)}`}
+								className="text-sm font-medium text-(--link-text) overflow-hidden whitespace-nowrap text-ellipsis hover:underline flex items-center gap-1"
+							>
+								<span className="overflow-hidden whitespace-nowrap text-ellipsis hover:underline">{value}</span>
+								<span className="text-red-600 dark:text-red-400 text-xs font-medium overflow-hidden whitespace-nowrap text-ellipsis hover:underline">
+									Deprecated
+								</span>
+							</BasicLink>
+						) : (
+							<BasicLink
+								href={`/protocol/${slug(value)}`}
+								className="text-sm font-medium text-(--link-text) overflow-hidden whitespace-nowrap text-ellipsis hover:underline"
+							>{`${value}`}</BasicLink>
+						)}
+
+						<Tooltip content={<Chains />} className="text-[0.7rem]">
+							{`${row.original.chains.length} chain${row.original.chains.length > 1 ? 's' : ''}`}
+						</Tooltip>
+					</span>
+					{value === 'SyncDEX Finance' && (
+						<Tooltip content={'Many users have reported issues with this protocol'}>
+							<Icon name="alert-triangle" height={14} width={14} />
+						</Tooltip>
+					)}
+				</span>
+			)
+		},
+		size: 240
+	},
+	{
+		header: 'Category',
+		accessorKey: 'category',
+		cell: ({ getValue }) =>
+			getValue() ? (
+				<BasicLink href={`/protocols/${getValue()}`} className="text-sm font-medium text-(--link-text)">
+					{getValue() as string | null}
+				</BasicLink>
+			) : (
+				''
+			),
+		size: 140
+	},
+	{
+		header: 'TVS',
+		accessorKey: 'tvs',
+		id: 'tvl',
+		cell: ({ getValue, row }) => <Tvl value={getValue()} rowValues={row.original} />,
+		sortUndefined: 'last',
+		meta: {
+			align: 'end'
+		},
+		size: 120
 	}
 ]
 
@@ -653,7 +775,7 @@ export const categoryProtocolsColumns: ColumnDef<IProtocolRowWithCompare>[] = [
 						{row.original?.deprecated ? (
 							<BasicLink
 								href={`/protocol/${slug(value)}`}
-								className="text-sm font-medium text-[var(--link-text)] overflow-hidden whitespace-nowrap text-ellipsis hover:underline flex items-center gap-1"
+								className="text-sm font-medium text-(--link-text) overflow-hidden whitespace-nowrap text-ellipsis hover:underline flex items-center gap-1"
 							>
 								<span className="overflow-hidden whitespace-nowrap text-ellipsis hover:underline">{value}</span>
 								<span className="text-red-600 dark:text-red-400 text-xs font-medium overflow-hidden whitespace-nowrap text-ellipsis hover:underline">
@@ -663,7 +785,7 @@ export const categoryProtocolsColumns: ColumnDef<IProtocolRowWithCompare>[] = [
 						) : (
 							<BasicLink
 								href={`/protocol/${slug(value)}`}
-								className="text-sm font-medium text-[var(--link-text)] overflow-hidden whitespace-nowrap text-ellipsis hover:underline"
+								className="text-sm font-medium text-(--link-text) overflow-hidden whitespace-nowrap text-ellipsis hover:underline"
 							>{`${value}`}</BasicLink>
 						)}
 
@@ -685,7 +807,7 @@ export const categoryProtocolsColumns: ColumnDef<IProtocolRowWithCompare>[] = [
 	{
 		header: 'Fees 24h',
 		accessorKey: 'fees_24h',
-		cell: (info) => <>{info.getValue() || info.getValue() === 0 ? formattedNum(info.getValue(), true) : null}</>,
+		cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 		sortUndefined: 'last',
 		meta: {
 			align: 'end'
@@ -695,7 +817,7 @@ export const categoryProtocolsColumns: ColumnDef<IProtocolRowWithCompare>[] = [
 	{
 		header: 'Fees 7d',
 		accessorKey: 'fees_7d',
-		cell: (info) => <>{info.getValue() || info.getValue() === 0 ? formattedNum(info.getValue(), true) : null}</>,
+		cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 		sortUndefined: 'last',
 		meta: {
 			align: 'end'
@@ -705,7 +827,7 @@ export const categoryProtocolsColumns: ColumnDef<IProtocolRowWithCompare>[] = [
 	{
 		header: 'Fees 30d',
 		accessorKey: 'fees_30d',
-		cell: (info) => <>{info.getValue() || info.getValue() === 0 ? formattedNum(info.getValue(), true) : null}</>,
+		cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 		sortUndefined: 'last',
 		meta: {
 			align: 'end'
@@ -715,7 +837,7 @@ export const categoryProtocolsColumns: ColumnDef<IProtocolRowWithCompare>[] = [
 	{
 		header: 'Revenue 24h',
 		accessorKey: 'revenue_24h',
-		cell: (info) => <>{info.getValue() || info.getValue() === 0 ? formattedNum(info.getValue(), true) : null}</>,
+		cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 		sortUndefined: 'last',
 		meta: {
 			align: 'end'
@@ -725,7 +847,7 @@ export const categoryProtocolsColumns: ColumnDef<IProtocolRowWithCompare>[] = [
 	{
 		header: 'Revenue 7d',
 		accessorKey: 'revenue_7d',
-		cell: (info) => <>{info.getValue() || info.getValue() === 0 ? formattedNum(info.getValue(), true) : null}</>,
+		cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 		sortUndefined: 'last',
 		meta: {
 			align: 'end'
@@ -735,7 +857,7 @@ export const categoryProtocolsColumns: ColumnDef<IProtocolRowWithCompare>[] = [
 	{
 		header: 'Volume 24h',
 		accessorKey: 'volume_24h',
-		cell: (info) => <>{info.getValue() || info.getValue() === 0 ? formattedNum(info.getValue(), true) : null}</>,
+		cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 		sortUndefined: 'last',
 		meta: {
 			align: 'end'
@@ -746,7 +868,7 @@ export const categoryProtocolsColumns: ColumnDef<IProtocolRowWithCompare>[] = [
 		header: 'Volume 7d',
 		accessorKey: 'volume_7d',
 		sortUndefined: 'last',
-		cell: (info) => <>{info.getValue() || info.getValue() === 0 ? formattedNum(info.getValue(), true) : null}</>,
+		cell: (info) => <>{info.getValue() != null ? formattedNum(info.getValue(), true) : null}</>,
 		meta: {
 			align: 'end'
 		},
@@ -769,11 +891,11 @@ export const topGainersAndLosersColumns: ColumnDef<IProtocolRow>[] = [
 					style={{ paddingLeft: row.depth ? row.depth * 48 : row.depth === 0 ? 24 : 0 }}
 				>
 					<Bookmark readableProtocolName={value} data-lgonly data-bookmark />
-					<span className="flex-shrink-0">{index + 1}</span>
+					<span className="shrink-0">{index + 1}</span>
 					<TokenLogo logo={tokenIconUrl(value)} data-lgonly />
 					<BasicLink
 						href={`/protocol/${slug(value)}`}
-						className="text-sm font-medium text-[var(--link-text)] overflow-hidden whitespace-nowrap text-ellipsis hover:underline"
+						className="text-sm font-medium text-(--link-text) overflow-hidden whitespace-nowrap text-ellipsis hover:underline"
 					>{`${value}`}</BasicLink>
 				</span>
 			)

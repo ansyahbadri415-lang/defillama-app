@@ -15,7 +15,8 @@ export function toFilterPool({
 	minTvl,
 	maxTvl,
 	minApy,
-	maxApy
+	maxApy,
+	pairTokens
 }) {
 	let toFilter = true
 
@@ -49,48 +50,53 @@ export function toFilterPool({
 		.split('-')
 		.map((x) => x.toLowerCase().trim().replace('₮0', 't').replace('₮', 't'))
 
-	if (exactTokens.length === 0) {
+	if (pairTokens.length > 0) {
+		let atLeastOnePairToken = false
+		for (const pairToken of pairTokens) {
+			const pt = pairToken.split('-')
+			if (tokensInPool.length === pt.length && pt.every((token) => tokensInPool.includes(token))) {
+				atLeastOnePairToken = true
+				break
+			}
+		}
+
+		toFilter = toFilter && atLeastOnePairToken
+	} else if (exactTokens.length === 0) {
 		const includeToken =
 			includeTokens.length > 0 && includeTokens[0] !== 'All'
-				? includeTokens
-						.map((t) => t.toLowerCase())
-						.find((token) => {
-							if (token === 'all_bitcoins') {
-								return tokensInPool.some((x) => x.includes('btc'))
-							} else if (token === 'all_usd_stables') {
-								return tokensInPool.some((x) => x.includes('usd'))
-							} else if (tokensInPool.some((x) => x.includes(token.toLowerCase()))) {
-								return true
-							} else if (token === 'eth') {
-								return tokensInPool.find((x) => x.includes('weth') && x.includes(token))
-							} else return false
-						})
+				? includeTokens.find((token) => {
+						if (token === 'all_bitcoins') {
+							return tokensInPool.some((x) => x.includes('btc'))
+						} else if (token === 'all_usd_stables') {
+							return curr.stablecoin || tokensInPool.some((x) => x.includes('usd'))
+						} else if (tokensInPool.some((x) => x.includes(token))) {
+							return true
+						} else if (token === 'eth') {
+							return tokensInPool.find((x) => x.includes('weth') && x.includes(token))
+						} else return false
+				  })
 				: true
 
-		const excludeToken = !excludeTokens
-			.map((t) => t.toLowerCase())
-			.find((token) => tokensInPool.includes(token.toLowerCase()))
+		const excludeToken = !excludeTokens.find((token) => tokensInPool.includes(token))
 
 		toFilter = toFilter && selectedChains.includes(curr.chain) && includeToken && excludeToken
 	} else {
-		const exactToken = exactTokens
-			.map((t) => t.toLowerCase())
-			.find((token) => {
-				if (tokensInPool.some((x) => x === token.toLowerCase())) {
-					return true
-				} else if (token === 'eth') {
-					return tokensInPool.find((x) => x.includes('weth') && x === token)
-				} else return false
-			})
+		const exactToken = exactTokens.find((token) => {
+			if (tokensInPool.some((x) => x === token)) {
+				return true
+			} else if (token === 'eth') {
+				return tokensInPool.find((x) => x.includes('weth') && x === token)
+			} else return false
+		})
 
 		toFilter = toFilter && selectedChains.includes(curr.chain) && exactToken
 	}
 
 	const isValidTvlRange =
-		(minTvl !== undefined && !Number.isNaN(Number(minTvl))) || (maxTvl !== undefined && !Number.isNaN(Number(maxTvl)))
+		(minTvl != null && !Number.isNaN(Number(minTvl))) || (maxTvl != null && !Number.isNaN(Number(maxTvl)))
 
 	const isValidApyRange =
-		(minApy !== undefined && !Number.isNaN(Number(minApy))) || (maxApy !== undefined && !Number.isNaN(Number(maxApy)))
+		(minApy != null && !Number.isNaN(Number(minApy))) || (maxApy != null && !Number.isNaN(Number(maxApy)))
 
 	if (isValidTvlRange) {
 		toFilter = toFilter && (minTvl ? curr.tvlUsd >= minTvl : true) && (maxTvl ? curr.tvlUsd <= maxTvl : true)
@@ -383,11 +389,24 @@ export const findStrategyPoolsFR = (token, filteredPools, perps) => {
 		// remove poolMeta from symbol string
 		const farmSymbol = p.symbol.replace(/ *\([^)]*\) */g, '')
 		return (
-			tokensToInclude?.some((t) => farmSymbol.includes(t)) &&
-			!tokensToExclude?.some((t) => farmSymbol.includes(t)) &&
+			tokensToInclude?.some((t) =>
+				t === 'ALL_USD_STABLES'
+					? p.stablecoin
+					: t === 'ALL_BITCOINS'
+					? farmSymbol.includes('BTC')
+					: farmSymbol.includes(t)
+			) &&
+			!tokensToExclude?.some((t) =>
+				t === 'ALL_USD_STABLES'
+					? p.stablecoin
+					: t === 'ALL_BITCOINS'
+					? farmSymbol.includes('BTC')
+					: farmSymbol.includes(t)
+			) &&
 			p.apy > 0
 		)
 	})
+
 	// filter FR data to positive funding rates only (longs pay shorts -> open short position and earn FR)
 	const perpsData = perps.filter(
 		(p) => tokensToInclude?.some((t) => t.includes(p.symbol)) && p.fundingRate > 0 && p.baseAsset !== 'T'
@@ -485,24 +504,24 @@ export const filterPool = ({
 	}
 
 	const isValidTvlRange =
-		(minTvl !== undefined && !Number.isNaN(Number(minTvl))) || (maxTvl !== undefined && !Number.isNaN(Number(maxTvl)))
+		(minTvl != null && !Number.isNaN(Number(minTvl))) || (maxTvl != null && !Number.isNaN(Number(maxTvl)))
 
 	if (isValidTvlRange) {
 		toFilter = toFilter && (minTvl ? pool.farmTvlUsd >= minTvl : true) && (maxTvl ? pool.tvlUsd <= maxTvl : true)
 	}
 
 	const isValidAvailableRange =
-		(minAvailable !== undefined && !Number.isNaN(Number(minAvailable))) ||
-		(maxAvailable !== undefined && !Number.isNaN(Number(maxAvailable)))
+		(minAvailable != null && !Number.isNaN(Number(minAvailable))) ||
+		(maxAvailable != null && !Number.isNaN(Number(maxAvailable)))
 
 	if (isValidAvailableRange) {
 		toFilter =
 			toFilter &&
-			(minAvailable ? pool.borrow.totalAvailableUsd > minAvailable : true) &&
-			(maxAvailable ? pool.borrow.totalAvailableUsd < maxAvailable : true)
+			(minAvailable ? +(pool.borrow.totalAvailableUsd || 0) >= +minAvailable : true) &&
+			(maxAvailable ? +(pool.borrow.totalAvailableUsd || 0) <= +maxAvailable : true)
 	}
 
-	const isValidLtvValue = customLTV !== undefined && !Number.isNaN(Number(customLTV))
+	const isValidLtvValue = customLTV != null && !Number.isNaN(Number(customLTV))
 
 	if (isValidLtvValue && strategyPage) {
 		toFilter = toFilter && (customLTV ? Number(customLTV) > 0 && Number(customLTV) <= 100 : true)
@@ -538,7 +557,7 @@ export const lockupsCollateral = [
 export const badDebt = ['moonwell-apollo', 'inverse-finance', 'venus', 'iron-bank']
 
 export const disclaimer =
-	"DefiLlama doesn't audit nor endorse any of the protocols listed, we just focus on providing accurate data. Ape at your own risk"
+	"DefiLlama doesn't audit nor endorse any of the protocols listed, we just focus on providing accurate data. Ape at your own risk."
 
 export const earlyExit =
 	'Rewards are calculated assuming an early exit penalty applies. So this is the minimum APY you can expect when claiming your rewards early.'

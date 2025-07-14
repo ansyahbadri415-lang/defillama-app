@@ -1,7 +1,5 @@
 import * as React from 'react'
-
 import { useRouter } from 'next/router'
-import dynamic from 'next/dynamic'
 import { RowLinksWithDropdown } from '~/components/RowLinksWithDropdown'
 import type { IBarChartProps, IChartProps, IPieChartProps } from '~/components/ECharts/types'
 import { ChartSelector } from '~/containers/Stablecoins/ChartSelector'
@@ -22,17 +20,11 @@ import { Tooltip } from '~/components/Tooltip'
 import { oldBlue } from '~/constants/colors'
 import { Metrics } from '~/components/Metrics'
 
-const AreaChart = dynamic(() => import('~/components/ECharts/AreaChart'), {
-	ssr: false
-}) as React.FC<IChartProps>
+const AreaChart = React.lazy(() => import('~/components/ECharts/AreaChart')) as React.FC<IChartProps>
 
-const BarChart = dynamic(() => import('~/components/ECharts/BarChart'), {
-	ssr: false
-}) as React.FC<IBarChartProps>
+const BarChart = React.lazy(() => import('~/components/ECharts/BarChart')) as React.FC<IBarChartProps>
 
-const PieChart = dynamic(() => import('~/components/ECharts/PieChart'), {
-	ssr: false
-}) as React.FC<IPieChartProps>
+const PieChart = React.lazy(() => import('~/components/ECharts/PieChart')) as React.FC<IPieChartProps>
 
 // TODO: chart colors by stablecoins logo
 function PeggedAssetsOverview({
@@ -247,7 +239,7 @@ function PeggedAssetsOverview({
 			<RowLinksWithDropdown links={chainOptions} activeLink={selectedChain} />
 
 			<div className="grid grid-cols-2 relative isolate xl:grid-cols-3 gap-1">
-				<div className="bg-[var(--cards-bg)] rounded-md flex flex-col gap-6 p-5 col-span-2 w-full xl:col-span-1 overflow-x-auto">
+				<div className="bg-(--cards-bg) rounded-md flex flex-col gap-6 p-5 col-span-2 w-full xl:col-span-1 overflow-x-auto">
 					<p className="flex flex-col">
 						<span className="text-[#545757] dark:text-[#cccccc]">Total {title}</span>
 						<span className="font-semibold text-2xl font-jetbrains">{mcapToDisplay}</span>
@@ -267,7 +259,7 @@ function PeggedAssetsOverview({
 									<span className="font-semibold text-2xl font-jetbrains">{change7d_nol}</span>
 									<span
 										className={`${
-											change7d.startsWith('-') ? 'text-[var(--pct-red)]' : 'text-[var(--pct-green)]'
+											change7d.startsWith('-') ? 'text-(--pct-red)' : 'text-(--pct-green)'
 										} font-jetbrains overflow-hidden whitespace-nowrap text-ellipsis`}
 									>{`${change7d}%`}</span>
 								</span>
@@ -279,7 +271,7 @@ function PeggedAssetsOverview({
 							<Tooltip
 								content={change1d_nol}
 								className={`font-jetbrains overflow-hidden whitespace-nowrap text-ellipsis underline decoration-dotted ${
-									change1d.startsWith('-') ? 'text-[var(--pct-red)]' : 'text-[var(--pct-green)]'
+									change1d.startsWith('-') ? 'text-(--pct-red)' : 'text-(--pct-green)'
 								}`}
 							>
 								{`${change1d}%`}
@@ -290,7 +282,7 @@ function PeggedAssetsOverview({
 							<Tooltip
 								content={change30d_nol}
 								className={`font-jetbrains overflow-hidden whitespace-nowrap text-ellipsis underline decoration-dotted ${
-									change30d.startsWith('-') ? 'text-[var(--pct-red)]' : 'text-[var(--pct-green)]'
+									change30d.startsWith('-') ? 'text-(--pct-red)' : 'text-(--pct-green)'
 								}`}
 							>
 								{`${change30d}%`}
@@ -303,58 +295,72 @@ function PeggedAssetsOverview({
 					</p>
 				</div>
 				<div
-					className={`bg-[var(--cards-bg)] rounded-md flex flex-col gap-4 col-span-2 min-h-[424px] relative ${
-						chartType === 'Token Inflows' && tokenInflows ? 'first:*:-mb-6' : ''
+					className={`bg-(--cards-bg) rounded-md flex flex-col gap-4 col-span-2 min-h-[424px] relative ${
+						chartType === 'Token Inflows' && tokenInflows ? '*:first:-mb-6' : ''
 					}`}
 				>
 					<ChartSelector options={chartTypeList} selectedChart={chartType} onClick={setChartType} />
 
 					{chartType === 'Total Market Cap' && (
-						<AreaChart
-							title=""
-							chartData={peggedAreaTotalData}
-							stacks={totalMcapLabel}
-							valueSymbol="$"
-							hideDefaultLegend={true}
-							hallmarks={[]}
-							color={oldBlue}
-						/>
+						<React.Suspense fallback={<></>}>
+							<AreaChart
+								title=""
+								chartData={peggedAreaTotalData}
+								stacks={totalMcapLabel}
+								valueSymbol="$"
+								hideDefaultLegend={true}
+								hallmarks={[]}
+								color={oldBlue}
+							/>
+						</React.Suspense>
 					)}
 					{chartType === 'Token Market Caps' && (
-						<AreaChart
-							title=""
-							chartData={peggedAreaChartData}
-							stacks={peggedAssetNames}
-							valueSymbol="$"
-							hideDefaultLegend={true}
-							hideGradient={true}
-						/>
+						<React.Suspense fallback={<></>}>
+							<AreaChart
+								title=""
+								chartData={peggedAreaChartData}
+								stacks={peggedAssetNames}
+								valueSymbol="$"
+								hideDefaultLegend={true}
+								hideGradient={true}
+							/>
+						</React.Suspense>
 					)}
 					{chartType === 'Dominance' && (
-						<AreaChart
-							title=""
-							valueSymbol="%"
-							chartData={dataWithExtraPeggedAndDominanceByDay}
-							stacks={peggedAssetNames}
-							hideDefaultLegend={true}
-							hideGradient={true}
-							expandTo100Percent={true}
-						/>
+						<React.Suspense fallback={<></>}>
+							<AreaChart
+								title=""
+								valueSymbol="%"
+								chartData={dataWithExtraPeggedAndDominanceByDay}
+								stacks={peggedAssetNames}
+								hideDefaultLegend={true}
+								hideGradient={true}
+								expandTo100Percent={true}
+							/>
+						</React.Suspense>
 					)}
-					{chartType === 'Pie' && <PieChart chartData={chainsCirculatingValues} />}
+					{chartType === 'Pie' && (
+						<React.Suspense fallback={<></>}>
+							<PieChart chartData={chainsCirculatingValues} />
+						</React.Suspense>
+					)}
 					{chartType === 'Token Inflows' && tokenInflows && (
-						<BarChart
-							chartData={tokenInflows}
-							title=""
-							hideDefaultLegend={true}
-							customLegendName="Token"
-							customLegendOptions={tokenInflowNames}
-							key={tokenInflowNames} // escape hatch to rerender state in legend options
-							chartOptions={inflowsChartOptions}
-						/>
+						<React.Suspense fallback={<></>}>
+							<BarChart
+								chartData={tokenInflows}
+								title=""
+								hideDefaultLegend={true}
+								customLegendName="Token"
+								customLegendOptions={tokenInflowNames}
+								key={tokenInflowNames} // escape hatch to rerender state in legend options
+								chartOptions={inflowsChartOptions}
+							/>
+						</React.Suspense>
 					)}
 					{chartType === 'USD Inflows' && usdInflows && (
-						<BarChart chartData={usdInflows} color={backgroundColor} title="" />
+						<React.Suspense fallback={<></>}>
+							<BarChart chartData={usdInflows} color={backgroundColor} title="" />
+						</React.Suspense>
 					)}
 				</div>
 			</div>

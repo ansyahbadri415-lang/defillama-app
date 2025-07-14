@@ -1,5 +1,4 @@
 import * as React from 'react'
-import dynamic from 'next/dynamic'
 import { ILineAndBarChartProps } from '~/components/ECharts/types'
 import { getDimensionProtocolPageData, IJoin2ReturnType } from '~/api/categories/adaptors'
 import { useLocalStorageSettingsManager } from '~/contexts/LocalStorage'
@@ -13,10 +12,9 @@ import { useQuery } from '@tanstack/react-query'
 
 const INTERVALS_LIST = ['Daily', 'Weekly', 'Monthly', 'Cumulative'] as const
 
-const LineAndBarChart = dynamic(() => import('~/components/ECharts/LineAndBarChart'), {
-	ssr: false,
-	loading: () => <div className="flex items-center justify-center m-auto min-h-[360px]" />
-}) as React.FC<ILineAndBarChartProps>
+const LineAndBarChart = React.lazy(
+	() => import('~/components/ECharts/LineAndBarChart')
+) as React.FC<ILineAndBarChartProps>
 
 export const DimensionProtocolOverviewChart = ({
 	totalDataChart,
@@ -185,16 +183,16 @@ export const DimensionProtocolOverviewChart = ({
 	}, [totalDataChart, enabledSettings, chartInterval])
 
 	return (
-		<div className="bg-[var(--cards-bg)] rounded-md flex flex-col col-span-2 min-h-[418px]">
+		<div className="bg-(--cards-bg) rounded-md flex flex-col col-span-2 min-h-[418px]">
 			<div className="flex items-center justify-end p-3 gap-2">
 				{title && <h2 className="text-base font-semibold mr-auto">{title}</h2>}
-				<div className="text-xs font-medium ml-auto flex items-center rounded-md overflow-x-auto flex-nowrap border border-[var(--form-control-border)] text-[#666] dark:text-[#919296]">
+				<div className="text-xs font-medium ml-auto flex items-center rounded-md overflow-x-auto flex-nowrap border border-(--form-control-border) text-[#666] dark:text-[#919296]">
 					{INTERVALS_LIST.map((dataInterval) => (
 						<button
 							key={dataInterval}
 							onClick={() => changeChartInterval(dataInterval as any)}
 							data-active={dataInterval === chartInterval}
-							className="flex-shrink-0 py-2 px-3 whitespace-nowrap hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] data-[active=true]:bg-[var(--old-blue)] data-[active=true]:text-white"
+							className="shrink-0 py-2 px-3 whitespace-nowrap hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) data-[active=true]:bg-(--old-blue) data-[active=true]:text-white"
 						>
 							{dataInterval}
 						</button>
@@ -237,15 +235,17 @@ export const DimensionProtocolOverviewChart = ({
 						}
 					}}
 					smol
-					className="!bg-transparent border border-[var(--form-control-border)] !text-[#666] dark:!text-[#919296] hover:!bg-[var(--link-hover-bg)] focus-visible:!bg-[var(--link-hover-bg)]"
+					className="bg-transparent! border border-(--form-control-border) text-[#666]! dark:text-[#919296]! hover:bg-(--link-hover-bg)! focus-visible:bg-(--link-hover-bg)!"
 				/>
 			</div>
-			<LineAndBarChart
-				charts={mainChartData.charts}
-				groupBy={
-					chartInterval === 'Cumulative' ? 'daily' : (chartInterval.toLowerCase() as 'daily' | 'weekly' | 'monthly')
-				}
-			/>
+			<React.Suspense fallback={<div className="flex items-center justify-center m-auto min-h-[360px]" />}>
+				<LineAndBarChart
+					charts={mainChartData.charts}
+					groupBy={
+						chartInterval === 'Cumulative' ? 'daily' : (chartInterval.toLowerCase() as 'daily' | 'weekly' | 'monthly')
+					}
+				/>
+			</React.Suspense>
 		</div>
 	)
 }
@@ -276,9 +276,9 @@ export const DimensionProtocolChartByType = ({
 	protocolName: string
 	adapterType: `${ADAPTER_TYPES}`
 	chartType: 'overview' | 'chain' | 'version'
-	metadata?: { bribeRevenue?: boolean; tokenTax?: boolean }
+	metadata?: { revenue?: boolean; bribeRevenue?: boolean; tokenTax?: boolean }
 }) => {
-	const { data, isLoading } = useQuery({
+	const { data, isLoading, error } = useQuery({
 		queryKey: ['dimension-adapter-chart', adapterType, protocolName, JSON.stringify(metadata)],
 		queryFn: () =>
 			getDimensionProtocolPageData({ protocolName, adapterType, metadata }).then((data) => {
@@ -290,14 +290,22 @@ export const DimensionProtocolChartByType = ({
 	})
 
 	if (isLoading) {
-		return <div className="bg-[var(--cards-bg)] rounded-md flex flex-col col-span-2 min-h-[418px]" />
+		return <div className="bg-(--cards-bg) rounded-md flex flex-col col-span-2 min-h-[418px]" />
+	}
+
+	if (error) {
+		return (
+			<div className="bg-(--cards-bg) rounded-md flex flex-col items-center justify-center col-span-2 min-h-[418px]">
+				<p className="text-sm text-(--pct-red) p-3">Error : {error.message}</p>
+			</div>
+		)
 	}
 
 	if (chartType === 'overview') {
 		return (
 			<LazyChart
 				enable
-				className="relative col-span-full min-h-[418px] flex flex-col xl:col-span-1 xl:[&:last-child:nth-child(2n_-_1)]:col-span-full"
+				className="relative col-span-full min-h-[418px] flex flex-col xl:col-span-1 xl:[&:last-child:nth-child(2n-1)]:col-span-full"
 			>
 				<DimensionProtocolOverviewChart
 					totalDataChart={data.totalDataChart}
@@ -310,7 +318,7 @@ export const DimensionProtocolChartByType = ({
 	return (
 		<LazyChart
 			enable
-			className="relative col-span-full min-h-[418px] flex flex-col xl:col-span-1 xl:[&:last-child:nth-child(2n_-_1)]:col-span-full"
+			className="relative col-span-full min-h-[418px] flex flex-col xl:col-span-1 xl:[&:last-child:nth-child(2n-1)]:col-span-full"
 		>
 			<ChartByType
 				totalDataChartBreakdown={data.totalDataChartBreakdown}
@@ -362,7 +370,8 @@ const ChartByType = ({
 
 				for (const version of selectedTypes) {
 					chartData[version] = chartData[version] || {}
-					chartData[version][finalDate] = dataByVersion[version] + cumulativeVolumeByVersion[version]
+					chartData[version][finalDate] =
+						(chartData[version][finalDate] || 0) + dataByVersion[version] + cumulativeVolumeByVersion[version]
 
 					if (chartInterval === 'Cumulative') {
 						cumulativeVolumeByVersion[version] += dataByVersion[version] || 0
@@ -392,14 +401,12 @@ const ChartByType = ({
 				}
 
 				for (const chain of selectedTypes) {
-					const sChain = slug(chain)
-
 					chartData[chain] = chartData[chain] || {}
 					chartData[chain][finalDate] =
-						(chartData[chain][finalDate] || 0) + (dataByChain[sChain] || 0) + cumulativeVolumeByChain[chain]
+						(chartData[chain][finalDate] || 0) + (dataByChain[chain] || 0) + cumulativeVolumeByChain[chain]
 
 					if (chartInterval === 'Cumulative') {
-						cumulativeVolumeByChain[chain] += dataByChain[sChain] || 0
+						cumulativeVolumeByChain[chain] += dataByChain[chain] || 0
 					}
 				}
 			}
@@ -440,16 +447,16 @@ const ChartByType = ({
 	}, [allTypes, chartInterval, chartType, selectedTypes, totalDataChartBreakdown])
 
 	return (
-		<div className="bg-[var(--cards-bg)] rounded-md flex flex-col col-span-2 min-h-[418px]">
+		<div className="bg-(--cards-bg) rounded-md flex flex-col col-span-2 min-h-[418px]">
 			<div className="flex items-center gap-1 justify-end flex-wrap p-3">
 				{title && <h2 className="text-base font-semibold mr-auto">{title}</h2>}
-				<div className="text-xs font-medium ml-auto flex items-center rounded-md overflow-x-auto flex-nowrap border border-[var(--form-control-border)] text-[#666] dark:text-[#919296]">
+				<div className="text-xs font-medium ml-auto flex items-center rounded-md overflow-x-auto flex-nowrap border border-(--form-control-border) text-[#666] dark:text-[#919296]">
 					{INTERVALS_LIST.map((dataInterval) => (
 						<button
 							key={dataInterval}
 							onClick={() => changeChartInterval(dataInterval as any)}
 							data-active={dataInterval === chartInterval}
-							className="flex-shrink-0 py-2 px-3 whitespace-nowrap hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] data-[active=true]:bg-[var(--old-blue)] data-[active=true]:text-white"
+							className="shrink-0 py-2 px-3 whitespace-nowrap hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) data-[active=true]:bg-(--old-blue) data-[active=true]:text-white"
 						>
 							{dataInterval}
 						</button>
@@ -462,10 +469,13 @@ const ChartByType = ({
 					label={chartType === 'version' ? 'Versions' : 'Chains'}
 					clearAll={() => setSelectedTypes([])}
 					toggleAll={() => setSelectedTypes(allTypes)}
+					selectOnlyOne={(newType) => {
+						setSelectedTypes([newType])
+					}}
 					labelType="smol"
 					triggerProps={{
 						className:
-							'flex items-center justify-between gap-2 p-2 text-xs rounded-md cursor-pointer flex-nowrap relative border border-[var(--form-control-border)] text-[#666] dark:text-[#919296] hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] font-medium z-10'
+							'flex items-center justify-between gap-2 p-2 text-xs rounded-md cursor-pointer flex-nowrap relative border border-(--form-control-border) text-[#666] dark:text-[#919296] hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) font-medium z-10'
 					}}
 					portal
 				/>
@@ -512,15 +522,17 @@ const ChartByType = ({
 						}
 					}}
 					smol
-					className="!bg-transparent border border-[var(--form-control-border)] !text-[#666] dark:!text-[#919296] hover:!bg-[var(--link-hover-bg)] focus-visible:!bg-[var(--link-hover-bg)]"
+					className="bg-transparent! border border-(--form-control-border) text-[#666]! dark:text-[#919296]! hover:bg-(--link-hover-bg)! focus-visible:bg-(--link-hover-bg)!"
 				/>
 			</div>
-			<LineAndBarChart
-				charts={mainChartData.charts}
-				groupBy={
-					chartInterval === 'Cumulative' ? 'daily' : (chartInterval.toLowerCase() as 'daily' | 'weekly' | 'monthly')
-				}
-			/>
+			<React.Suspense fallback={<div className="flex items-center justify-center m-auto min-h-[360px]" />}>
+				<LineAndBarChart
+					charts={mainChartData.charts}
+					groupBy={
+						chartInterval === 'Cumulative' ? 'daily' : (chartInterval.toLowerCase() as 'daily' | 'weekly' | 'monthly')
+					}
+				/>
+			</React.Suspense>
 		</div>
 	)
 }

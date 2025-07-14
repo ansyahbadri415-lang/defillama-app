@@ -1,10 +1,14 @@
 import {
 	CHART_API,
 	DIMENISIONS_OVERVIEW_API,
+	DIMENISIONS_SUMMARY_BASE_API,
 	PROTOCOL_ACTIVE_USERS_API,
 	PROTOCOL_TRANSACTIONS_API,
 	PROTOCOL_NEW_USERS_API,
-	PROTOCOL_GAS_USED_API
+	PROTOCOL_GAS_USED_API,
+	PEGGEDCHART_API,
+	CHAINS_ASSETS_CHART,
+	CACHE_SERVER
 } from '~/constants'
 import { convertToNumberFormat } from '../utils'
 
@@ -12,8 +16,8 @@ const CHART_METADATA = {
 	tvl: { type: 'tvl' },
 
 	volume: { type: 'dimensions', endpoint: 'dexs' },
-	fees: { type: 'dimensions', endpoint: 'fees' },
-	revenue: { type: 'dimensions', endpoint: 'fees', dataType: 'dailyRevenue' },
+	fees: { type: 'dimensions', endpoint: 'fees', dataType: 'dailyAppFees' },
+	revenue: { type: 'dimensions', endpoint: 'fees', dataType: 'dailyAppRevenue' },
 	bribes: { type: 'dimensions', endpoint: 'fees', dataType: 'dailyBribesRevenue' },
 	tokenTax: { type: 'dimensions', endpoint: 'fees', dataType: 'dailyTokenTaxes' },
 	aggregators: { type: 'dimensions', endpoint: 'aggregators' },
@@ -22,11 +26,22 @@ const CHART_METADATA = {
 	perpsAggregators: { type: 'dimensions', endpoint: 'aggregator-derivatives' },
 	options: { type: 'dimensions', endpoint: 'options' },
 
+	chainFees: { type: 'protocol', endpoint: 'fees' },
+	chainRevenue: { type: 'protocol', endpoint: 'fees', dataType: 'dailyRevenue' },
+
 	users: { type: 'userMetrics', api: PROTOCOL_ACTIVE_USERS_API },
 	activeUsers: { type: 'userMetrics', api: PROTOCOL_ACTIVE_USERS_API },
 	newUsers: { type: 'userMetrics', api: PROTOCOL_NEW_USERS_API },
 	txs: { type: 'userMetrics', api: PROTOCOL_TRANSACTIONS_API },
-	gasUsed: { type: 'userMetrics', api: PROTOCOL_GAS_USED_API }
+	gasUsed: { type: 'userMetrics', api: PROTOCOL_GAS_USED_API },
+
+	stablecoins: { type: 'stablecoins' },
+	stablecoinInflows: { type: 'stablecoins', dataType: 'inflows' },
+
+	bridgedTvl: { type: 'chainAssets' },
+
+	chainMcap: { type: 'chainToken' },
+	chainPrice: { type: 'chainToken' }
 }
 
 export default class ChainCharts {
@@ -51,11 +66,95 @@ export default class ChainCharts {
 		if (!chain) return []
 		const response = await fetch(`${CHART_API}/${chain}`)
 		const data = await response.json()
-		return convertToNumberFormat(data.tvl ?? [])
+		const res = convertToNumberFormat(data.tvl ?? [])
+		return res
 	}
 
-	// Generic method that routes to the appropriate data fetcher based on metadata
-	static async getData(chartType: string, chain: string): Promise<[number, number][]> {
+	private static async stablecoinsData(chain: string, dataType?: string): Promise<[number, number][]> {
+		if (!chain) return []
+		const response = await fetch(`${PEGGEDCHART_API}/${chain}`)
+		const data = await response.json()
+
+		if (!data.aggregated || !Array.isArray(data.aggregated)) return []
+
+		if (dataType === 'inflows') {
+			return this.calculateInflows(data.aggregated)
+		}
+
+		const formattedData: [number, number][] = data.aggregated.map((item: any) => [
+			parseInt(item.date, 10),
+			item.totalCirculatingUSD?.peggedUSD || 0
+		])
+
+		return formattedData
+	}
+
+	private static async protocolData(chain: string, endpoint: string, dataType?: string): Promise<[number, number][]> {
+		if (!chain) return []
+		const url = dataType
+			? `${DIMENISIONS_SUMMARY_BASE_API}/${endpoint}/${chain}?dataType=${dataType}`
+			: `${DIMENISIONS_SUMMARY_BASE_API}/${endpoint}/${chain}`
+		const response = await fetch(url)
+		const data = await response.json()
+		return convertToNumberFormat(data.totalDataChart ?? [])
+	}
+
+	private static calculateInflows(aggregatedData: any[]): [number, number][] {
+		if (aggregatedData.length < 2) return []
+
+		const inflowsData: [number, number][] = []
+
+		for (let i = 1; i < aggregatedData.length; i++) {
+			const currentDay = aggregatedData[i]
+			const prevDay = aggregatedData[i - 1]
+
+			const currentMcap = currentDay.totalCirculatingUSD?.peggedUSD || 0
+			const prevMcap = prevDay.totalCirculatingUSD?.peggedUSD || 0
+			const inflow = currentMcap - prevMcap
+
+			inflowsData.push([parseInt(currentDay.date, 10), inflow])
+		}
+		return inflowsData
+	}
+
+	private static async chainAssetsData(chain: string): Promise<[number, number][]> {
+		if (!chain) return []
+		const response = await fetch(`${CHAINS_ASSETS_CHART}/${chain}`)
+		const data = await response.json()
+
+		if (!Array.isArray(data)) return []
+
+		const formattedData: [number, number][] = data.map((item: any) => [
+			parseInt(item.timestamp, 10),
+			parseFloat(item.data.total) || 0
+		])
+
+		return formattedData
+	}
+
+	private static async getTokenData(geckoId: string) {
+		if (!geckoId) return null
+		const url = `${CACHE_SERVER}/cgchart/${geckoId}?fullChart=true`
+		const response = await fetch(url)
+		const { data } = await response.json()
+		return data
+	}
+
+	private static async chainMcapData(chain: string, geckoId?: string): Promise<[number, number][]> {
+		if (!geckoId) return []
+		const data = await this.getTokenData(geckoId)
+		if (!data) return []
+		return convertToNumberFormat(data.mcaps ?? [], true)
+	}
+
+	private static async chainPriceData(chain: string, geckoId?: string): Promise<[number, number][]> {
+		if (!geckoId) return []
+		const data = await this.getTokenData(geckoId)
+		if (!data) return []
+		return convertToNumberFormat(data.prices ?? [], true)
+	}
+
+	static async getData(chartType: string, chain: string, geckoId?: string): Promise<[number, number][]> {
 		const metadata = CHART_METADATA[chartType]
 
 		if (!metadata) {
@@ -68,8 +167,21 @@ export default class ChainCharts {
 				return this.tvlData(chain)
 			case 'dimensions':
 				return this.dimensionsData(chain, metadata.endpoint, metadata.dataType)
+			case 'protocol':
+				return this.protocolData(chain, metadata.endpoint, metadata.dataType)
 			case 'userMetrics':
 				return this.userMetrics(chain, metadata.api)
+			case 'stablecoins':
+				return this.stablecoinsData(chain, metadata.dataType)
+			case 'chainAssets':
+				return this.chainAssetsData(chain)
+			case 'chainToken':
+				if (chartType === 'chainMcap') {
+					return this.chainMcapData(chain, geckoId)
+				} else if (chartType === 'chainPrice') {
+					return this.chainPriceData(chain, geckoId)
+				}
+				return []
 			default:
 				console.error(`Unknown metadata type: ${metadata.type}`)
 				return []
@@ -124,5 +236,26 @@ export default class ChainCharts {
 	}
 	static async gasUsed(chain: string): Promise<[number, number][]> {
 		return this.getData('gasUsed', chain)
+	}
+	static async stablecoins(chain: string): Promise<[number, number][]> {
+		return this.getData('stablecoins', chain)
+	}
+	static async stablecoinInflows(chain: string): Promise<[number, number][]> {
+		return this.getData('stablecoinInflows', chain)
+	}
+	static async chainFees(chain: string): Promise<[number, number][]> {
+		return this.getData('chainFees', chain)
+	}
+	static async chainRevenue(chain: string): Promise<[number, number][]> {
+		return this.getData('chainRevenue', chain)
+	}
+	static async bridgedTvl(chain: string): Promise<[number, number][]> {
+		return this.getData('bridgedTvl', chain)
+	}
+	static async chainMcap(chain: string, geckoId?: string): Promise<[number, number][]> {
+		return this.getData('chainMcap', chain, geckoId)
+	}
+	static async chainPrice(chain: string, geckoId?: string): Promise<[number, number][]> {
+		return this.getData('chainPrice', chain, geckoId)
 	}
 }

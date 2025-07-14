@@ -1,12 +1,11 @@
 import { withPerformanceLogging } from '~/utils/perf'
-import metadata from '~/utils/metadata'
 import { ProtocolOverviewLayout } from '~/containers/ProtocolOverview/Layout'
 import { DimensionProtocolChartByType } from '~/containers/DimensionAdapters/ProtocolChart'
 import { slug } from '~/utils'
 import { maxAgeForNext } from '~/api'
 import { getAdapterProtocolSummary } from '~/containers/DimensionAdapters/queries'
-import { getProtocol, getProtocolMetrics, getProtocolPageStyles } from '~/containers/ProtocolOverview/queries'
-const { protocolMetadata } = metadata
+import { getProtocol, getProtocolMetrics } from '~/containers/ProtocolOverview/queries'
+import { IProtocolMetadata } from '~/containers/ProtocolOverview/types'
 
 export const getStaticProps = withPerformanceLogging(
 	'protocol/dexs/[...protocol]',
@@ -16,31 +15,37 @@ export const getStaticProps = withPerformanceLogging(
 		}
 	}) => {
 		const normalizedName = slug(protocol)
-		const metadata = Object.entries(protocolMetadata).find((p) => p[1].name === normalizedName)?.[1]
+		const metadataCache = await import('~/utils/metadata').then((m) => m.default)
+		const { protocolMetadata } = metadataCache
+		let metadata: [string, IProtocolMetadata] | undefined
+		for (const key in protocolMetadata) {
+			if (protocolMetadata[key].name === normalizedName) {
+				metadata = [key, protocolMetadata[key]]
+				break
+			}
+		}
 
-		if (!metadata || !metadata.dexs) {
+		if (!metadata || !metadata[1].dexs) {
 			return { notFound: true, props: null }
 		}
 
-		const [protocolData, adapterData, pageStyles] = await Promise.all([
+		const [protocolData, adapterData] = await Promise.all([
 			getProtocol(protocol),
 			getAdapterProtocolSummary({
 				adapterType: 'dexs',
-				protocol: metadata.name,
+				protocol: metadata[1].name,
 				excludeTotalDataChart: true,
 				excludeTotalDataChartBreakdown: true
-			}),
-			getProtocolPageStyles(metadata.name)
+			})
 		])
 
-		const metrics = getProtocolMetrics({ protocolData, metadata })
+		const metrics = getProtocolMetrics({ protocolData, metadata: metadata[1] })
 
 		return {
 			props: {
 				name: protocolData.name,
 				otherProtocols: protocolData?.otherProtocols ?? [],
 				category: protocolData?.category ?? null,
-				pageStyles,
 				hasMultipleChain: adapterData?.chains?.length > 1 ? true : false,
 				hasMultipleVersions: adapterData?.linkedProtocols?.length > 0 && protocolData.isParentProtocol ? true : false,
 				metrics
@@ -60,11 +65,10 @@ export default function Protocols(props) {
 			name={props.name}
 			category={props.category}
 			otherProtocols={props.otherProtocols}
-			pageStyles={props.pageStyles}
 			metrics={props.metrics}
 			tab="dexs"
 		>
-			<div className="bg-[var(--cards-bg)] rounded-md">
+			<div className="bg-(--cards-bg) border border-(--cards-border) rounded-md">
 				<div className="grid grid-cols-2 rounded-md">
 					<DimensionProtocolChartByType chartType="overview" protocolName={slug(props.name)} adapterType="dexs" />
 					{props.hasMultipleChain ? (

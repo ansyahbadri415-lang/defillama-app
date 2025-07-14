@@ -1,5 +1,4 @@
 import * as React from 'react'
-import dynamic from 'next/dynamic'
 import Layout from '~/layout'
 import { RowLinksWithDropdown } from '~/components/RowLinksWithDropdown'
 import { useCalcGroupExtraTvlsByDay, useCalcStakePool2Tvl } from '~/hooks/data'
@@ -15,13 +14,9 @@ import { download } from '~/utils'
 import { ProtocolsChainsSearch } from '~/components/Search/ProtocolsChains'
 import { Metrics } from '~/components/Metrics'
 
-const PieChart = dynamic(() => import('~/components/ECharts/PieChart'), {
-	ssr: false
-}) as React.FC<IPieChartProps>
+const PieChart = React.lazy(() => import('~/components/ECharts/PieChart')) as React.FC<IPieChartProps>
 
-const AreaChart = dynamic(() => import('~/components/ECharts/AreaChart'), {
-	ssr: false
-}) as React.FC<IChartProps>
+const AreaChart = React.lazy(() => import('~/components/ECharts/AreaChart')) as React.FC<IChartProps>
 
 export const getStaticProps = withPerformanceLogging('forks', async () => {
 	const data = await getForkPageData()
@@ -86,13 +81,13 @@ export default function Forks({ chartData, tokensProtocols, tokens, tokenLinks, 
 			<Metrics currentMetric="TVL in forks" />
 			<RowLinksWithDropdown links={tokenLinks} activeLink={'All'} />
 			<div className="flex flex-col gap-1 xl:flex-row">
-				<div className="isolate relative rounded-md p-3 bg-[var(--cards-bg)] flex-1 min-h-[360px] flex flex-col">
+				<div className="isolate relative rounded-md p-3 bg-(--cards-bg) flex-1 min-h-[360px] flex flex-col">
 					<CSVDownloadButton onClick={downloadCSV} className="ml-auto absolute right-3 top-3 z-10" />
 					<React.Suspense fallback={<></>}>
 						<PieChart chartData={tokenTvls} stackColors={forkColors} />
 					</React.Suspense>
 				</div>
-				<div className="rounded-md p-3 bg-[var(--cards-bg)] flex-1 min-h-[360px]">
+				<div className="rounded-md p-3 bg-(--cards-bg) flex-1 min-h-[360px]">
 					<React.Suspense fallback={<></>}>
 						<AreaChart
 							chartData={chainsWithExtraTvlsAndDominanceByDay}
@@ -109,7 +104,10 @@ export default function Forks({ chartData, tokensProtocols, tokens, tokenLinks, 
 			</div>
 			<React.Suspense
 				fallback={
-					<div style={{ minHeight: `${tokensList.length * 50 + 200}px` }} className="bg-[var(--cards-bg)] rounded-md" />
+					<div
+						style={{ minHeight: `${tokensList.length * 50 + 200}px` }}
+						className="bg-(--cards-bg) border border-(--cards-border) rounded-md"
+					/>
 				}
 			>
 				<TableWithSearch

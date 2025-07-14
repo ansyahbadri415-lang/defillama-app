@@ -1,5 +1,5 @@
-import { CG_TOKEN_API } from '~/constants/index'
-import { fetchApi, fetchWithErrorLogging } from '~/utils/async'
+import { CG_TOKEN_API, TOKEN_LIST_API } from '~/constants/index'
+import { fetchApi, fetchJson } from '~/utils/async'
 import type { IResponseCGMarketsAPI } from './types'
 import { useQuery } from '@tanstack/react-query'
 
@@ -41,9 +41,7 @@ export async function retryCoingeckoRequest(func, retries) {
 }
 
 export async function getAllCGTokensList(): Promise<Array<IResponseCGMarketsAPI>> {
-	const data = await fetchWithErrorLogging('https://defillama-datasets.llama.fi/tokenlist/sorted.json').then((res) =>
-		res.json()
-	)
+	const data = await fetchJson(TOKEN_LIST_API)
 
 	return data
 }

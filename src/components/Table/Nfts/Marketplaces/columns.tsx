@@ -16,7 +16,7 @@ export const columns: ColumnDef<INftMarketplace>[] = [
 
 			return (
 				<span className="flex items-center gap-2">
-					<span className="flex-shrink-0">{index + 1}</span>
+					<span className="shrink-0">{index + 1}</span>
 					<TokenLogo logo={`https://icons.llamao.fi/icons/protocols/${icon}`} data-lgonly />
 					<span className="overflow-hidden whitespace-nowrap text-ellipsis hover:underline">{name as string}</span>
 				</span>
@@ -108,17 +108,6 @@ export const columns: ColumnDef<INftMarketplace>[] = [
 		meta: {
 			align: 'end',
 			headerHelperText: '7day rolling trades'
-		}
-	},
-	{
-		header: '% Wash Volume 7d',
-		accessorKey: 'washVolume7DPct',
-		size: 190,
-		cell: (info) => <>{info.getValue() ? (+info.getValue()).toFixed(2) + '%' : null}</>,
-		meta: {
-			align: 'end',
-			headerHelperText:
-				'% of inorganic trades relative to organic ones over last 7days rolling. All our values are exclusive of wash trades'
 		}
 	}
 ]

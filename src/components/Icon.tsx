@@ -78,6 +78,9 @@ type Name =
 	| 'arrow-left-to-line'
 	| 'arrow-right-to-line'
 	| 'arrow-up'
+	| 'chat'
+	| 'earth'
+	| 'twitter'
 
 export interface IIcon extends SVGProps<SVGSVGElement> {
 	name: Name

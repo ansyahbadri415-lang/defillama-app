@@ -1,37 +1,37 @@
 import { TokenLogo } from '~/components/TokenLogo'
 import { IChainOverviewData } from './types'
-import { chainIconUrl, formattedNum, slug } from '~/utils'
+import { chainIconUrl, download, formattedNum, slug, toNiceCsvDate } from '~/utils'
 import { Tooltip } from '~/components/Tooltip'
-import dynamic from 'next/dynamic'
 import { useRouter } from 'next/router'
 import { useDarkModeManager, useLocalStorageSettingsManager } from '~/contexts/LocalStorage'
 import { useFetchChainChartData } from './useFetchChainChartData'
-import { RowWithSubRows } from '~/containers/ProtocolOverview/RowWithSubRows'
-import { formatRaise, formatRaisedAmount } from '~/containers/ProtocolOverview/utils'
-import { Fragment, memo, useMemo } from 'react'
-import { Switch } from '~/components/Switch'
-import { BAR_CHARTS } from '~/containers/ProtocolOverview/Chart/utils'
+import { formatRaisedAmount } from '~/containers/ProtocolOverview/utils'
+import { Fragment, lazy, memo, Suspense, useMemo } from 'react'
 import { CSVDownloadButton } from '~/components/ButtonStyled/CsvButton'
 import { EmbedChart } from '~/components/EmbedChart'
 import { chainCoingeckoIdsForGasNotMcap } from '~/constants/chainTokens'
-import { chainOverviewChartSwitchColors } from './colors'
+import { chainOverviewChartColors, BAR_CHARTS, chainCharts, ChainChartLabels } from './constants'
+import { Icon } from '~/components/Icon'
+import dayjs from 'dayjs'
+import * as Ariakit from '@ariakit/react'
 
-const ChainChart: any = dynamic(() => import('~/containers/ChainOverview/Chart').then((m) => m.ChainChart), {
-	ssr: false,
-	loading: () => <div className="flex items-center justify-center m-auto min-h-[360px]"></div>
-})
+const ChainChart: any = lazy(() => import('~/containers/ChainOverview/Chart'))
+
+const groupByOptions = ['daily', 'weekly', 'monthly', 'cumulative'] as const
 
 export const Stats = memo(function Stats(props: IChainOverviewData) {
 	const router = useRouter()
-
-	const denomination = router.query?.currency ?? 'USD'
-	const groupBy = router.query?.groupBy ?? 'daily'
+	const queryParamsString = useMemo(() => {
+		return JSON.stringify(router.query ?? {})
+	}, [router.query])
 
 	const [darkMode] = useDarkModeManager()
 
-	const [extraTvlsEnabled] = useLocalStorageSettingsManager('tvl')
+	const [tvlSettings] = useLocalStorageSettingsManager('tvl')
 
-	const { chartOptions, DENOMINATIONS, chainGeckoId, hasAtleasOneBarChart } = useMemo(() => {
+	const { toggledCharts, DENOMINATIONS, chainGeckoId, hasAtleasOneBarChart, groupBy, denomination } = useMemo(() => {
+		const queryParams = JSON.parse(queryParamsString)
+
 		let CHAIN_SYMBOL = props.chainTokenInfo?.token_symbol ?? null
 		let chainGeckoId = props.chainTokenInfo?.gecko_id ?? null
 
@@ -47,127 +47,42 @@ export const Stats = memo(function Stats(props: IChainOverviewData) {
 
 		const DENOMINATIONS = CHAIN_SYMBOL ? ['USD', CHAIN_SYMBOL] : ['USD']
 
-		const chartOptions = [
-			{
-				id: 'tvl',
-				name: 'TVL',
-				isVisible: true
-			},
-			{
-				id: 'dexs',
-				name: 'DEXs Volume',
-				isVisible: props.dexs?.total24h != null ? true : false
-			},
-			{
-				id: 'chainFees',
-				name: 'Chain Fees',
-				isVisible: props.chainFees?.total24h != null ? true : false
-			},
-			{
-				id: 'chainRevenue',
-				name: 'Chain Revenue',
-				isVisible: props.chainRevenue?.total24h != null ? true : false
-			},
-			{
-				id: 'chainIncentives',
-				name: 'Token Incentives',
-				isVisible: props.chainIncentives?.emissions24h != null ? true : false
-			},
-			{
-				id: 'appRevenue',
-				name: 'App Revenue',
-				isVisible: props.appRevenue?.total24h != null ? true : false
-			},
-			{ id: 'perps', name: 'Perps Volume', isVisible: props.perps?.total24h != null ? true : false },
-			{ id: 'chainAssets', name: 'Bridged TVL', isVisible: props.chainAssets != null ? true : false },
-			{
-				id: 'addresses',
-				name: 'Addresses',
-				isVisible: props.users.activeUsers != null ? true : false
-			},
-			{
-				id: 'txs',
-				name: 'Transactions',
-				isVisible: props.users.transactions != null ? true : false
-			},
-			{
-				id: 'raises',
-				name: 'Raises',
-				isVisible: props.metadata.name === 'All'
-			},
-			{
-				id: 'stables',
-				name: 'Stablecoins',
-				isVisible: props.stablecoins?.mcap != null ? true : false
-			},
-			{
-				id: 'inflows',
-				name: 'Inflows',
-				isVisible: props.inflows?.netInflows != null ? true : false
-			},
-			{
-				id: 'developers',
-				name: 'Core Developers',
-				isVisible: props.devMetrics ? true : false
-			},
-			{
-				id: 'devsCommits',
-				name: 'Commits',
-				isVisible: props.devMetrics ? true : false
-			},
-			{
-				id: 'chainTokenPrice',
-				name: `${CHAIN_SYMBOL} Price`,
-				isVisible: CHAIN_SYMBOL ? true : false
-			},
-			{
-				id: 'chainTokenMcap',
-				name: `${props.chainTokenInfo?.token_symbol} MCap`,
-				isVisible: props.chainTokenInfo?.token_symbol ? true : false
-			},
-			{
-				id: 'chainTokenVolume',
-				name: `${props.chainTokenInfo?.token_symbol} Volume`,
-				isVisible: props.chainTokenInfo?.token_symbol ? true : false
-			}
-		]
+		const toggledCharts = props.charts.filter((tchart) =>
+			tchart === 'TVL' ? queryParams[chainCharts[tchart]] !== 'false' : queryParams[chainCharts[tchart]] === 'true'
+		) as ChainChartLabels[]
 
-		const hasAtleasOneBarChart = chartOptions.reduce((acc, curr) => {
-			if (curr.isVisible && BAR_CHARTS.includes(curr.name) && router.query[curr.id] === 'true') {
-				acc = true
-			}
+		const hasAtleasOneBarChart = toggledCharts.some((chart) => BAR_CHARTS.includes(chart))
 
-			return acc
-		}, false)
+		const groupBy =
+			hasAtleasOneBarChart && queryParams?.groupBy
+				? groupByOptions.includes(queryParams.groupBy as any)
+					? (queryParams.groupBy as any)
+					: 'daily'
+				: 'daily'
+
+		const denomination = typeof queryParams.currency === 'string' ? queryParams.currency : 'USD'
 
 		return {
-			chartOptions,
 			DENOMINATIONS,
 			chainGeckoId,
-			hasAtleasOneBarChart
+			hasAtleasOneBarChart,
+			toggledCharts,
+			groupBy,
+			denomination
 		}
-	}, [props, router.query])
+	}, [props, queryParamsString])
 
-	const { totalValueUSD, change24h, valueChange24hUSD, chartDatasets, isFetchingChartData } = useFetchChainChartData({
-		denomination,
-		selectedChain: props.metadata.name,
-		dexsData: props.dexs,
-		feesData: props.chainFees,
-		revenueData: props.chainRevenue,
-		appRevenueData: props.appRevenue,
-		stablecoinsData: props.stablecoins,
-		inflowsData: props.inflows,
-		userData: props.users,
-		raisesChart: props.raises,
-		chart: props.tvlChart,
-		extraTvlCharts: props.extraTvlChart,
-		extraTvlsEnabled,
-		devMetricsData: props.devMetrics,
-		chainGeckoId,
-		perpsData: props.perps,
-		chainAssets: props.chainAssets,
-		chainIncentives: props.chainIncentives
-	})
+	const { totalValueUSD, change24h, valueChange24hUSD, finalCharts, valueSymbol, isFetchingChartData } =
+		useFetchChainChartData({
+			denomination,
+			selectedChain: props.metadata.name,
+			tvlChart: props.tvlChart,
+			extraTvlCharts: props.extraTvlChart,
+			tvlSettings,
+			chainGeckoId,
+			toggledCharts,
+			groupBy
+		})
 
 	const updateGroupBy = (newGroupBy) => {
 		router.push(
@@ -180,9 +95,11 @@ export const Stats = memo(function Stats(props: IChainOverviewData) {
 		)
 	}
 
+	const metricsDialogStore = Ariakit.useDialogStore()
+
 	return (
-		<div className="grid grid-cols-2 relative isolate xl:grid-cols-3 gap-1">
-			<div className="bg-[var(--cards-bg)] rounded-md flex flex-col gap-3 p-5 col-span-2 w-full xl:col-span-1 overflow-x-auto">
+		<div className="grid grid-cols-2 relative isolate xl:grid-cols-3 gap-2">
+			<div className="bg-(--cards-bg) border border-(--cards-border) rounded-md flex flex-col gap-6 p-2 col-span-2 w-full xl:col-span-1 overflow-x-auto">
 				{props.metadata.name !== 'All' && (
 					<h1 className="flex items-center flex-nowrap gap-2">
 						<TokenLogo logo={chainIconUrl(props.metadata.name)} size={24} />
@@ -197,7 +114,7 @@ export const Stats = memo(function Stats(props: IChainOverviewData) {
 									? 'Sum of value of all coins held in smart contracts of all the protocols on all chains'
 									: 'Sum of value of all coins held in smart contracts of all the protocols on the chain'
 							}
-							className="underline decoration-dotted text-[#545757] dark:text-[#cccccc]"
+							className="!inline underline decoration-dotted text-[#545757] dark:text-[#cccccc]"
 						>
 							Total Value Locked in DeFi
 						</Tooltip>
@@ -213,7 +130,7 @@ export const Stats = memo(function Stats(props: IChainOverviewData) {
 						>
 							<span
 								className={`font-jetbrains overflow-hidden whitespace-nowrap text-ellipsis underline decoration-dotted ${
-									change24h >= 0 ? 'text-[var(--pct-green)]' : 'text-[var(--pct-red)]'
+									change24h >= 0 ? 'text-(--pct-green)' : 'text-(--pct-red)'
 								}`}
 							>
 								{`${change24h > 0 ? '+' : ''}${change24h.toFixed(2)}%`}
@@ -222,227 +139,229 @@ export const Stats = memo(function Stats(props: IChainOverviewData) {
 						</Tooltip>
 					) : null}
 				</div>
-				<table className="text-base w-full border-collapse mt-4">
-					<tbody>
+				<div className="flex flex-col flex-1 gap-2">
+					<h2 className="text-base xl:text-sm font-semibold">Key Metrics</h2>
+					<div className="flex flex-col">
 						{props.stablecoins?.mcap ? (
-							<RowWithSubRows
-								rowHeader={
+							<details className="group">
+								<summary className="flex flex-wrap justify-start gap-4 border-b border-(--cards-border) group-open:font-semibold group-open:border-none group-last:border-none py-1">
 									<Tooltip
 										content={
 											props.metadata.name === 'All'
 												? 'Sum of market cap of all stablecoins circulating on all chains'
 												: 'Sum of market cap of all stablecoins circulating on the chain'
 										}
-										className="underline decoration-dotted"
+										className="text-[#545757] dark:text-[#cccccc] underline decoration-dotted"
 									>
 										Stablecoins Mcap
 									</Tooltip>
-								}
-								rowValue={formattedNum(props.stablecoins.mcap, true)}
-								helperText={null}
-								protocolName={null}
-								dataType={null}
-								subRows={
-									<>
-										{props.stablecoins.change7d ? (
-											<tr>
-												<th className="text-left font-normal pl-2 pb-1 text-[#545757] dark:text-[#cccccc]">
-													Change (7d)
-												</th>
-												<td className="text-right">
-													<Tooltip
-														content={`${formattedNum(props.stablecoins.change7dUsd, true)}`}
-														className={`justify-end font-jetbrains overflow-hidden whitespace-nowrap text-ellipsis underline decoration-dotted ${
-															+props.stablecoins.change7d >= 0 ? 'text-[var(--pct-green)]' : 'text-[var(--pct-red)]'
-														}`}
-													>
-														{`${+props.stablecoins.change7d > 0 ? '+' : ''}${props.stablecoins.change7d}%`}
-													</Tooltip>
-												</td>
-											</tr>
-										) : null}
-										{props.stablecoins.dominance ? (
-											<tr>
-												<th className="text-left font-normal pl-2 pb-1 text-[#545757] dark:text-[#cccccc]">
-													{props.stablecoins.topToken.symbol} Dominance
-												</th>
-												<td className="text-right font-jetbrains">{props.stablecoins.dominance}%</td>
-											</tr>
-										) : null}
-									</>
-								}
-							/>
+									<Icon
+										name="chevron-down"
+										height={16}
+										width={16}
+										className="group-open:rotate-180 transition-transform duration-100 relative top-[2px] -ml-3"
+									/>
+									<span className="font-jetbrains ml-auto">{formattedNum(props.stablecoins.mcap, true)}</span>
+								</summary>
+								<div className="flex flex-col mb-3">
+									{props.stablecoins.change7d != null ? (
+										<p className="flex flex-wrap justify-stat gap-4 border-b border-dashed border-(--cards-border) last:border-none py-1">
+											<span className="text-[#545757] dark:text-[#cccccc]">Change (7d)</span>
+											<Tooltip
+												content={`${formattedNum(props.stablecoins.change7dUsd, true)}`}
+												className={`ml-auto justify-end font-jetbrains overflow-hidden whitespace-nowrap text-ellipsis underline decoration-dotted ${
+													+props.stablecoins.change7d >= 0 ? 'text-(--pct-green)' : 'text-(--pct-red)'
+												}`}
+											>
+												{`${+props.stablecoins.change7d > 0 ? '+' : ''}${props.stablecoins.change7d}%`}
+											</Tooltip>
+										</p>
+									) : null}
+									{props.stablecoins.dominance != null ? (
+										<p className="flex flex-wrap justify-stat gap-4 border-b border-dashed border-(--cards-border) last:border-none py-1">
+											<span className="text-[#545757] dark:text-[#cccccc]">
+												{props.stablecoins.topToken.symbol} Dominance
+											</span>
+											<span className="font-jetbrains ml-auto">{props.stablecoins.dominance}%</span>
+										</p>
+									) : null}
+								</div>
+							</details>
 						) : null}
 						{props.chainFees?.total24h != null ? (
-							<tr>
-								<th className="text-[#545757] dark:text-[#cccccc] font-normal text-left pb-1">
-									<Tooltip
-										content="Total fees paid by users when using the chain"
-										className="underline decoration-dotted"
-									>
-										Chain Fees (24h)
-									</Tooltip>
-								</th>
-								<td className="font-jetbrains text-right">{formattedNum(props.chainFees?.total24h, true)}</td>
-							</tr>
+							<p className="group flex flex-wrap justify-start gap-4 border-b border-(--cards-border) last:border-none py-1">
+								<Tooltip
+									content="Total fees paid by users when using the chain"
+									className="text-[#545757] dark:text-[#cccccc] underline decoration-dotted"
+								>
+									Chain Fees (24h)
+								</Tooltip>
+								<span className="font-jetbrains ml-auto">{formattedNum(props.chainFees?.total24h, true)}</span>
+							</p>
 						) : null}
 						{props.chainRevenue?.total24h != null ? (
-							<tr>
-								<th className="text-[#545757] dark:text-[#cccccc] font-normal text-left pb-1">
-									<Tooltip
-										content="Subset of fees that the chain collects for itself"
-										className="underline decoration-dotted"
-									>
-										Chain Revenue (24h)
-									</Tooltip>
-								</th>
-								<td className="font-jetbrains text-right">{formattedNum(props.chainRevenue?.total24h, true)}</td>
-							</tr>
+							<p className="group flex flex-wrap justify-start gap-4 border-b border-(--cards-border) last:border-none py-1">
+								<Tooltip
+									content="Subset of fees that the chain collects for itself"
+									className="text-[#545757] dark:text-[#cccccc] underline decoration-dotted"
+								>
+									Chain Revenue (24h)
+								</Tooltip>
+								<span className="font-jetbrains ml-auto">{formattedNum(props.chainRevenue?.total24h, true)}</span>
+							</p>
 						) : null}
-						{props.chainFees?.totalREV24h ? (
-							<tr>
-								<th className="text-[#545757] dark:text-[#cccccc] font-normal text-left pb-1">
-									<Tooltip content="REV is the sum of chain fees and MEV tips" className="underline decoration-dotted">
-										Chain REV (24h)
-									</Tooltip>
-								</th>
-								<td className="font-jetbrains text-right">{formattedNum(props.chainFees?.totalREV24h, true)}</td>
-							</tr>
+						{props.chainFees?.totalREV24h != null ? (
+							<p className="group flex flex-wrap justify-start gap-4 border-b border-(--cards-border) last:border-none py-1">
+								<Tooltip
+									content="REV is the sum of chain fees and MEV tips"
+									className="text-[#545757] dark:text-[#cccccc] underline decoration-dotted"
+								>
+									Chain REV (24h)
+								</Tooltip>
+								<span className="font-jetbrains ml-auto">{formattedNum(props.chainFees?.totalREV24h, true)}</span>
+							</p>
 						) : null}
 						{props.chainIncentives?.emissions24h != null ? (
-							<tr>
-								<th className="text-[#545757] dark:text-[#cccccc] font-normal text-left pb-1">
-									<Tooltip
-										content="Tokens allocated to users through liquidity mining or incentive schemes, typically as part of governance or reward mechanisms."
-										className="underline decoration-dotted"
-									>
-										Token Incentives (24h)
-									</Tooltip>
-								</th>
-								<td className="font-jetbrains text-right">{formattedNum(props.chainIncentives?.emissions24h, true)}</td>
-							</tr>
+							<p className="group flex flex-wrap justify-start gap-4 border-b border-(--cards-border) last:border-none py-1">
+								<Tooltip
+									content="Tokens allocated to users through liquidity mining or incentive schemes, typically as part of governance or reward mechanisms."
+									className="text-[#545757] dark:text-[#cccccc] underline decoration-dotted"
+								>
+									Token Incentives (24h)
+								</Tooltip>
+								<span className="font-jetbrains ml-auto">
+									{formattedNum(props.chainIncentives?.emissions24h, true)}
+								</span>
+							</p>
 						) : null}
 						{props.appRevenue?.total24h != null && props.appRevenue?.total24h > 1e3 ? (
-							<tr>
-								<th className="text-[#545757] dark:text-[#cccccc] font-normal text-left pb-1">
-									<Tooltip
-										content={
-											'Total revenue earned by the apps on the chain. Excludes stablecoins, liquid staking apps, and gas fees.'
-										}
-										className="underline decoration-dotted"
-									>
-										App Revenue (24h)
-									</Tooltip>
-								</th>
-								<td className="font-jetbrains text-right">{formattedNum(props.appRevenue?.total24h, true)}</td>
-							</tr>
+							<p className="group flex flex-wrap justify-start gap-4 border-b border-(--cards-border) last:border-none py-1">
+								<Tooltip
+									content={
+										'Total revenue earned by the apps on the chain. Excludes stablecoins, liquid staking apps, and gas fees.'
+									}
+									className="text-[#545757] dark:text-[#cccccc] underline decoration-dotted"
+								>
+									App Revenue (24h)
+								</Tooltip>
+								<span className="font-jetbrains ml-auto">{formattedNum(props.appRevenue?.total24h, true)}</span>
+							</p>
+						) : null}
+						{props.appFees?.total24h != null && props.appFees?.total24h > 1e3 ? (
+							<p className="group flex flex-wrap justify-start gap-4 border-b border-(--cards-border) last:border-none py-1">
+								<Tooltip
+									content={
+										'Total fees paid by users when using the apps on the chain. Excludes stablecoins, liquid staking apps, and gas fees.'
+									}
+									className="text-[#545757] dark:text-[#cccccc] underline decoration-dotted"
+								>
+									App Fees (24h)
+								</Tooltip>
+								<span className="font-jetbrains ml-auto">{formattedNum(props.appFees?.total24h, true)}</span>
+							</p>
 						) : null}
 						{props.dexs?.total24h != null ? (
-							<RowWithSubRows
-								rowHeader={
+							<details className="group">
+								<summary className="flex flex-wrap justify-start gap-4 border-b border-(--cards-border) group-open:font-semibold group-open:border-none group-last:border-none py-1">
 									<Tooltip
 										content={
 											props.metadata.name === 'All'
 												? 'Sum of volume on all DEXs on all chains'
 												: 'Sum of volume on all DEXs on the chain'
 										}
-										className="underline decoration-dotted"
+										className="text-[#545757] dark:text-[#cccccc] underline decoration-dotted"
 									>
 										DEXs Volume (24h)
 									</Tooltip>
-								}
-								rowValue={formattedNum(props.dexs.total24h, true)}
-								helperText={null}
-								protocolName={null}
-								dataType={null}
-								subRows={
-									<>
-										{props.dexs.total7d ? (
-											<tr>
-												<th className="text-left font-normal pl-2 pb-1 text-[#545757] dark:text-[#cccccc]">
-													Volume (7d)
-												</th>
-												<td className="text-right font-jetbrains">{formattedNum(props.dexs.total7d, true)}</td>
-											</tr>
-										) : null}
-										<tr>
-											<th className="text-left font-normal pl-2 pb-1 text-[#545757] dark:text-[#cccccc]">
-												Weekly Change
-											</th>
-											<td
-												className={`text-right font-jetbrains pl-2 pb-1 text-ellipsis" ${
-													props.dexs.change_7dover7d >= 0 ? 'text-[var(--pct-green)]' : 'text-[var(--pct-red)]'
+									<Icon
+										name="chevron-down"
+										height={16}
+										width={16}
+										className="group-open:rotate-180 transition-transform duration-100 relative top-[2px] -ml-3"
+									/>
+									<span className="font-jetbrains ml-auto">{formattedNum(props.dexs.total24h, true)}</span>
+								</summary>
+								<div className="flex flex-col mb-3">
+									{props.dexs.total7d != null ? (
+										<p className="flex flex-wrap justify-stat gap-4 border-b border-dashed border-(--cards-border) last:border-none py-1">
+											<span className="text-[#545757] dark:text-[#cccccc]">Volume (7d)</span>
+											<span className="font-jetbrains ml-auto">{formattedNum(props.dexs.total7d, true)}</span>
+										</p>
+									) : null}
+									{props.dexs.change_7dover7d != null && (
+										<p className="flex flex-wrap justify-stat gap-4 border-b border-dashed border-(--cards-border) last:border-none py-1">
+											<span className="text-[#545757] dark:text-[#cccccc]">Weekly Change</span>
+											<span
+												className={`font-jetbrains ml-auto ${
+													props.dexs.change_7dover7d >= 0 ? 'text-(--pct-green)' : 'text-(--pct-red)'
 												}`}
 											>
 												{`${props.dexs.change_7dover7d >= 0 ? '+' : ''}${props.dexs.change_7dover7d}%`}
-											</td>
-										</tr>
-										<tr>
-											<th className="text-left font-normal pl-2 pb-1 text-[#545757] dark:text-[#cccccc]">
-												DEX vs CEX dominance
-											</th>
-											<td className="text-right font-jetbrains">{props.dexs.dexsDominance}%</td>
-										</tr>
-									</>
-								}
-							/>
+											</span>
+										</p>
+									)}
+									{props.dexs.dexsDominance != null ? (
+										<p className="flex flex-wrap justify-stat gap-4 border-b border-dashed border-(--cards-border) last:border-none py-1">
+											<span className="text-[#545757] dark:text-[#cccccc]">DEX vs CEX dominance</span>
+											<span className="font-jetbrains ml-auto">{props.dexs.dexsDominance}%</span>
+										</p>
+									) : null}
+								</div>
+							</details>
 						) : null}
 						{props.perps?.total24h != null ? (
-							<RowWithSubRows
-								rowHeader={
+							<details className="group">
+								<summary className="flex flex-wrap justify-start gap-4 border-b border-(--cards-border) group-open:font-semibold group-open:border-none group-last:border-none py-1">
 									<Tooltip
 										content="Sum of volume on all perpetual exchanges on the chain"
-										className="underline decoration-dotted"
+										className="text-[#545757] dark:text-[#cccccc] underline decoration-dotted"
 									>
 										Perps Volume (24h)
 									</Tooltip>
-								}
-								rowValue={formattedNum(props.perps.total24h, true)}
-								helperText={null}
-								protocolName={null}
-								dataType={null}
-								subRows={
-									<>
-										{props.perps.total7d ? (
-											<tr>
-												<th className="text-left font-normal pl-2 pb-1 text-[#545757] dark:text-[#cccccc]">
-													Perps Volume (7d)
-												</th>
-												<td className="text-right font-jetbrains">{formattedNum(props.perps.total7d, true)}</td>
-											</tr>
-										) : null}
-										<tr>
-											<th className="text-left font-normal pl-2 pb-1 text-[#545757] dark:text-[#cccccc]">
-												Weekly Change
-											</th>
-											<td
-												className={`text-right font-jetbrains pl-2 pb-1 text-ellipsis" ${
-													props.perps.change_7dover7d >= 0 ? 'text-[var(--pct-green)]' : 'text-[var(--pct-red)]'
+									<Icon
+										name="chevron-down"
+										height={16}
+										width={16}
+										className="group-open:rotate-180 transition-transform duration-100 relative top-[2px] -ml-3"
+									/>
+									<span className="font-jetbrains ml-auto">{formattedNum(props.perps.total24h, true)}</span>
+								</summary>
+								<div className="flex flex-col mb-3">
+									{props.perps.total7d != null ? (
+										<p className="flex flex-wrap justify-stat gap-4 border-b border-dashed border-(--cards-border) last:border-none py-1">
+											<span className="text-[#545757] dark:text-[#cccccc]">Perps Volume (7d)</span>
+											<span className="font-jetbrains ml-auto">{formattedNum(props.perps.total7d, true)}</span>
+										</p>
+									) : null}
+									{props.perps.change_7dover7d != null ? (
+										<p className="flex flex-wrap justify-stat gap-4 border-b border-dashed border-(--cards-border) last:border-none py-1">
+											<span className="text-[#545757] dark:text-[#cccccc]">Weekly Change</span>
+											<span
+												className={`font-jetbrains ml-auto ${
+													props.perps.change_7dover7d >= 0 ? 'text-(--pct-green)' : 'text-(--pct-red)'
 												}`}
 											>
 												{`${props.perps.change_7dover7d >= 0 ? '+' : ''}${props.perps.change_7dover7d}%`}
-											</td>
-										</tr>
-									</>
-								}
-							/>
+											</span>
+										</p>
+									) : null}
+								</div>
+							</details>
 						) : null}
 						{props.inflows?.netInflows != null ? (
-							<tr>
-								<th className="text-[#545757] dark:text-[#cccccc] font-normal text-left pb-1">
-									<Tooltip
-										content="Net money bridged to the chain within the last 24h"
-										className="underline decoration-dotted"
-									>
-										Inflows (24h)
-									</Tooltip>
-								</th>
-								<td className="font-jetbrains text-right">{formattedNum(props.inflows.netInflows, true)}</td>
-							</tr>
+							<p className="group flex flex-wrap justify-start gap-4 border-b border-(--cards-border) last:border-none py-1">
+								<Tooltip
+									content="Net money bridged to the chain within the last 24h"
+									className="text-[#545757] dark:text-[#cccccc] underline decoration-dotted"
+								>
+									Inflows (24h)
+								</Tooltip>
+								<span className="font-jetbrains ml-auto">{formattedNum(props.inflows.netInflows, true)}</span>
+							</p>
 						) : null}
 						{props.users.activeUsers != null ? (
-							<RowWithSubRows
-								rowHeader={
+							<details className="group">
+								<summary className="flex flex-wrap justify-start gap-4 border-b border-(--cards-border) group-open:font-semibold group-open:border-none group-last:border-none py-1">
 									<Tooltip
 										content={
 											<p>
@@ -455,127 +374,120 @@ export const Stats = memo(function Stats(props: IChainOverviewData) {
 												users that are interacting with the protocol through another product aren't likely to be sticky.
 											</p>
 										}
-										className="underline decoration-dotted"
+										className="text-[#545757] dark:text-[#cccccc] underline decoration-dotted"
 									>
 										Active Addresses (24h)
 									</Tooltip>
-								}
-								rowValue={formattedNum(props.users.activeUsers, false)}
-								helperText={null}
-								protocolName={null}
-								dataType={null}
-								subRows={
-									<>
-										{props.users.newUsers ? (
-											<tr>
-												<th className="text-left font-normal pl-2 pb-1 text-[#545757] dark:text-[#cccccc]">
-													New Addresses (24h)
-												</th>
-												<td className="text-right font-jetbrains">{formattedNum(props.users.newUsers, false)}</td>
-											</tr>
-										) : null}
-										{props.users.transactions ? (
-											<tr>
-												<th className="text-left font-normal pl-2 pb-1 text-[#545757] dark:text-[#cccccc]">
-													Transactions (24h)
-												</th>
-												<td className="text-right font-jetbrains">{formattedNum(props.users.transactions, false)}</td>
-											</tr>
-										) : null}
-									</>
-								}
-							/>
+									<Icon
+										name="chevron-down"
+										height={16}
+										width={16}
+										className="group-open:rotate-180 transition-transform duration-100 relative top-[2px] -ml-3"
+									/>
+									<span className="font-jetbrains ml-auto">{formattedNum(props.users.activeUsers, false)}</span>
+								</summary>
+								<div className="flex flex-col mb-3">
+									{props.users.newUsers != null ? (
+										<p className="flex flex-wrap justify-stat gap-4 border-b border-dashed border-(--cards-border) last:border-none py-1">
+											<span className="text-[#545757] dark:text-[#cccccc]">New Addresses (24h)</span>
+											<span className="font-jetbrains ml-auto">{formattedNum(props.users.newUsers, false)}</span>
+										</p>
+									) : null}
+									{props.users.transactions != null ? (
+										<p className="flex flex-wrap justify-stat gap-4 border-b border-dashed border-(--cards-border) last:border-none py-1">
+											<span className="text-[#545757] dark:text-[#cccccc]">Transactions (24h)</span>
+											<span className="font-jetbrains ml-auto">{formattedNum(props.users.transactions, false)}</span>
+										</p>
+									) : null}
+								</div>
+							</details>
 						) : null}
 						{props.treasury ? (
-							<RowWithSubRows
-								rowHeader={'Treasury'}
-								rowValue={formattedNum(props.treasury.tvl, true)}
-								helperText={null}
-								protocolName={null}
-								dataType={null}
-								subRows={
-									<>
-										{props.treasury.tokenBreakdowns?.stablecoins ? (
-											<tr>
-												<th className="text-left font-normal pl-2 pb-1 text-[#545757] dark:text-[#cccccc]">
-													Stablecoins
-												</th>
-												<td className="text-right font-jetbrains">
-													{formattedNum(props.treasury.tokenBreakdowns?.stablecoins, true)}
-												</td>
-											</tr>
-										) : null}
-										{props.treasury.tokenBreakdowns?.majors ? (
-											<tr>
-												<th className="text-left font-normal pl-2 pb-1 text-[#545757] dark:text-[#cccccc]">
-													Major Tokens (ETH, BTC)
-												</th>
-												<td className="text-right font-jetbrains">
-													{formattedNum(props.treasury.tokenBreakdowns?.majors, true)}
-												</td>
-											</tr>
-										) : null}
-										{props.treasury.tokenBreakdowns?.others ? (
-											<tr>
-												<th className="text-left font-normal pl-2 pb-1 text-[#545757] dark:text-[#cccccc]">
-													Other Tokens
-												</th>
-												<td className="text-right font-jetbrains">
-													{formattedNum(props.treasury.tokenBreakdowns?.others, true)}
-												</td>
-											</tr>
-										) : null}
-										{props.treasury.tokenBreakdowns?.ownTokens ? (
-											<tr>
-												<th className="text-left font-normal pl-2 pb-1 text-[#545757] dark:text-[#cccccc]">
-													Own Tokens
-												</th>
-												<td className="text-right font-jetbrains">
-													{formattedNum(props.treasury.tokenBreakdowns?.ownTokens, true)}
-												</td>
-											</tr>
-										) : null}
-									</>
-								}
-							/>
+							<details className="group">
+								<summary className="flex flex-wrap justify-start gap-4 border-b border-(--cards-border) group-open:font-semibold group-open:border-none group-last:border-none py-1">
+									<span className="text-[#545757] dark:text-[#cccccc]">Treasury</span>
+									<Icon
+										name="chevron-down"
+										height={16}
+										width={16}
+										className="group-open:rotate-180 transition-transform duration-100 relative top-[2px] -ml-3"
+									/>
+									<span className="font-jetbrains ml-auto">{formattedNum(props.treasury.tvl, true)}</span>
+								</summary>
+								<div className="flex flex-col mb-3">
+									{props.treasury.tokenBreakdowns?.stablecoins != null ? (
+										<p className="flex flex-wrap justify-stat gap-4 border-b border-dashed border-(--cards-border) last:border-none py-1">
+											<span className="text-[#545757] dark:text-[#cccccc]">Stablecoins</span>
+											<span className="font-jetbrains ml-auto">
+												{formattedNum(props.treasury.tokenBreakdowns?.stablecoins, true)}
+											</span>
+										</p>
+									) : null}
+									{props.treasury.tokenBreakdowns?.majors != null ? (
+										<p className="flex flex-wrap justify-stat gap-4 border-b border-dashed border-(--cards-border) last:border-none py-1">
+											<span className="text-[#545757] dark:text-[#cccccc]">Major Tokens (ETH, BTC)</span>
+											<span className="font-jetbrains ml-auto">
+												{formattedNum(props.treasury.tokenBreakdowns?.majors, true)}
+											</span>
+										</p>
+									) : null}
+									{props.treasury.tokenBreakdowns?.others != null ? (
+										<p className="flex flex-wrap justify-stat gap-4 border-b border-dashed border-(--cards-border) last:border-none py-1">
+											<span className="text-[#545757] dark:text-[#cccccc]">Other Tokens</span>
+											<span className="font-jetbrains ml-auto">
+												{formattedNum(props.treasury.tokenBreakdowns?.others, true)}
+											</span>
+										</p>
+									) : null}
+									{props.treasury.tokenBreakdowns?.ownTokens != null ? (
+										<p className="flex flex-wrap justify-stat gap-4 border-b border-dashed border-(--cards-border) last:border-none py-1">
+											<span className="text-[#545757] dark:text-[#cccccc]">Own Tokens</span>
+											<span className="font-jetbrains ml-auto">
+												{formattedNum(props.treasury.tokenBreakdowns?.ownTokens, true)}
+											</span>
+										</p>
+									) : null}
+								</div>
+							</details>
 						) : null}
 						{props.chainRaises && props.chainRaises.length > 0 && (
-							<RowWithSubRows
-								protocolName={null}
-								dataType={'Raises'}
-								helperText={null}
-								rowHeader={
+							<details className="group">
+								<summary className="flex flex-wrap justify-start gap-4 border-b border-(--cards-border) group-open:font-semibold group-open:border-none group-last:border-none py-1">
 									<Tooltip
 										content="Sum of all money raised by the chain, including VC funding rounds, public sales and ICOs."
-										className="underline decoration-dotted"
+										className="text-[#545757] dark:text-[#cccccc] underline decoration-dotted"
 									>
 										Total Raised
 									</Tooltip>
-								}
-								rowValue={formatRaisedAmount(props.chainRaises.reduce((sum, r) => sum + Number(r.amount), 0))}
-								subRows={
-									<>
-										{props.chainRaises
-											.sort((a, b) => a.date - b.date)
-											.map((raise) => (
-												<Fragment key={raise.date + raise.amount}>
-													<tr>
-														<th className="text-left mb-auto font-normal pl-2 pb-1 text-[#545757] dark:text-[#cccccc]">
-															{new Date(raise.date * 1000).toISOString().split('T')[0]}
-														</th>
-														<td className="text-right">
-															{raise.source ? (
-																<a target="_blank" rel="noopener noreferrer" href={raise.source}>
-																	{formatRaise(raise)}
-																</a>
-															) : (
-																formatRaise(raise)
-															)}
-														</td>
-													</tr>
-													<tr key={raise.source}>
-														<td colSpan={2} className="text-right">
-															<b>Investors</b>:{' '}
+									<Icon
+										name="chevron-down"
+										height={16}
+										width={16}
+										className="group-open:rotate-180 transition-transform duration-100 relative top-[2px] -ml-3"
+									/>
+									<span className="font-jetbrains ml-auto">
+										{formatRaisedAmount(props.chainRaises.reduce((sum, r) => sum + Number(r.amount), 0))}
+									</span>
+								</summary>
+								<div className="flex flex-col mb-3">
+									{props.chainRaises
+										.sort((a, b) => a.date - b.date)
+										.map((raise) => (
+											<p
+												className="flex flex-col gap-1 border-b border-dashed border-(--cards-border) group-last:border-none py-1"
+												key={`${raise.date}-${raise.amount}-${raise.source}-${raise.round}`}
+											>
+												<span className="flex flex-wrap justify-between">
+													<span className="text-[#545757] dark:text-[#cccccc]">
+														{dayjs(raise.date * 1000).format('MMM D, YYYY')}
+													</span>
+													<span className="font-jetbrains">{formattedNum(raise.amount * 1_000_000, true)}</span>
+												</span>
+												<span className="flex gap-1 flex-wrap justify-between text-[#545757] dark:text-[#cccccc]">
+													<span>Round: {raise.round}</span>
+													{(raise as any).leadInvestors?.length || (raise as any).otherInvestors?.length ? (
+														<span>
+															Investors:{' '}
 															{(raise as any).leadInvestors
 																.concat((raise as any).otherInvestors)
 																.map((i, index, arr) => (
@@ -584,193 +496,253 @@ export const Stats = memo(function Stats(props: IChainOverviewData) {
 																		{index < arr.length - 1 ? ', ' : ''}
 																	</Fragment>
 																))}
-														</td>
-													</tr>
-												</Fragment>
-											))}
-									</>
-								}
-							/>
+														</span>
+													) : null}
+												</span>
+											</p>
+										))}
+								</div>
+							</details>
 						)}
 						{props.chainAssets ? (
-							<RowWithSubRows
-								rowHeader="Bridged TVL"
-								rowValue={formattedNum(
-									props.chainAssets.total.total +
-										(extraTvlsEnabled.govtokens ? +(props.chainAssets?.ownTokens?.total ?? 0) : 0),
-									true
-								)}
-								helperText={null}
-								protocolName={null}
-								dataType={null}
-								subRows={
-									<>
-										{props.chainAssets.native?.total ? (
-											<tr>
-												<th className="text-left font-normal pl-2 pb-1 text-[#545757] dark:text-[#cccccc]">
-													<span className="flex items-center gap-1">
-														<Tooltip
-															content="Sum of marketcaps of all tokens that were issued on the chain (excluding the chain's own token)"
-															className="underline decoration-dotted"
-														>
-															Native
-														</Tooltip>
-													</span>
-												</th>
-												<td className="text-right font-jetbrains">
-													{formattedNum(props.chainAssets.native.total, true)}
-												</td>
-											</tr>
-										) : null}
-										{props.chainAssets.ownTokens?.total ? (
-											<tr>
-												<th className="text-left font-normal pl-2 pb-1 text-[#545757] dark:text-[#cccccc]">
-													<span className="flex items-center gap-1">
-														<Tooltip
-															content="Marketcap of the governance token of the chain"
-															className="underline decoration-dotted"
-														>
-															Own Tokens
-														</Tooltip>
-													</span>
-												</th>
-												<td className="text-right font-jetbrains">
-													{formattedNum(props.chainAssets.ownTokens.total, true)}
-												</td>
-											</tr>
-										) : null}
-
-										{props.chainAssets.canonical?.total ? (
-											<tr>
-												<th className="text-left font-normal pl-2 pb-1 text-[#545757] dark:text-[#cccccc]">
-													<span className="flex items-center gap-1">
-														<Tooltip
-															content="Tokens that were bridged to the chain through the canonical bridge"
-															className="underline decoration-dotted"
-														>
-															Canonical
-														</Tooltip>
-													</span>
-												</th>
-												<td className="text-right font-jetbrains">
-													{formattedNum(props.chainAssets.canonical.total, true)}
-												</td>
-											</tr>
-										) : null}
-
-										{props.chainAssets.thirdParty?.total ? (
-											<tr>
-												<th className="text-left font-normal pl-2 pb-1 text-[#545757] dark:text-[#cccccc]">
-													<span className="flex items-center gap-1">
-														<Tooltip
-															content="Tokens that were bridged to the chain through third party bridges"
-															className="underline decoration-dotted"
-														>
-															Third Party
-														</Tooltip>
-													</span>
-												</th>
-												<td className="text-right font-jetbrains">
-													{formattedNum(props.chainAssets.thirdParty.total, true)}
-												</td>
-											</tr>
-										) : null}
-									</>
-								}
-							/>
+							<details className="group">
+								<summary className="flex flex-wrap justify-start gap-4 border-b border-(--cards-border) group-open:font-semibold group-open:border-none group-last:border-none py-1">
+									<span className="text-[#545757] dark:text-[#cccccc]">Bridged TVL</span>
+									<Icon
+										name="chevron-down"
+										height={16}
+										width={16}
+										className="group-open:rotate-180 transition-transform duration-100 relative top-[2px] -ml-3"
+									/>
+									<span className="font-jetbrains ml-auto">
+										{formattedNum(
+											props.chainAssets.total.total +
+												(tvlSettings.govtokens ? +(props.chainAssets?.ownTokens?.total ?? 0) : 0),
+											true
+										)}
+									</span>
+								</summary>
+								<div className="flex flex-col mb-3">
+									{props.chainAssets.native?.total ? (
+										<p className="flex flex-wrap justify-stat gap-4 border-b border-dashed border-(--cards-border) last:border-none py-1">
+											<Tooltip
+												content="Sum of marketcaps of all tokens that were issued on the chain (excluding the chain's own token)"
+												className="text-[#545757] dark:text-[#cccccc] underline decoration-dotted"
+											>
+												Native
+											</Tooltip>
+											<span className="font-jetbrains ml-auto">
+												{formattedNum(props.chainAssets.native.total, true)}
+											</span>
+										</p>
+									) : null}
+									{props.chainAssets.ownTokens?.total ? (
+										<p className="flex flex-wrap justify-stat gap-4 border-b border-dashed border-(--cards-border) last:border-none py-1">
+											<Tooltip
+												content="Marketcap of the governance token of the chain"
+												className="text-[#545757] dark:text-[#cccccc] underline decoration-dotted"
+											>
+												Own Tokens
+											</Tooltip>
+											<span className="font-jetbrains ml-auto">
+												{formattedNum(props.chainAssets.ownTokens.total, true)}
+											</span>
+										</p>
+									) : null}
+									{props.chainAssets.canonical?.total ? (
+										<p className="flex flex-wrap justify-stat gap-4 border-b border-dashed border-(--cards-border) last:border-none py-1">
+											<Tooltip
+												content="Tokens that were bridged to the chain through the canonical bridge"
+												className="text-[#545757] dark:text-[#cccccc] underline decoration-dotted"
+											>
+												Canonical
+											</Tooltip>
+											<span className="font-jetbrains ml-auto">
+												{formattedNum(props.chainAssets.canonical.total, true)}
+											</span>
+										</p>
+									) : null}
+									{props.chainAssets.thirdParty?.total ? (
+										<p className="flex flex-wrap justify-stat gap-4 border-b border-dashed border-(--cards-border) last:border-none py-1">
+											<Tooltip
+												content="Tokens that were bridged to the chain through third party bridges"
+												className="text-[#545757] dark:text-[#cccccc] underline decoration-dotted"
+											>
+												Third Party
+											</Tooltip>
+											<span className="font-jetbrains ml-auto">
+												{formattedNum(props.chainAssets.thirdParty.total, true)}
+											</span>
+										</p>
+									) : null}
+								</div>
+							</details>
 						) : null}
 						{props.nfts ? (
-							<tr>
-								<th className="text-[#545757] dark:text-[#cccccc] font-normal text-left pb-1">
-									<Tooltip
-										content="Volume of Non Fungible Tokens traded in the last 24 hours"
-										className="underline decoration-dotted"
-									>
-										NFT Volume (24h)
-									</Tooltip>
-								</th>
-								<td className="font-jetbrains text-right">{formattedNum(props.nfts.total24h, true)}</td>
-							</tr>
+							<p className="group flex flex-wrap justify-start gap-4 border-b border-(--cards-border) last:border-none py-1">
+								<Tooltip
+									content="Volume of Non Fungible Tokens traded in the last 24 hours"
+									className="text-[#545757] dark:text-[#cccccc] underline decoration-dotted"
+								>
+									NFT Volume (24h)
+								</Tooltip>
+								<span className="font-jetbrains ml-auto">{formattedNum(props.nfts.total24h, true)}</span>
+							</p>
 						) : null}
 						{props.chainTokenInfo?.token_symbol ? (
-							<tr>
-								<th className="text-[#545757] dark:text-[#cccccc] font-normal text-left pb-1">
-									{props.chainTokenInfo?.token_symbol} Price
-								</th>
-								<td className="font-jetbrains text-right">{formattedNum(props.chainTokenInfo?.current_price, true)}</td>
-							</tr>
+							<p className="group flex flex-wrap justify-start gap-4 border-b border-(--cards-border) last:border-none py-1">
+								<span className="text-[#545757] dark:text-[#cccccc]">${props.chainTokenInfo.token_symbol} Price</span>
+								<span className="font-jetbrains ml-auto">
+									{formattedNum(props.chainTokenInfo?.current_price, true)}
+								</span>
+							</p>
 						) : null}
 						{props.chainTokenInfo?.token_symbol ? (
-							<tr>
-								<th className="text-[#545757] dark:text-[#cccccc] font-normal text-left pb-1">
-									{props.chainTokenInfo?.token_symbol} Market Cap
-								</th>
-								<td className="font-jetbrains text-right">
+							<p className="group flex flex-wrap justify-start gap-4 border-b border-(--cards-border) last:border-none py-1">
+								<span className="text-[#545757] dark:text-[#cccccc]">
+									${props.chainTokenInfo.token_symbol} Market Cap
+								</span>
+								<span className="font-jetbrains ml-auto">
 									{formattedNum(props.chainTokenInfo?.market_cap ?? 0, true)}
-								</td>
-							</tr>
+								</span>
+							</p>
 						) : null}
 						{props.chainTokenInfo?.token_symbol ? (
-							<tr>
-								<th className="text-[#545757] dark:text-[#cccccc] font-normal text-left pb-1">
-									{props.chainTokenInfo?.token_symbol} FDV
-								</th>
-								<td className="font-jetbrains text-right">
+							<p className="group flex flex-wrap justify-start gap-4 border-b border-(--cards-border) last:border-none py-1">
+								<span className="text-[#545757] dark:text-[#cccccc]">${props.chainTokenInfo.token_symbol} FDV</span>
+								<span className="font-jetbrains ml-auto">
 									{formattedNum(props.chainTokenInfo?.fully_diluted_valuation ?? 0, true)}
-								</td>
-							</tr>
+								</span>
+							</p>
 						) : null}
-					</tbody>
-				</table>
+					</div>
+				</div>
 				<CSVDownloadButton
 					onClick={() => {
 						window.open(
 							`https://api.llama.fi/simpleChainDataset/${
 								chainsNamesMap[props.metadata.name] || props.metadata.name
-							}?${Object.entries(extraTvlsEnabled)
+							}?${Object.entries(tvlSettings)
 								.filter((t) => t[1] === true)
 								.map((t) => `${t[0]}=true`)
 								.join('&')}`.replaceAll(' ', '%20')
 						)
 					}}
-					className="mt-auto mr-auto"
+					smol
+					className="h-[30px] bg-transparent! border border-(--form-control-border) text-[#666]! dark:text-[#919296]! hover:bg-(--link-hover-bg)! focus-visible:bg-(--link-hover-bg)! ml-auto"
 				/>
 			</div>
-			<div className="bg-[var(--cards-bg)] rounded-md flex flex-col col-span-2">
-				<div className="flex flex-wrap items-center justify-end gap-2 p-3">
+			<div className="bg-(--cards-bg) border border-(--cards-border) rounded-md flex flex-col col-span-2">
+				<div className="flex flex-wrap items-center justify-end gap-2 p-2">
 					<div className="flex items-center flex-wrap gap-2 mr-auto">
-						{chartOptions
-							.filter((o) => o.isVisible)
-							.map(({ id, name }) => (
-								<Switch
-									key={id + 'chart-option'}
-									label={name}
-									value={id}
+						{props.charts.length > 0 ? (
+							<Ariakit.DialogProvider store={metricsDialogStore}>
+								<Ariakit.DialogDisclosure className="flex shrink-0 items-center justify-between gap-2 py-1 px-2 font-normal rounded-md cursor-pointer bg-white dark:bg-[#181A1C] hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) border border-(--cards-border)">
+									<span>Add Metrics</span>
+									<Icon name="plus" className="h-[14px] w-[14px]" />
+								</Ariakit.DialogDisclosure>
+								<Ariakit.Dialog className="dialog gap-3 sm:w-full max-sm:drawer" unmountOnHide>
+									<Ariakit.DialogHeading className="text-2xl font-bold">Add metrics to chart</Ariakit.DialogHeading>
+									<div className="flex flex-wrap gap-2">
+										{props.charts.map((tchart) => (
+											<button
+												key={`add-chain-metric-${chainCharts[tchart]}`}
+												onClick={() => {
+													updateRoute(
+														chainCharts[tchart],
+														chainCharts[tchart] === 'tvl'
+															? router.query[chainCharts[tchart]] !== 'false'
+																? 'false'
+																: 'true'
+															: router.query[chainCharts[tchart]] === 'true'
+															? 'false'
+															: 'true',
+														router
+													)
+													metricsDialogStore.toggle()
+												}}
+												data-active={
+													chainCharts[tchart] === 'tvl'
+														? router.query[chainCharts[tchart]] !== 'false'
+														: router.query[chainCharts[tchart]] === 'true'
+												}
+												className="flex items-center gap-1 border border-(--old-blue) hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) rounded-full px-2 py-1 data-[active=true]:bg-(--old-blue) data-[active=true]:text-white"
+											>
+												<span>
+													{tchart.includes('Token')
+														? tchart.replace(
+																'Token',
+																props.chainTokenInfo?.token_symbol ? `$${props.chainTokenInfo?.token_symbol}` : 'Token'
+														  )
+														: tchart}
+												</span>
+												{chainCharts[tchart] === 'tvl' ? (
+													router.query[chainCharts[tchart]] === 'false' ? (
+														<Icon name="plus" className="h-[14px] w-[14px]" />
+													) : (
+														<Icon name="x" className="h-[14px] w-[14px]" />
+													)
+												) : router.query[chainCharts[tchart]] === 'true' ? (
+													<Icon name="x" className="h-[14px] w-[14px]" />
+												) : (
+													<Icon name="plus" className="h-[14px] w-[14px]" />
+												)}
+											</button>
+										))}
+									</div>
+								</Ariakit.Dialog>
+							</Ariakit.DialogProvider>
+						) : null}
+						{toggledCharts.map((tchart) => (
+							<label
+								className="relative text-sm cursor-pointer flex items-center gap-1 flex-nowrap last-of-type:mr-auto"
+								key={`add-or-remove-metric-${chainCharts[tchart]}`}
+							>
+								<input
+									type="checkbox"
+									value={tchart}
+									checked={true}
 									onChange={() => {
 										updateRoute(
-											id,
-											id === 'tvl'
-												? router.query[id] !== 'false'
+											chainCharts[tchart],
+											chainCharts[tchart] === 'tvl'
+												? router.query[chainCharts[tchart]] !== 'false'
 													? 'false'
 													: 'true'
-												: router.query[id] === 'true'
+												: router.query[chainCharts[tchart]] === 'true'
 												? 'false'
 												: 'true',
 											router
 										)
 									}}
-									checked={id === 'tvl' ? router.query[id] !== 'false' : router.query[id] === 'true'}
-									switchColors={chainOverviewChartSwitchColors[id]}
+									className="peer absolute w-[1em] h-[1em] opacity-[0.00001]"
 								/>
-							))}
+								<span
+									className="text-xs flex items-center gap-1 border-2 border-(--old-blue) rounded-full px-2 py-1"
+									style={{
+										borderColor: chainOverviewChartColors[tchart]
+									}}
+								>
+									<span>
+										{tchart.includes('Token')
+											? tchart.replace(
+													'Token',
+													props.chainTokenInfo?.token_symbol ? `$${props.chainTokenInfo?.token_symbol}` : 'Token'
+											  )
+											: tchart}
+									</span>
+									<Icon name="x" className="h-[14px] w-[14px]" />
+								</span>
+							</label>
+						))}
 					</div>
 
 					{DENOMINATIONS.length > 1 ? (
-						<div className="flex items-center rounded-md overflow-x-auto flex-nowrap w-fit border border-[var(--form-control-border)] text-[#666] dark:text-[#919296]">
+						<div className="flex items-center rounded-md overflow-x-auto flex-nowrap w-fit border border-(--form-control-border) text-[#666] dark:text-[#919296]">
 							{DENOMINATIONS.map((denom) => (
 								<button
 									key={`denom-${denom}`}
-									className="flex-shrink-0 py-1 px-2 whitespace-nowrap data-[active=true]:font-medium text-sm hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] data-[active=true]:text-[var(--old-blue)]"
+									className="shrink-0 py-1 px-2 whitespace-nowrap data-[active=true]:font-medium text-sm hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) data-[active=true]:text-(--old-blue)"
 									data-active={denomination === denom}
 									onClick={() => updateRoute('currency', denom, router)}
 								>
@@ -781,11 +753,11 @@ export const Stats = memo(function Stats(props: IChainOverviewData) {
 					) : null}
 
 					{hasAtleasOneBarChart ? (
-						<div className="flex items-center rounded-md overflow-x-auto flex-nowrap w-fit border border-[var(--form-control-border)] text-[#666] dark:text-[#919296]">
+						<div className="flex items-center rounded-md overflow-x-auto flex-nowrap w-fit border border-(--form-control-border) text-[#666] dark:text-[#919296]">
 							<Tooltip
 								content="Daily"
 								render={<button />}
-								className="flex-shrink-0 py-1 px-2 whitespace-nowrap font-medium text-sm hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] data-[active=true]:text-[var(--link-text)]"
+								className="shrink-0 py-1 px-2 whitespace-nowrap font-medium text-sm hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) data-[active=true]:text-(--link-text)"
 								data-active={groupBy === 'daily' || !groupBy}
 								onClick={() => updateGroupBy('daily')}
 							>
@@ -794,7 +766,7 @@ export const Stats = memo(function Stats(props: IChainOverviewData) {
 							<Tooltip
 								content="Weekly"
 								render={<button />}
-								className="flex-shrink-0 py-1 px-2 whitespace-nowrap data-[active=true]:font-medium text-sm hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] data-[active=true]:text-[var(--link-text)]"
+								className="shrink-0 py-1 px-2 whitespace-nowrap data-[active=true]:font-medium text-sm hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) data-[active=true]:text-(--link-text)"
 								data-active={groupBy === 'weekly'}
 								onClick={() => updateGroupBy('weekly')}
 							>
@@ -803,14 +775,14 @@ export const Stats = memo(function Stats(props: IChainOverviewData) {
 							<Tooltip
 								content="Monthly"
 								render={<button />}
-								className="flex-shrink-0 py-1 px-2 whitespace-nowrap data-[active=true]:font-medium text-sm hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] data-[active=true]:text-[var(--link-text)]"
+								className="shrink-0 py-1 px-2 whitespace-nowrap data-[active=true]:font-medium text-sm hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) data-[active=true]:text-(--link-text)"
 								data-active={groupBy === 'monthly'}
 								onClick={() => updateGroupBy('monthly')}
 							>
 								M
 							</Tooltip>
 							<button
-								className="flex-shrink-0 py-1 px-2 whitespace-nowrap data-[active=true]:font-medium text-sm hover:bg-[var(--link-hover-bg)] focus-visible:bg-[var(--link-hover-bg)] data-[active=true]:text-[var(--link-text)]"
+								className="shrink-0 py-1 px-2 whitespace-nowrap data-[active=true]:font-medium text-sm hover:bg-(--link-hover-bg) focus-visible:bg-(--link-hover-bg) data-[active=true]:text-(--link-text)"
 								data-active={groupBy === 'cumulative'}
 								onClick={() => updateGroupBy('cumulative')}
 							>
@@ -819,6 +791,17 @@ export const Stats = memo(function Stats(props: IChainOverviewData) {
 						</div>
 					) : null}
 					<EmbedChart />
+					<CSVDownloadButton
+						onClick={() => {
+							try {
+								downloadChart(finalCharts, `${props.chain}.csv`)
+							} catch (error) {
+								console.error('Error generating CSV:', error)
+							}
+						}}
+						smol
+						className="h-[30px] bg-transparent! border border-(--form-control-border) text-[#666]! dark:text-[#919296]! hover:bg-(--link-hover-bg)! focus-visible:bg-(--link-hover-bg)!"
+					/>
 				</div>
 
 				{isFetchingChartData ? (
@@ -826,7 +809,9 @@ export const Stats = memo(function Stats(props: IChainOverviewData) {
 						<p>Loading...</p>
 					</div>
 				) : (
-					<ChainChart datasets={chartDatasets} title="" denomination={denomination} isThemeDark={darkMode} />
+					<Suspense fallback={<div className="flex items-center justify-center m-auto min-h-[360px]" />}>
+						<ChainChart chartData={finalCharts} valueSymbol={valueSymbol} isThemeDark={darkMode} groupBy={groupBy} />
+					</Suspense>
 				)}
 			</div>
 		</div>
@@ -848,4 +833,34 @@ const updateRoute = (key, val, router) => {
 
 const chainsNamesMap = {
 	'OP Mainnet': 'Optimism'
+}
+
+function downloadChart(data: Record<string, Array<[string | number, number]>>, filename: string) {
+	let rows = []
+	const charts = []
+	const dateStore = {}
+	for (const chartName in data) {
+		charts.push(chartName)
+		for (const [date, value] of data[chartName]) {
+			if (!dateStore[date]) {
+				dateStore[date] = {}
+			}
+			dateStore[date][chartName] = value
+		}
+	}
+	rows.push(['Timestamp', 'Date', ...charts])
+	for (const date in dateStore) {
+		const values = []
+		for (const chartName in data) {
+			values.push(dateStore[date]?.[chartName] ?? '')
+		}
+		rows.push([date, toNiceCsvDate(+date / 1000), ...values])
+	}
+	download(
+		filename,
+		rows
+			.sort((a, b) => a[0] - b[0])
+			.map((r) => r.join(','))
+			.join('\n')
+	)
 }
