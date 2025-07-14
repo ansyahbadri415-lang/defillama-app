@@ -63,7 +63,7 @@ async function fetchPromptResponse({
 			requestBody.sessionId = sessionId
 		}
 
-		const response = await fetch('http://localhost:6969/chatbot-agent', {
+		const response = await fetch('https://mcp.llama.team/chatbot-agent', {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json'
@@ -465,7 +465,9 @@ export function LlamaAI({ searchData }: { searchData: ISearchData }) {
 										{item.response.chartData && (
 											<details className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
 												<summary className="text-sm font-medium cursor-pointer">Raw Chart Data</summary>
-												<pre className="text-xs mt-2 overflow-auto">{JSON.stringify(item.response.chartData, null, 2)}</pre>
+												<pre className="text-xs mt-2 overflow-auto">
+													{JSON.stringify(item.response.chartData, null, 2)}
+												</pre>
 											</details>
 										)}
 									</div>
