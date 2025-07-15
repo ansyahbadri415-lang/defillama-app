@@ -101,7 +101,10 @@ export default function ClusteredBarChart({
 				}
 			},
 			axisLabel: {
-				formatter: (value: number) => formattedNum(value, true)
+				formatter: (value: number) => {
+					const formatted = formattedNum(value, true)
+					return valueSymbol === '%' ? `${formatted}%` : `${valueSymbol}${formatted}`
+				}
 			}
 		}
 
@@ -111,7 +114,12 @@ export default function ClusteredBarChart({
 			formatter: (params: any) => {
 				let content = `<strong>${params[0].axisValue}</strong><br/>`
 				params.forEach((param: any) => {
-					content += `${param.seriesName}: ${valueSymbol}${formattedNum(param.value, false)}<br/>`
+					const formattedValue = formattedNum(param.value, false)
+					if (valueSymbol === '%') {
+						content += `${param.seriesName}: ${formattedValue}${valueSymbol}<br/>`
+					} else {
+						content += `${param.seriesName}: ${valueSymbol}${formattedValue}<br/>`
+					}
 				})
 				return content
 			}

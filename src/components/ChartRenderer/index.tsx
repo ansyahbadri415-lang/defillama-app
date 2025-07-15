@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useMemo } from 'react'
 import AreaChart from '../ECharts/AreaChart'
 import CustomBarChart from './CustomBarChart'
 import ClusteredBarChart from './ClusteredBarChart'
@@ -39,6 +39,13 @@ export interface ChartConfig {
 		isStacked?: boolean
 		yAxisScale?: 'linear' | 'logarithmic'
 	}
+	availableViews?: Array<{
+		mode: 'absolute' | 'percentage'
+		metrics: string[]
+		symbol: string
+		title: string
+	}>
+	activeView?: 'absolute' | 'percentage'
 	advancedConfig?: {
 		clustered?: {
 			groupBy: string
@@ -72,19 +79,88 @@ interface ChartRendererProps {
 }
 
 const ChartRenderer: React.FC<ChartRendererProps> = ({ chart }) => {
-	const { type, title, description, data, config, advancedConfig } = chart
+	const {
+		type,
+		title,
+		description,
+		data,
+		config,
+		advancedConfig,
+		availableViews,
+		activeView: defaultActiveView
+	} = chart
+
+	const [activeView, setActiveView] = useState<'absolute' | 'percentage'>(defaultActiveView || 'percentage')
+
+	const currentViewConfig = useMemo(() => {
+		if (!availableViews || availableViews.length === 0) {
+			return null
+		}
+
+		return availableViews.find((view) => view.mode === activeView) || availableViews[0]
+	}, [availableViews, activeView])
+
+	const { filteredData, filteredConfig } = useMemo(() => {
+		if (!currentViewConfig) {
+			return { filteredData: data, filteredConfig: config }
+		}
+
+		const viewMetrics = currentViewConfig.metrics
+
+		let newData = data
+
+		if (type === 'clustered-bar' && (data as any).categories && (data as any).series) {
+			const originalData = data as any
+			const filteredSeries = originalData.series.filter((seriesItem: any) => viewMetrics.includes(seriesItem.dataKey))
+			newData = {
+				...originalData,
+				series: filteredSeries
+			}
+		} else if (data.single) {
+			newData = {
+				single: data.single.map((item) => {
+					const filtered: any = { date: item.date, entity: (item as any).entity }
+					viewMetrics.forEach((metric) => {
+						if (metric in item) {
+							filtered[metric] = (item as any)[metric]
+						}
+					})
+					return filtered
+				})
+			}
+		} else if (data.multi) {
+			const filteredSeries = data.multi.series.filter((seriesItem) => viewMetrics.includes(seriesItem.metric))
+
+			const filteredMetrics = data.multi.metrics.filter((metric) => viewMetrics.includes(metric))
+			newData = {
+				multi: {
+					...data.multi,
+					metrics: filteredMetrics,
+					series: filteredSeries
+				}
+			}
+		}
+
+		const newConfig = {
+			...config,
+			valueSymbol: currentViewConfig.symbol,
+			yAxis: currentViewConfig.title.includes('%') ? 'Percentage Change' : config.yAxis
+		}
+
+		return { filteredData: newData, filteredConfig: newConfig }
+	}, [data, config, currentViewConfig])
 
 	const renderChart = () => {
 		switch (type) {
 			case 'line':
-				const lineData = convertToAreaChartData(data, config)
+				const lineData = convertToAreaChartData(filteredData, filteredConfig)
 
 				let stacks: string[] = []
 				let stackColors: Record<string, string> = {}
 
-				if (data.multi) {
-					stacks = data.multi.entities
-					stackColors = data.multi.entities.reduce((acc, entity, index) => {
+				if (filteredData.multi) {
+					stacks = filteredData.multi.entities
+					stackColors = filteredData.multi.entities.reduce((acc, entity, index) => {
 						const colors = [
 							'#1f77b4',
 							'#ff7f0e',
@@ -101,9 +177,9 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ chart }) => {
 						return acc
 					}, {} as Record<string, string>)
 				} else {
-					stacks = config.series?.map((s) => s.name) || []
+					stacks = filteredConfig.series?.map((s) => s.name) || []
 					stackColors =
-						config.series?.reduce((acc, s) => {
+						filteredConfig.series?.reduce((acc, s) => {
 							acc[s.name] = s.color
 							return acc
 						}, {} as Record<string, string>) || {}
@@ -118,11 +194,11 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ chart }) => {
 						chartData={lineData}
 						stacks={finalStacks}
 						stackColors={finalStackColors}
-						valueSymbol={config.valueSymbol || '$'}
+						valueSymbol={filteredConfig.valueSymbol || '$'}
 						height="400px"
 						hideDownloadButton={false}
 						hideDataZoom={false}
-						isStackedChart={config.isStacked || false}
+						isStackedChart={filteredConfig.isStacked || false}
 					/>
 				)
 
@@ -131,11 +207,11 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ chart }) => {
 				return (
 					<CustomBarChart
 						title={title}
-						chartData={data}
-						config={config}
-						valueSymbol={config.valueSymbol || '$'}
+						chartData={filteredData}
+						config={filteredConfig}
+						valueSymbol={filteredConfig.valueSymbol || '$'}
 						height="400px"
-						isStacked={config.isStacked}
+						isStacked={filteredConfig.isStacked}
 						chartType={type}
 					/>
 				)
@@ -144,10 +220,10 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ chart }) => {
 				return (
 					<ClusteredBarChart
 						title={title}
-						data={data}
-						config={config}
+						data={filteredData}
+						config={filteredConfig}
 						advancedConfig={advancedConfig?.clustered}
-						valueSymbol={config.valueSymbol || '$'}
+						valueSymbol={filteredConfig.valueSymbol || '$'}
 						height="400px"
 					/>
 				)
@@ -156,10 +232,10 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ chart }) => {
 				return (
 					<ComparisonChart
 						title={title}
-						data={data}
-						config={config}
+						data={filteredData}
+						config={filteredConfig}
 						advancedConfig={advancedConfig?.comparison}
-						valueSymbol={config.valueSymbol || '$'}
+						valueSymbol={filteredConfig.valueSymbol || '$'}
 						height="400px"
 					/>
 				)
@@ -168,10 +244,10 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ chart }) => {
 				return (
 					<MixedChart
 						title={title}
-						data={data}
-						config={config}
+						data={filteredData}
+						config={filteredConfig}
 						advancedConfig={advancedConfig?.mixed}
-						valueSymbol={config.valueSymbol || '$'}
+						valueSymbol={filteredConfig.valueSymbol || '$'}
 						height="400px"
 					/>
 				)
@@ -202,31 +278,32 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ chart }) => {
 		}
 	}
 
-	const convertToAreaChartData = (data: ChartDataFormat, config: any) => {
-		if (data.single && Array.isArray(data.single)) {
-			if (data.single.length === 0) return []
+	const convertToAreaChartData = (chartData: ChartDataFormat, chartConfig: any) => {
+		if (chartData.single && Array.isArray(chartData.single)) {
+			if (chartData.single.length === 0) return []
 
-			if (!config.series || config.series.length <= 1) {
-				const dataKey = config.series?.[0]?.dataKey || Object.keys(data.single[0]).find((k) => k !== 'date') || 'value'
+			if (!chartConfig.series || chartConfig.series.length <= 1) {
+				const dataKey =
+					chartConfig.series?.[0]?.dataKey || Object.keys(chartData.single[0]).find((k) => k !== 'date') || 'value'
 
-				return data.single.map((item) => {
+				return chartData.single.map((item) => {
 					const timestamp = Math.floor(new Date(item.date).getTime() / 1000)
 					const value = (item as any)[dataKey] || 0
 					return [timestamp, value]
 				})
 			}
 
-			return data.single.map((item) => ({
+			return chartData.single.map((item) => ({
 				date: Math.floor(new Date(item.date).getTime() / 1000),
-				...config.series.reduce((acc: any, series: any) => {
+				...chartConfig.series.reduce((acc: any, series: any) => {
 					acc[series.name] = (item as any)[series.dataKey] || 0
 					return acc
 				}, {})
 			}))
 		}
 
-		if (data.multi) {
-			const { entities, series } = data.multi
+		if (chartData.multi) {
+			const { entities, series } = chartData.multi
 
 			const dateMap = new Map<string, any>()
 
@@ -331,6 +408,29 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ chart }) => {
 		<div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg mb-4">
 			{title && <h3 className="text-lg font-semibold mb-2">{title}</h3>}
 			{description && <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{description}</p>}
+
+			{}
+			{availableViews && availableViews.length > 1 && (
+				<div className="flex items-center gap-2 mb-4">
+					<span className="text-sm text-gray-600 dark:text-gray-400">View:</span>
+					<div className="flex bg-gray-200 dark:bg-gray-700 rounded-lg p-1">
+						{availableViews.map((view) => (
+							<button
+								key={view.mode}
+								onClick={() => setActiveView(view.mode)}
+								className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+									activeView === view.mode
+										? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm'
+										: 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
+								}`}
+							>
+								{view.symbol} {view.mode === 'absolute' ? 'Values' : 'Change'}
+							</button>
+						))}
+					</div>
+				</div>
+			)}
+
 			<div className="min-h-[400px]">{renderChart()}</div>
 		</div>
 	)
