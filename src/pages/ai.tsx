@@ -8,7 +8,7 @@ import { withPerformanceLogging } from '~/utils/perf'
 
 export const getStaticProps = withPerformanceLogging('LlamaAi', async () => {
 	const [{ protocols }, { chains }] = await Promise.all([
-		getProtocolsByChain({ chain: 'All', metadata: { name: 'All' } }),
+		getProtocolsByChain({ chain: 'All', metadata: { name: 'All', id: 'all' } }),
 		getChainsByCategory({ category: 'All' })
 	])
 
