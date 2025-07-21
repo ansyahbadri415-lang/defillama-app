@@ -11,7 +11,6 @@ import { ISearchData } from './types'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import ChartRenderer from '~/components/ChartRenderer'
-import ChartNavigation from '~/components/ChartRenderer/ChartNavigation'
 
 class StreamingContent {
 	private content: string = ''
@@ -61,9 +60,11 @@ async function fetchPromptResponse({
 
 		if (sessionId) {
 			requestBody.sessionId = sessionId
+		} else {
+			requestBody.createNewSession = true
 		}
 
-		const response = await fetch('https://mcp.llama.team/chatbot-agent', {
+		const response = await fetch('http://127.0.0.1:6969/chatbot-agent', {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json'
@@ -270,6 +271,7 @@ export function LlamaAI({ searchData }: { searchData: ISearchData }) {
 			])
 
 			setPrompt('')
+			resetPrompt()
 
 			entitiesRef.current = {
 				entities: new Set(),
@@ -420,7 +422,12 @@ export function LlamaAI({ searchData }: { searchData: ISearchData }) {
 															<button
 																key={suggestionIndex}
 																onClick={() => handleSuggestionClick(suggestion)}
-																className="text-left p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors group"
+																disabled={isPending || isStreaming}
+																className={`text-left p-3 rounded-lg border border-gray-200 dark:border-gray-700 transition-colors group ${
+																	isPending || isStreaming
+																		? 'opacity-50 cursor-not-allowed'
+																		: 'hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+																}`}
 															>
 																<div className="flex items-start justify-between gap-3">
 																	<div className="flex-1 min-w-0">
@@ -455,12 +462,9 @@ export function LlamaAI({ searchData }: { searchData: ISearchData }) {
 										</div>
 
 										{item.response.chartData?.charts &&
-											item.response.chartData.charts.length > 0 &&
-											(item.response.chartData.charts.length > 1 ? (
-												<ChartNavigation charts={item.response.chartData.charts} />
-											) : (
-												<ChartRenderer chart={item.response.chartData.charts[0]} />
-											))}
+											item.response.chartData.charts.length > 0 && (
+												<ChartRenderer charts={item.response.chartData.charts} />
+											)}
 
 										{item.response.chartData && (
 											<details className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
@@ -815,7 +819,12 @@ const PromptResponse = ({
 							<button
 								key={index}
 								onClick={() => onSuggestionClick?.(suggestion)}
-								className="text-left p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors group"
+								disabled={isPending || isStreaming}
+								className={`text-left p-3 rounded-lg border border-gray-200 dark:border-gray-700 transition-colors group ${
+									isPending || isStreaming
+										? 'opacity-50 cursor-not-allowed'
+										: 'hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+								}`}
 							>
 								<div className="flex items-start justify-between gap-3">
 									<div className="flex-1 min-w-0">

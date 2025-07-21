@@ -1,275 +1,193 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
+import { ChartDTO } from './types'
+import ChartNavigation from './ChartNavigation'
+import DataTable from './DataTable'
 import AreaChart from '../ECharts/AreaChart'
-import CustomBarChart from './CustomBarChart'
-import ClusteredBarChart from './ClusteredBarChart'
-import ComparisonChart from './ComparisonChart'
-import MixedChart from './MixedChart'
-
-interface ChartDataFormat {
-	single?: Array<{
-		date: string
-		[metric: string]: number | string
-	}>
-
-	multi?: {
-		entities: string[]
-		metrics: string[]
-		series: Array<{
-			entity: string
-			metric: string
-			data: Array<{
-				date: string
-				value: number
-			}>
-		}>
-	}
-}
-
-export interface ChartConfig {
-	id: string
-	type: 'line' | 'bar' | 'pie' | 'scatter' | 'stacked-bar' | 'clustered-bar' | 'comparison' | 'mixed' | 'table'
-	title?: string
-	description?: string
-	data: ChartDataFormat
-	config: {
-		xAxis: string
-		yAxis: string
-		series: SeriesConfig[]
-		valueSymbol?: string
-		isStacked?: boolean
-		yAxisScale?: 'linear' | 'logarithmic'
-	}
-	availableViews?: Array<{
-		mode: 'absolute' | 'percentage'
-		metrics: string[]
-		symbol: string
-		title: string
-	}>
-	activeView?: 'absolute' | 'percentage'
-	advancedConfig?: {
-		clustered?: {
-			groupBy: string
-			groupLimit: number
-			othersCategory: boolean
-		}
-		comparison?: {
-			entities: string[]
-			baseline?: 'category_average' | 'market_total' | 'previous_period'
-			showDifference: boolean
-			showPercentage: boolean
-		}
-		mixed?: {
-			primaryAxis: string
-			secondaryAxis: string
-			dualYAxis: boolean
-		}
-	}
-}
-
-interface SeriesConfig {
-	name: string
-	dataKey: string
-	entityKey: string
-	type: 'line' | 'bar'
-	color: string
-}
+import CustomBarChart from '../ECharts/BarChart'
+import ClusteredBarChart from '../ECharts/BarChart/ClusteredBarChart'
+import PieChart from '../ECharts/PieChart'
+import ScatterChart from '../ECharts/ScatterChart'
+import LineAndBarChart from '../ECharts/LineAndBarChart'
+import {
+	mapToAreaChartProps,
+	mapToBarChartProps,
+	mapToPieChartProps,
+	mapToScatterChartProps,
+	mapToMixedChartProps,
+	mapToClusteredBarChartProps
+} from './mappers'
 
 interface ChartRendererProps {
-	chart: ChartConfig
+	charts: ChartDTO[]
 }
 
-const ChartRenderer: React.FC<ChartRendererProps> = ({ chart }) => {
-	const {
-		type,
-		title,
-		description,
-		data,
-		config,
-		advancedConfig,
-		availableViews,
-		activeView: defaultActiveView
-	} = chart
+const ChartRenderer = React.memo<ChartRendererProps>(({ charts }) => {
+	if (charts.length === 0) return <div>No data available</div>
+	if (charts.length > 1) return <ChartNavigation charts={charts} />
 
-	const [activeView, setActiveView] = useState<'absolute' | 'percentage'>(defaultActiveView || 'percentage')
+	const dto = charts[0]
 
-	const currentViewConfig = useMemo(() => {
-		if (!availableViews || availableViews.length === 0) {
-			return null
-		}
+	if (dto.config.chartType === 'none') return null
 
-		return availableViews.find((view) => view.mode === activeView) || availableViews[0]
-	}, [availableViews, activeView])
+	const [activeView, setActiveView] = useState(dto.config.defaultView || 'absolute')
 
-	const { filteredData, filteredConfig } = useMemo(() => {
-		if (!currentViewConfig) {
-			return { filteredData: data, filteredConfig: config }
-		}
+	const dataSize = dto.data.length
+	const showPerformanceWarning = dataSize > 1000
 
-		const viewMetrics = currentViewConfig.metrics
+	const chartProps = useMemo(() => {
+		try {
+			switch (dto.config.chartType) {
+				case 'line':
+				case 'area':
+				case 'stacked-area':
+					return { type: 'area', props: mapToAreaChartProps(dto, activeView) }
 
-		let newData = data
+				case 'bar':
+				case 'stacked-bar':
+					return { type: 'bar', props: mapToBarChartProps(dto, activeView) }
 
-		if (type === 'clustered-bar' && (data as any).categories && (data as any).series) {
-			const originalData = data as any
-			const filteredSeries = originalData.series.filter((seriesItem: any) => viewMetrics.includes(seriesItem.dataKey))
-			newData = {
-				...originalData,
-				series: filteredSeries
+				case 'pie':
+					return { type: 'pie', props: mapToPieChartProps(dto, activeView) }
+
+				case 'scatter':
+					return { type: 'scatter', props: mapToScatterChartProps(dto, activeView) }
+
+				case 'multi-axis':
+				case 'mixed':
+					return { type: 'mixed', props: mapToMixedChartProps(dto, activeView) }
+
+				case 'clustered-bar':
+					return { type: 'clustered', props: mapToClusteredBarChartProps(dto, activeView) }
+
+				case 'table':
+					return { type: 'table', props: null }
+
+				case 'comparison':
+					const underlyingType = dto.config.yAxes?.length > 1 ? 'mixed' : 'bar'
+					if (underlyingType === 'mixed') {
+						return { type: 'mixed', props: mapToMixedChartProps(dto, activeView) }
+					} else {
+						return { type: 'bar', props: mapToBarChartProps(dto, activeView) }
+					}
+
+				default:
+					return { type: 'unsupported', props: null }
 			}
-		} else if (data.single) {
-			newData = {
-				single: data.single.map((item) => {
-					const filtered: any = { date: item.date, entity: (item as any).entity }
-					viewMetrics.forEach((metric) => {
-						if (metric in item) {
-							filtered[metric] = (item as any)[metric]
+		} catch (error) {
+			return { type: 'error', props: null, error }
+		}
+	}, [dto, activeView])
+
+	const handleViewChange = useCallback((viewId: string) => {
+		setActiveView(viewId)
+	}, [])
+
+	const renderViewToggle = () => {
+		if (!dto.config.availableViews || dto.config.availableViews.length <= 1) return null
+
+		if (dto.config.chartType === 'clustered-bar') {
+			const totalAxes = (dto.config.yAxes?.length || 0) + (dto.config.yAxis ? 1 : 0)
+			if (totalAxes <= 1) return null
+		}
+
+		return (
+			<div className="flex items-center gap-2 mb-4">
+				<span className="text-sm text-gray-600 dark:text-gray-400">View:</span>
+				<div className="flex bg-gray-200 dark:bg-gray-700 rounded-lg p-1">
+					{dto.config.availableViews.map((view) => {
+						if (!view.yAxis) {
+							console.warn('ChartRenderer: ViewConfig missing yAxis property', view)
+							return (
+								<button
+									key={view.viewId}
+									onClick={() => handleViewChange(view.viewId)}
+									className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+										activeView === view.viewId
+											? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm'
+											: 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
+									}`}
+								>
+									{view.viewId}
+								</button>
+							)
 						}
-					})
-					return filtered
-				})
-			}
-		} else if (data.multi) {
-			const filteredSeries = data.multi.series.filter((seriesItem) => viewMetrics.includes(seriesItem.metric))
 
-			const filteredMetrics = data.multi.metrics.filter((metric) => viewMetrics.includes(metric))
-			newData = {
-				multi: {
-					...data.multi,
-					metrics: filteredMetrics,
-					series: filteredSeries
-				}
-			}
-		}
+						const unit = view.yAxis.unit || ''
+						const label = view.yAxis.label || view.viewId || 'View'
+						const displayText = unit ? `${unit} ${label}` : label
 
-		const newConfig = {
-			...config,
-			valueSymbol: currentViewConfig.symbol,
-			yAxis: currentViewConfig.title.includes('%') ? 'Percentage Change' : config.yAxis
-		}
-
-		return { filteredData: newData, filteredConfig: newConfig }
-	}, [data, config, currentViewConfig])
+						return (
+							<button
+								key={view.viewId}
+								onClick={() => handleViewChange(view.viewId)}
+								className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+									activeView === view.viewId
+										? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm'
+										: 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
+								}`}
+							>
+								{displayText}
+							</button>
+						)
+					})}
+				</div>
+			</div>
+		)
+	}
 
 	const renderChart = () => {
-		switch (type) {
-			case 'line':
-				const lineData = convertToAreaChartData(filteredData, filteredConfig)
+		if (showPerformanceWarning) {
+			return (
+				<div>
+					<div className="bg-yellow-50 dark:bg-yellow-900/50 border border-yellow-200 dark:border-yellow-700 rounded-lg p-3 mb-4">
+						<div className="text-yellow-700 dark:text-yellow-300 text-sm">
+							⚠️ Large dataset ({dataSize} points). Chart may render slowly.
+						</div>
+					</div>
+					{renderActualChart()}
+				</div>
+			)
+		}
+		return renderActualChart()
+	}
 
-				let stacks: string[] = []
-				let stackColors: Record<string, string> = {}
+	const renderActualChart = () => {
+		if (chartProps.type === 'error') {
+			return (
+				<div className="flex items-center justify-center h-64 bg-red-50 dark:bg-red-900 rounded border border-red-200 dark:border-red-700">
+					<div className="text-center text-red-600 dark:text-red-400">
+						<p className="mb-2">Error rendering chart</p>
+						<p className="text-sm">{chartProps.error instanceof Error ? chartProps.error.message : 'Unknown error'}</p>
+					</div>
+				</div>
+			)
+		}
 
-				if (filteredData.multi) {
-					stacks = filteredData.multi.entities
-					stackColors = filteredData.multi.entities.reduce((acc, entity, index) => {
-						const colors = [
-							'#1f77b4',
-							'#ff7f0e',
-							'#2ca02c',
-							'#d62728',
-							'#9467bd',
-							'#8c564b',
-							'#e377c2',
-							'#7f7f7f',
-							'#bcbd22',
-							'#17becf'
-						]
-						acc[entity] = colors[index % colors.length]
-						return acc
-					}, {} as Record<string, string>)
-				} else {
-					stacks = filteredConfig.series?.map((s) => s.name) || []
-					stackColors =
-						filteredConfig.series?.reduce((acc, s) => {
-							acc[s.name] = s.color
-							return acc
-						}, {} as Record<string, string>) || {}
-				}
-
-				const finalStacks = Array.isArray(lineData[0]) ? [] : stacks
-				const finalStackColors = Array.isArray(lineData[0]) ? {} : stackColors
-
-				return (
-					<AreaChart
-						title={title}
-						chartData={lineData}
-						stacks={finalStacks}
-						stackColors={finalStackColors}
-						valueSymbol={filteredConfig.valueSymbol || '$'}
-						height="400px"
-						hideDownloadButton={false}
-						hideDataZoom={false}
-						isStackedChart={filteredConfig.isStacked || false}
-					/>
-				)
-
+		switch (chartProps.type) {
+			case 'area':
+				return <AreaChart {...chartProps.props} />
 			case 'bar':
-			case 'stacked-bar':
-				return (
-					<CustomBarChart
-						title={title}
-						chartData={filteredData}
-						config={filteredConfig}
-						valueSymbol={filteredConfig.valueSymbol || '$'}
-						height="400px"
-						isStacked={filteredConfig.isStacked}
-						chartType={type}
-					/>
-				)
-
-			case 'clustered-bar':
-				return (
-					<ClusteredBarChart
-						title={title}
-						data={filteredData}
-						config={filteredConfig}
-						advancedConfig={advancedConfig?.clustered}
-						valueSymbol={filteredConfig.valueSymbol || '$'}
-						height="400px"
-					/>
-				)
-
-			case 'comparison':
-				return (
-					<ComparisonChart
-						title={title}
-						data={filteredData}
-						config={filteredConfig}
-						advancedConfig={advancedConfig?.comparison}
-						valueSymbol={filteredConfig.valueSymbol || '$'}
-						height="400px"
-					/>
-				)
-
-			case 'mixed':
-				return (
-					<MixedChart
-						title={title}
-						data={filteredData}
-						config={filteredConfig}
-						advancedConfig={advancedConfig?.mixed}
-						valueSymbol={filteredConfig.valueSymbol || '$'}
-						height="400px"
-					/>
-				)
-
+				return <CustomBarChart {...chartProps.props} />
 			case 'pie':
-				return renderPieChart()
-
+				return <PieChart {...chartProps.props} />
 			case 'scatter':
-				return renderScatterChart()
-
+				return <ScatterChart {...chartProps.props} />
+			case 'mixed':
+				return <LineAndBarChart {...chartProps.props} />
+			case 'clustered':
+				return <ClusteredBarChart {...chartProps.props} />
 			case 'table':
-				return renderTable()
-
+				return <DataTable dto={dto} />
+			case 'unsupported':
 			default:
 				return (
 					<div className="flex items-center justify-center h-64 bg-gray-100 dark:bg-gray-700 rounded">
 						<div className="text-center">
-							<p className="text-gray-500 mb-2">Chart type "{type}" not yet supported</p>
+							<p className="text-gray-500 mb-2">Chart type "{dto.config.chartType}" not supported</p>
 							<details className="text-xs">
 								<summary className="cursor-pointer">View raw data</summary>
 								<pre className="mt-2 text-left bg-gray-50 dark:bg-gray-800 p-2 rounded">
-									{JSON.stringify({ data, config }, null, 2)}
+									{JSON.stringify(dto.data.slice(0, 5), null, 2)}
 								</pre>
 							</details>
 						</div>
@@ -278,162 +196,20 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ chart }) => {
 		}
 	}
 
-	const convertToAreaChartData = (chartData: ChartDataFormat, chartConfig: any) => {
-		if (chartData.single && Array.isArray(chartData.single)) {
-			if (chartData.single.length === 0) return []
-
-			if (!chartConfig.series || chartConfig.series.length <= 1) {
-				const dataKey =
-					chartConfig.series?.[0]?.dataKey || Object.keys(chartData.single[0]).find((k) => k !== 'date') || 'value'
-
-				return chartData.single.map((item) => {
-					const timestamp = Math.floor(new Date(item.date).getTime() / 1000)
-					const value = (item as any)[dataKey] || 0
-					return [timestamp, value]
-				})
-			}
-
-			return chartData.single.map((item) => ({
-				date: Math.floor(new Date(item.date).getTime() / 1000),
-				...chartConfig.series.reduce((acc: any, series: any) => {
-					acc[series.name] = (item as any)[series.dataKey] || 0
-					return acc
-				}, {})
-			}))
-		}
-
-		if (chartData.multi) {
-			const { entities, series } = chartData.multi
-
-			const dateMap = new Map<string, any>()
-
-			series.forEach(({ entity, data: seriesData }) => {
-				seriesData.forEach(({ date, value }) => {
-					if (!dateMap.has(date)) {
-						dateMap.set(date, { date })
-					}
-					const dateEntry = dateMap.get(date)!
-
-					dateEntry[entity] = value
-				})
-			})
-
-			return Array.from(dateMap.values())
-				.sort((a, b) => a.date.localeCompare(b.date))
-				.map((item) => ({
-					date: Math.floor(new Date(item.date).getTime() / 1000),
-					...entities.reduce((acc: any, entity) => {
-						acc[entity] = item[entity] || 0
-						return acc
-					}, {})
-				}))
-		}
-
-		return []
-	}
-
-	const renderPieChart = () => (
-		<div className="flex items-center justify-center h-64 bg-gray-100 dark:bg-gray-700 rounded">
-			<p className="text-gray-500">Pie chart rendering coming soon</p>
-		</div>
-	)
-
-	const renderScatterChart = () => (
-		<div className="flex items-center justify-center h-64 bg-gray-100 dark:bg-gray-700 rounded">
-			<p className="text-gray-500">Scatter plot rendering coming soon</p>
-		</div>
-	)
-
-	const renderTable = () => {
-		let tableData: any[] = []
-
-		if (data.single && Array.isArray(data.single)) {
-			tableData = data.single
-		} else if (data.multi) {
-			const { series } = data.multi
-			const dateMap = new Map<string, any>()
-
-			series.forEach(({ entity, metric, data: seriesData }) => {
-				seriesData.forEach(({ date, value }) => {
-					const key = `${date}_${entity}`
-					if (!dateMap.has(key)) {
-						dateMap.set(key, { date, entity })
-					}
-					const row = dateMap.get(key)!
-					row[metric] = value
-				})
-			})
-
-			tableData = Array.from(dateMap.values()).sort((a, b) => {
-				const dateCompare = a.date.localeCompare(b.date)
-				return dateCompare !== 0 ? dateCompare : a.entity.localeCompare(b.entity)
-			})
-		}
-
-		if (tableData.length === 0) {
-			return <div className="text-center p-4">No data available</div>
-		}
-
-		const headers = Object.keys(tableData[0])
-
-		return (
-			<div className="overflow-auto">
-				<table className="min-w-full border-collapse border border-gray-300 dark:border-gray-600">
-					<thead>
-						<tr className="bg-gray-100 dark:bg-gray-800">
-							{headers.map((key) => (
-								<th key={key} className="border border-gray-300 dark:border-gray-600 px-3 py-2 text-left">
-									{key.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
-								</th>
-							))}
-						</tr>
-					</thead>
-					<tbody>
-						{tableData.map((row, index) => (
-							<tr key={index} className="border-b">
-								{headers.map((header) => (
-									<td key={header} className="border border-gray-300 dark:border-gray-600 px-3 py-2">
-										{typeof row[header] === 'number' ? row[header].toLocaleString() : String(row[header] || '')}
-									</td>
-								))}
-							</tr>
-						))}
-					</tbody>
-				</table>
-			</div>
-		)
-	}
-
 	return (
-		<div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg mb-4">
-			{title && <h3 className="text-lg font-semibold mb-2">{title}</h3>}
-			{description && <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{description}</p>}
-
-			{}
-			{availableViews && availableViews.length > 1 && (
-				<div className="flex items-center gap-2 mb-4">
-					<span className="text-sm text-gray-600 dark:text-gray-400">View:</span>
-					<div className="flex bg-gray-200 dark:bg-gray-700 rounded-lg p-1">
-						{availableViews.map((view) => (
-							<button
-								key={view.mode}
-								onClick={() => setActiveView(view.mode)}
-								className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-									activeView === view.mode
-										? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm'
-										: 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
-								}`}
-							>
-								{view.symbol} {view.mode === 'absolute' ? 'Values' : 'Change'}
-							</button>
-						))}
-					</div>
-				</div>
+		<div className="bg-white dark:bg-gray-900 p-4 rounded-lg shadow">
+			{dto.config.title && (
+				<h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-gray-100">{dto.config.title}</h3>
 			)}
+			{dto.config.description && (
+				<p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{dto.config.description}</p>
+			)}
+
+			{renderViewToggle()}
 
 			<div className="min-h-[400px]">{renderChart()}</div>
 		</div>
 	)
-}
+})
 
 export default ChartRenderer

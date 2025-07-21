@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
-import ChartRenderer, { ChartConfig } from './index'
+import ChartRenderer from './index'
+import { ChartDTO } from './types'
 
 interface ChartNavigationProps {
-	charts: ChartConfig[]
+	charts: ChartDTO[]
 }
 
 const ChartNavigation: React.FC<ChartNavigationProps> = ({ charts }) => {
@@ -13,7 +14,7 @@ const ChartNavigation: React.FC<ChartNavigationProps> = ({ charts }) => {
 	}
 
 	if (charts.length === 1) {
-		return <ChartRenderer chart={charts[0]} />
+		return <ChartRenderer charts={charts} />
 	}
 
 	return (
@@ -22,7 +23,7 @@ const ChartNavigation: React.FC<ChartNavigationProps> = ({ charts }) => {
 				<nav className="flex space-x-1 p-1" aria-label="Charts">
 					{charts.map((chart, index) => (
 						<button
-							key={chart.id}
+							key={chart.config.chartId}
 							onClick={() => setActiveChartIndex(index)}
 							className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
 								index === activeChartIndex
@@ -30,21 +31,21 @@ const ChartNavigation: React.FC<ChartNavigationProps> = ({ charts }) => {
 									: 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
 							}`}
 						>
-							{chart.title}
+							{chart.config.title}
 						</button>
 					))}
 				</nav>
 			</div>
 
 			<div className="p-4">
-				<ChartRenderer chart={charts[activeChartIndex]} />
+				<ChartRenderer charts={[charts[activeChartIndex]]} />
 			</div>
 
 			<div className="border-t border-gray-200 dark:border-gray-700 px-4 py-3 bg-gray-50 dark:bg-gray-800 rounded-b-lg">
 				<p className="text-sm text-gray-600 dark:text-gray-400">
 					Showing {activeChartIndex + 1} of {charts.length} charts
-					{charts[activeChartIndex].description && (
-						<span className="ml-2">• {charts[activeChartIndex].description}</span>
+					{charts[activeChartIndex].config.description && (
+						<span className="ml-2">• {charts[activeChartIndex].config.description}</span>
 					)}
 				</p>
 			</div>
