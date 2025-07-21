@@ -64,7 +64,7 @@ async function fetchPromptResponse({
 			requestBody.createNewSession = true
 		}
 
-		const response = await fetch('http://127.0.0.1:6969/chatbot-agent', {
+		const response = await fetch('https://mcp.llama.team/chatbot-agent', {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json'
@@ -461,10 +461,9 @@ export function LlamaAI({ searchData }: { searchData: ISearchData }) {
 											)}
 										</div>
 
-										{item.response.chartData?.charts &&
-											item.response.chartData.charts.length > 0 && (
-												<ChartRenderer charts={item.response.chartData.charts} />
-											)}
+										{item.response.chartData?.charts && item.response.chartData.charts.length > 0 && (
+											<ChartRenderer charts={item.response.chartData.charts} />
+										)}
 
 										{item.response.chartData && (
 											<details className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
