@@ -36,13 +36,13 @@ export async function getTotalBorrowedByChain({
 }: {
 	chain: string
 }): Promise<ITotalBorrowedByChainPageData | null> {
-	const [{ protocols, chains, parentProtocols }, chart]: [
+	const [{ protocols, parentProtocols }, chart, chains]: [
 		{
 			protocols: Array<ILiteProtocol>
-			chains: Array<string>
 			parentProtocols: Array<{ id: string; name: string; chains: Array<string> }>
 		},
-		Array<[number, number]>
+		Array<[number, number]>,
+		Array<string>
 	] = await Promise.all([
 		fetchJson(PROTOCOLS_API),
 		fetchJson(`${CHART_API}${chain && chain !== 'All' ? `/${chain}` : ''}`)
@@ -50,10 +50,15 @@ export async function getTotalBorrowedByChain({
 			.catch((err) => {
 				postRuntimeLogs(`Total Borrowed by Chain: ${chain}: ${err instanceof Error ? err.message : err}`)
 				return null
-			})
+			}),
+		fetchJson('https://api.llama.fi/chains2/All').then((data) =>
+			data.chainTvls.filter((chain) => (chain.extraTvl?.borrowed?.tvl ? true : false)).map((chain) => chain.name)
+		)
 	])
 
 	if (!chart || chart.length === 0) return null
+
+	const metadataCache = await import('~/utils/metadata').then((m) => m.default)
 
 	const finalProtocols = []
 	const finalParentProtocols = {}
@@ -63,7 +68,7 @@ export async function getTotalBorrowedByChain({
 		let totalPrevMonth: number | null = null
 
 		for (const ctvl in protocol.chainTvls) {
-			if (ctvl.includes('-borrowed') && (chain === 'All' ? true : ctvl.startsWith(chain))) {
+			if (ctvl.includes('-borrowed') && (chain === 'All' ? true : ctvl.split('-')[0] === chain)) {
 				totalBorrowed = (totalBorrowed ?? 0) + protocol.chainTvls[ctvl].tvl
 				totalPrevMonth = (totalPrevMonth ?? 0) + protocol.chainTvls[ctvl].tvlPrevMonth
 			}
@@ -74,7 +79,10 @@ export async function getTotalBorrowedByChain({
 			logo: tokenIconUrl(slug(protocol.name)),
 			slug: slug(protocol.name),
 			category: protocol.category,
-			chains: protocol.chains ?? [],
+			chains:
+				(protocol.defillamaId ? metadataCache.protocolMetadata[protocol.defillamaId].chains : null) ??
+				protocol.chains ??
+				[],
 			totalBorrowed,
 			totalPrevMonth,
 			change_1m:
@@ -106,7 +114,7 @@ export async function getTotalBorrowedByChain({
 				logo: tokenIconUrl(slug(p.name)),
 				slug: slug(p.name),
 				category: categories.length > 1 ? null : categories[0] ?? null,
-				chains: p.chains ?? [],
+				chains: Array.from(new Set(finalParentProtocols[parent].map((p) => p.chains).flat())),
 				totalBorrowed: finalParentProtocols[parent].reduce((acc, curr) => acc + (curr.totalBorrowed ?? 0), 0),
 				totalPrevMonth: finalParentProtocols[parent].reduce((acc, curr) => acc + (curr.totalPrevMonth ?? 0), 0),
 				change_1m:

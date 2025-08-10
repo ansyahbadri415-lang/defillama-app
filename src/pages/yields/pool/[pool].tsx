@@ -2,7 +2,7 @@ import { lazy, Suspense, useMemo } from 'react'
 import { useRouter } from 'next/router'
 import Layout from '~/layout'
 import { AuditInfo } from '~/components/AuditInfo'
-import { download, toK } from '~/utils'
+import { download, formattedNum } from '~/utils'
 import { LazyChart } from '~/components/LazyChart'
 import {
 	useYieldChartData,
@@ -103,8 +103,6 @@ const PageView = (props) => {
 	const apy = poolData.apy?.toFixed(2) ?? 0
 	const apyMean30d = poolData.apyMean30d?.toFixed(2) ?? 0
 	const apyDelta20pct = (apy * 0.8).toFixed(2)
-
-	const tvlUsd = toK(poolData.tvlUsd ?? 0)
 
 	let confidence = poolData.predictions?.binnedConfidence ?? null
 
@@ -245,8 +243,8 @@ const PageView = (props) => {
 
 	return (
 		<>
-			<div className="grid grid-cols-2 relative isolate xl:grid-cols-3 gap-1">
-				<div className="bg-(--cards-bg) rounded-md flex flex-col gap-6 p-5 col-span-2 w-full xl:col-span-1 overflow-x-auto">
+			<div className="grid grid-cols-2 relative isolate xl:grid-cols-3 gap-2">
+				<div className="bg-(--cards-bg) border border-(--cards-border) rounded-md flex flex-col gap-6 p-5 col-span-2 w-full xl:col-span-1 overflow-x-auto">
 					<h1 className="flex items-center gap-2 text-xl flex-wrap">
 						{poolData.poolMeta !== undefined && poolData.poolMeta !== null && poolData.poolMeta.length > 1
 							? `${poolData.symbol} (${poolData.poolMeta})`
@@ -271,7 +269,9 @@ const PageView = (props) => {
 
 					<p className="flex flex-col gap-1">
 						<span className="text-base text-[#545757] dark:text-[#cccccc]">Total Value Locked</span>
-						<span className="font-semibold text-2xl font-jetbrains min-h-8 text-[#4f8fea]">${tvlUsd}</span>
+						<span className="font-semibold text-2xl font-jetbrains min-h-8 text-[#4f8fea]">
+							{formattedNum(poolData.tvlUsd ?? 0, true)}
+						</span>
 					</p>
 
 					{hasRiskData && (
@@ -310,7 +310,7 @@ const PageView = (props) => {
 					</p>
 				</div>
 
-				<LazyChart className="bg-(--cards-bg) rounded-md pt-3 col-span-2 min-h-[480px]">
+				<LazyChart className="bg-(--cards-bg) border border-(--cards-border) rounded-md pt-3 col-span-2 min-h-[480px]">
 					{!isLoading && (
 						<Chart
 							height="468px"
@@ -524,7 +524,7 @@ const PageView = (props) => {
 					</>
 				)}
 			</div>
-			<div className="flex flex-col gap-4 bg-(--cards-bg) rounded-md p-5">
+			<div className="flex flex-col gap-4 bg-(--cards-bg) border border-(--cards-border) rounded-md p-3">
 				<h3 className="font-semibold text-lg">Protocol Information</h3>
 				<p className="flex items-center gap-2">
 					<span>Category</span>

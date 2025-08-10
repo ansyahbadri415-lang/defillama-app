@@ -4,7 +4,7 @@ import { useDarkModeManager } from '~/contexts/LocalStorage'
 import { stringToColour } from '../utils'
 import type { IChartProps } from '../types'
 import { useDefaults } from '../useDefaults'
-import { toK } from '~/utils'
+import { formattedNum } from '~/utils'
 
 // AreaChart where tooltip is always shown
 export default function AreaChart({
@@ -54,7 +54,6 @@ export default function AreaChart({
 				yAxisIndex: index,
 				scale: true,
 				large: true,
-				largeThreshold: 0,
 				emphasis: {
 					focus: 'series',
 					shadowBlur: 10
@@ -156,7 +155,7 @@ export default function AreaChart({
 							{
 								...yAxis,
 								axisLabel: {
-									formatter: (value) => '$' + toK(value)
+									formatter: (value) => formattedNum(value, true)
 								},
 								axisLine: {
 									show: true,

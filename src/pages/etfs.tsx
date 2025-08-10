@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { lastDayOfWeek, firstDayOfMonth, toK, download, toNiceCsvDate } from '~/utils'
+import { lastDayOfWeek, firstDayOfMonth, download, toNiceCsvDate, formattedNum } from '~/utils'
 import type { ILineAndBarChartProps } from '~/components/ECharts/types'
 import { TableWithSearch } from '~/components/Table/TableWithSearch'
 import { ETFColumn } from '~/components/Table/Defi/columns'
@@ -42,12 +42,12 @@ const AssetSection = ({ name, iconUrl, flows, aum }: AssetSectionProps) => (
 			<div className="flex items-center justify-between">
 				<span className="font-medium">Flows</span>
 				<span className={`font-jetbrains ${flows > 0 ? 'text-green-500' : flows < 0 ? 'text-red-500' : ''}`}>
-					{`${flows > 0 ? '+' : ''}$${toK(flows || 0)}`}
+					{formattedNum(flows || 0, true)}
 				</span>
 			</div>
 			<div className="flex items-center justify-between">
 				<span className="font-medium">AUM</span>
-				<span className="font-jetbrains">${toK(aum || 0)}</span>
+				<span className="font-jetbrains">{formattedNum(aum || 0, true)}</span>
 			</div>
 		</div>
 	</div>
@@ -143,7 +143,7 @@ const PageView = ({ snapshot, flows, totalsByAsset, lastUpdated }: PageViewProps
 	return (
 		<>
 			<div className="flex flex-col md:flex-row gap-1 min-h-[434px]">
-				<div className="w-full md:w-80 flex flex-col bg-(--cards-bg) rounded-md">
+				<div className="w-full md:w-80 flex flex-col bg-(--cards-bg) border border-(--cards-border) rounded-md">
 					<div className="flex flex-col gap-2 p-3">
 						<h1 className="text-xl font-semibold">Daily Stats</h1>
 						<span className="text-xs opacity-70">{lastUpdated}</span>
@@ -165,7 +165,7 @@ const PageView = ({ snapshot, flows, totalsByAsset, lastUpdated }: PageViewProps
 						/>
 					</div>
 				</div>
-				<div className="flex flex-col flex-1 w-full bg-(--cards-bg) rounded-md">
+				<div className="flex flex-col flex-1 w-full bg-(--cards-bg) border border-(--cards-border) rounded-md">
 					<div className="flex flex-wrap justify-end gap-2 p-3">
 						<h2 className="text-lg font-semibold mr-auto">Flows (Source: Farside)</h2>
 						<div className="text-xs font-medium flex items-center rounded-md overflow-x-auto flex-nowrap border border-(--form-control-border) text-[#666] dark:text-[#919296]">

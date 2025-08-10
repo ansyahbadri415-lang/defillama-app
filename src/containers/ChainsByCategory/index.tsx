@@ -1,7 +1,7 @@
 import * as React from 'react'
 import Layout from '~/layout'
 import { RowLinksWithDropdown } from '~/components/RowLinksWithDropdown'
-import { toNiceCsvDate, download } from '~/utils'
+import { toNiceCsvDate, download, preparePieChartData } from '~/utils'
 import type { IChartProps, IPieChartProps } from '~/components/ECharts/types'
 import { formatDataWithExtraTvls, groupDataWithTvlsByDay } from '~/hooks/data/defi'
 import { useLocalStorageSettingsManager } from '~/contexts/LocalStorage'
@@ -46,21 +46,12 @@ export function ChainsByCategory({
 					(typeof maxTvl === 'string' && maxTvl !== '' ? chain.tvl <= +maxTvl : true)
 			)
 
-			// format chains data to use in pie chart
-			const onlyChainTvls = dataByChain.map((chain) => ({
-				name: chain.name,
-				value: chain.tvl
-			}))
-
-			const chainsWithLowTvls = onlyChainTvls.slice(10).reduce((total, entry) => {
-				return (total += entry.value)
-			}, 0)
-
-			// limit chains in pie chart to 10 and remaining chains in others
-			const pieChartData = onlyChainTvls
-				.slice(0, 10)
-				.sort((a, b) => b.value - a.value)
-				.concat({ name: 'Others', value: chainsWithLowTvls })
+			const pieChartData = preparePieChartData({
+				data: dataByChain,
+				sliceIdentifier: 'name',
+				sliceValue: 'tvl',
+				limit: 10
+			})
 
 			const { chainsWithExtraTvlsByDay, chainsWithExtraTvlsAndDominanceByDay } = groupDataWithTvlsByDay({
 				chains: stackedDataset,
@@ -100,7 +91,7 @@ export function ChainsByCategory({
 	const groupedChains = useGroupChainsByParent(dataByChain, showByGroup ? chainsGroupbyParent : {})
 
 	return (
-		<Layout title={`${category} Chains DeFi TVL - DefiLlama`} defaultSEO className="gap-2">
+		<Layout title={`${category} Chains DeFi TVL - DefiLlama`} defaultSEO>
 			<ProtocolsChainsSearch />
 
 			<Metrics currentMetric="TVL" isChains={true} />
@@ -108,17 +99,17 @@ export function ChainsByCategory({
 			<RowLinksWithDropdown links={allCategories} activeLink={category} />
 
 			<div className="flex flex-col gap-2 xl:flex-row">
-				<div className="isolate relative rounded-md p-2 bg-(--cards-bg) border border-(--cards-border) flex-1 min-h-[360px] flex flex-col">
+				<div className="isolate relative rounded-md bg-(--cards-bg) flex-1 min-h-[406px] flex flex-col pt-2">
 					<CSVDownloadButton
 						onClick={downloadCsv}
 						smol
-						className="h-[30px] bg-transparent! border border-(--form-control-border) text-[#666]! dark:text-[#919296]! hover:bg-(--link-hover-bg)! focus-visible:bg-(--link-hover-bg)! ml-auto"
+						className="ml-auto mx-2 z-10 h-[30px] bg-transparent! border border-(--form-control-border) text-[#666]! dark:text-[#919296]! hover:bg-(--link-hover-bg)! focus-visible:bg-(--link-hover-bg)!"
 					/>
 					<React.Suspense fallback={<></>}>
 						<PieChart chartData={pieChartData} stackColors={colorsByChain} />
 					</React.Suspense>
 				</div>
-				<div className="rounded-md p-2 bg-(--cards-bg) border border-(--cards-border) flex-1 min-h-[360px]">
+				<div className="rounded-md bg-(--cards-bg) flex-1 min-h-[406px] pt-2">
 					<React.Suspense fallback={<></>}>
 						<AreaChart
 							chartData={chainsWithExtraTvlsAndDominanceByDay}
@@ -128,7 +119,6 @@ export function ChainsByCategory({
 							valueSymbol="%"
 							title=""
 							expandTo100Percent={true}
-							chartOptions={chartOptions}
 						/>
 					</React.Suspense>
 				</div>
@@ -147,13 +137,3 @@ export function ChainsByCategory({
 		</Layout>
 	)
 }
-
-const chartOptions = {
-	grid: {
-		top: 10,
-		bottom: 60,
-		left: 0,
-		right: 0
-	},
-	dataZoom: [{}, { bottom: 32, right: 6 }]
-} as any

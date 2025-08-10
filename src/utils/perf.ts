@@ -3,6 +3,7 @@ import { GetStaticProps, GetStaticPropsContext } from 'next'
 import { RedisCachePayload, getCache, setCache, setPageBuildTimes } from './cache-client'
 import { maxAgeForNext } from '~/api'
 import { postRuntimeLogs } from './async'
+import { fetchWithConnectionPooling } from './http-client'
 
 const isServer = typeof document === 'undefined'
 const REDIS_URL = process.env.REDIS_URL as string
@@ -35,7 +36,7 @@ export const withPerformanceLogging = <T extends {}>(
 				`${(end - start).toFixed(0)}ms`
 			])
 			postRuntimeLogs(
-				`[ERROR] [${(end - start).toFixed(0)}ms] <${filename}>` + (params ? ' ' + JSON.stringify(params) : '')
+				`[ERROR] [${(end - start).toFixed(0)}ms] < ${filename}> ` + (params ? ' ' + JSON.stringify(params) : '')
 			)
 			throw error
 		}
@@ -52,7 +53,9 @@ export const fetchOverCache = async (url: RequestInfo | URL, options?: FetchOver
 
 	if (process.env.NODE_ENV === 'development') {
 		try {
-			const response = await fetch(url, options)
+			// Use connection pooling on server-side, regular fetch on client-side
+			const response =
+				isServer && typeof url === 'string' ? await fetchWithConnectionPooling(url, options) : await fetch(url, options)
 			return response
 		} catch (error) {
 			postRuntimeLogs(`fetch error for <${url}>`)
@@ -84,11 +87,14 @@ export const fetchOverCache = async (url: RequestInfo | URL, options?: FetchOver
 		let responseInit: ResponseInit
 		let blob: Blob
 		let StatusCode: number
-		const timeout = options?.timeout ?? 30000
+		const timeout = options?.timeout ?? 60_000
 		try {
 			const controller = new AbortController()
 			const id = setTimeout(() => controller.abort(), timeout)
-			const response = await fetch(url, { ...options, signal: controller.signal })
+			const response =
+				isServer && typeof url === 'string'
+					? await fetchWithConnectionPooling(url, { ...options, signal: controller.signal })
+					: await fetch(url, { ...options, signal: controller.signal })
 			clearTimeout(id)
 
 			const arrayBuffer = await response.arrayBuffer()
@@ -135,4 +141,22 @@ export const fetchOverCache = async (url: RequestInfo | URL, options?: FetchOver
 		// 	postRuntimeLogs(`[fetch-cache] [MISS] [${StatusCode}] [${(end - start).toFixed(0)}ms] <${url}>`)
 		return new Response(blob, responseInit)
 	}
+}
+
+export type FetchWithPoolingOnServerOptions = RequestInit & { timeout?: number }
+
+export const fetchWithPoolingOnServer = async (
+	url: RequestInfo | URL,
+	options?: FetchWithPoolingOnServerOptions
+): Promise<Response> => {
+	const isServer = typeof window === 'undefined'
+	const controller = new AbortController()
+	const timeout = options?.timeout ?? 60_000
+	const id = setTimeout(() => controller.abort(), timeout)
+	const response =
+		isServer && typeof url === 'string'
+			? await fetchWithConnectionPooling(url, { ...options, signal: controller.signal })
+			: await fetch(url, { ...options, signal: controller.signal })
+	clearTimeout(id)
+	return response
 }

@@ -5,6 +5,7 @@ import { maxAgeForNext } from '~/api'
 import { StablecoinInfo } from '~/containers/ProtocolOverview/Stablecoin'
 import { slug } from '~/utils'
 import { IProtocolMetadata } from '~/containers/ProtocolOverview/types'
+import { getProtocolWarningBanners } from '~/containers/ProtocolOverview/utils'
 
 export const getStaticProps = withPerformanceLogging(
 	'protocol/stablecoins/[...protocol]',
@@ -18,7 +19,7 @@ export const getStaticProps = withPerformanceLogging(
 		const { protocolMetadata } = metadataCache
 		let metadata: [string, IProtocolMetadata] | undefined
 		for (const key in protocolMetadata) {
-			if (protocolMetadata[key].name === normalizedName) {
+			if (slug(protocolMetadata[key].displayName) === normalizedName) {
 				metadata = [key, protocolMetadata[key]]
 				break
 			}
@@ -38,7 +39,8 @@ export const getStaticProps = withPerformanceLogging(
 				otherProtocols: protocolData?.otherProtocols ?? [],
 				category: protocolData?.category ?? null,
 				metrics,
-				assetName: protocolData.stablecoins[0]
+				assetName: protocolData.stablecoins[0],
+				warningBanners: getProtocolWarningBanners(protocolData)
 			},
 			revalidate: maxAgeForNext([22])
 		}
@@ -57,6 +59,8 @@ export default function Protocols({ clientSide, protocolData, ...props }) {
 			otherProtocols={props.otherProtocols}
 			metrics={props.metrics}
 			tab="stablecoins"
+			warningBanners={props.warningBanners}
+			toggleOptions={[]}
 		>
 			<div className="bg-(--cards-bg) border border-(--cards-border) rounded-md">
 				<StablecoinInfo assetName={props.assetName} />

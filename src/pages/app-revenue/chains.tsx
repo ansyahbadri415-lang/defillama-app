@@ -1,13 +1,13 @@
 import { maxAgeForNext } from '~/api'
 import { ChainsByAdapter } from '~/containers/DimensionAdapters/ChainsByAdapter'
-import { ADAPTER_TYPES } from '~/containers/DimensionAdapters/constants'
+import { ADAPTER_DATA_TYPES, ADAPTER_TYPES } from '~/containers/DimensionAdapters/constants'
 import { getChainsByAdapterPageData } from '~/containers/DimensionAdapters/queries'
 import { IChainsByAdapterPageData } from '~/containers/DimensionAdapters/types'
 import Layout from '~/layout'
 import { withPerformanceLogging } from '~/utils/perf'
 
 const adapterType = ADAPTER_TYPES.FEES
-const dataType = 'dailyAppRevenue'
+const dataType = ADAPTER_DATA_TYPES.APP_REVENUE
 
 export const getStaticProps = withPerformanceLogging(`${adapterType}/chains`, async () => {
 	const data = await getChainsByAdapterPageData({ adapterType, dataType, route: 'app-revenue' })
@@ -20,7 +20,7 @@ export const getStaticProps = withPerformanceLogging(`${adapterType}/chains`, as
 
 const HoldersRevenueByChain = (props: IChainsByAdapterPageData) => {
 	return (
-		<Layout title="App Revenue by chain - DefiLlama" className="gap-2">
+		<Layout title="App Revenue by chain - DefiLlama">
 			<ChainsByAdapter {...props} type="App Revenue" />
 		</Layout>
 	)

@@ -1,13 +1,13 @@
 import { capitalizeFirstLetter, firstDayOfMonth, getProtocolTokenUrlOnExplorer, slug } from '~/utils'
-import { fetchJson } from '~/utils/async'
+import { fetchJson, postRuntimeLogs } from '~/utils/async'
 import {
 	ACTIVE_USERS_API,
 	BRIDGEVOLUME_API_SLUG,
-	DEV_METRICS_API,
 	HACKS_API,
 	HOURLY_PROTOCOL_API,
 	LIQUIDITY_API,
 	PROTOCOL_API,
+	PROTOCOL_EMISSION_API2,
 	PROTOCOL_GOVERNANCE_COMPOUND_API,
 	PROTOCOL_GOVERNANCE_SNAPSHOT_API,
 	PROTOCOL_GOVERNANCE_TALLY_API,
@@ -24,25 +24,25 @@ import {
 	IUpdatedProtocol,
 	IArticlesResponse,
 	IArticle,
-	IProtocolExpenses,
-	IHack
+	IProtocolExpenses
 } from './types'
-import { getAdapterChainOverview, getAdapterProtocolSummary, IAdapterOverview } from '../DimensionAdapters/queries'
+import { getAdapterProtocolSummary, IAdapterSummary } from '../DimensionAdapters/queries'
 import { cg_volume_cexs } from '~/pages/cexs'
 import { DEFI_SETTINGS_KEYS } from '~/contexts/LocalStorage'
 import { chainCoingeckoIdsForGasNotMcap } from '~/constants/chainTokens'
 import { allColors, ProtocolChartsLabels } from './Chart/constants'
 import dayjs from 'dayjs'
 import { getProtocolEmissons } from '~/api/categories/protocols'
+import { getProtocolWarningBanners } from './utils'
+import { IHack } from '../Hacks/queries'
 
 export const getProtocol = async (protocolName: string): Promise<IUpdatedProtocol> => {
 	const start = Date.now()
 	try {
-		const data: IUpdatedProtocol = await fetchJson(`${PROTOCOL_API}/${protocolName}`)
-
-		if (!data || (data as any).statusCode === 400) {
-			throw new Error((data as any).body)
-		}
+		const name = slug(protocolName)
+		const data: IUpdatedProtocol = await fetchJson(`${PROTOCOL_API}/${name}`, {
+			timeout: name.includes('uniswap') ? 2 * 60 * 1000 : 30_000
+		})
 
 		let isNewlyListedProtocol = true
 
@@ -57,12 +57,21 @@ export const getProtocol = async (protocolName: string): Promise<IUpdatedProtoco
 		// }
 
 		if (isNewlyListedProtocol && !data.isParentProtocol) {
-			const hourlyData = await fetchJson(`${HOURLY_PROTOCOL_API}/${protocolName}`)
+			try {
+				const hourlyData = await fetchJson(`${HOURLY_PROTOCOL_API}/${slug(protocolName)}`).catch(() => null)
 
-			return { ...hourlyData, isHourlyChart: true }
+				if (!hourlyData) {
+					return data
+				}
+
+				return { ...hourlyData, isHourlyChart: true }
+			} catch (e) {
+				postRuntimeLogs(`[ERROR] [${Date.now() - start}ms] < ${HOURLY_PROTOCOL_API}/${slug(protocolName)} > ${e}`)
+				return data
+			}
 		} else return data
 	} catch (e) {
-		console.log(`[ERROR] [${Date.now() - start}ms] <${PROTOCOL_API}/${protocolName}>`, e)
+		postRuntimeLogs(`[ERROR] [${Date.now() - start}ms] < ${PROTOCOL_API}/${slug(protocolName)} > ${e}`)
 
 		return null
 	}
@@ -75,6 +84,7 @@ export const getProtocolMetrics = ({
 	protocolData: IUpdatedProtocol
 	metadata: IProtocolMetadata
 }): IProtocolPageMetrics => {
+	let tvlChartExist = false
 	let inflowsExist = false
 	let multipleChains = false
 	let tokenBreakdownExist = false
@@ -96,6 +106,9 @@ export const getProtocolMetrics = ({
 
 	let chainsWithTvl = 0
 	for (const chain in protocolData.chainTvls ?? {}) {
+		if (protocolData.chainTvls[chain].tvl?.length > 0) {
+			tvlChartExist = true
+		}
 		if (chain.includes('-') || chain === 'offers' || DEFI_SETTINGS_KEYS.includes(chain)) {
 			continue
 		}
@@ -104,15 +117,14 @@ export const getProtocolMetrics = ({
 		}
 		if (chainsWithTvl > 1) {
 			multipleChains = true
-			break
 		}
 	}
 
-	const tvlTab = metadata.tvl && (inflowsExist || multipleChains || tokenBreakdownExist)
+	const tvlTab = metadata.tvl && (multipleChains || inflowsExist || tokenBreakdownExist)
 
 	return {
-		tvl: metadata.tvl ? true : false,
-		tvlTab,
+		tvl: metadata.tvl && tvlChartExist ? true : false,
+		tvlTab: tvlTab ? true : false,
 		dexs: metadata.dexs ? true : false,
 		perps: metadata.perps ? true : false,
 		options: metadata.options ? true : false,
@@ -140,29 +152,32 @@ export const getProtocolMetrics = ({
 
 export const getProtocolOverviewPageData = async ({
 	protocolId,
-	metadata
+	metadata,
+	isCEX = false
 }: {
 	protocolId: string
 	metadata: IProtocolMetadata
+	isCEX?: boolean
 }): Promise<IProtocolOverviewPageData> => {
 	const [
 		protocolData,
-		feesProtocols,
-		revenueProtocols,
-		holdersRevenueProtocols,
-		bribesProtocols,
-		tokenTaxProtocols,
-		dexVolumeProtocols,
-		dexAggregatorVolumeProtocols,
-		perpVolumeProtocols,
-		perpAggregatorVolumeProtocols,
-		bridgeAggregatorVolumeProtocols,
-		optionsPremiumVolumeProtocols,
-		optionsNotionalVolumeProtocols,
+		feesData,
+		revenueData,
+		holdersRevenueData,
+		bribesData,
+		tokenTaxData,
+		dexVolumeData,
+		dexAggregatorVolumeData,
+		perpVolumeData,
+		perpAggregatorVolumeData,
+		bridgeAggregatorVolumeData,
+		optionsPremiumVolumeData,
+		optionsNotionalVolumeData,
 		treasury,
 		yieldsData,
 		articles,
 		incentives,
+		adjustedSupply,
 		users,
 		expenses,
 		yieldsConfig,
@@ -201,22 +216,23 @@ export const getProtocolOverviewPageData = async ({
 				updatedAt: number | null
 			}
 		},
-		IAdapterOverview | null,
-		IAdapterOverview | null,
-		IAdapterOverview | null,
-		IAdapterOverview | null,
-		IAdapterOverview | null,
-		IAdapterOverview | null,
-		IAdapterOverview | null,
-		IAdapterOverview | null,
-		IAdapterOverview | null,
-		IAdapterOverview | null,
-		IAdapterOverview | null,
-		IAdapterOverview | null,
+		IProtocolOverviewPageData['fees'],
+		IProtocolOverviewPageData['revenue'],
+		IProtocolOverviewPageData['holdersRevenue'],
+		IProtocolOverviewPageData['bribeRevenue'],
+		IProtocolOverviewPageData['tokenTax'],
+		IProtocolOverviewPageData['dexVolume'],
+		IProtocolOverviewPageData['dexAggregatorVolume'],
+		IProtocolOverviewPageData['perpVolume'],
+		IProtocolOverviewPageData['perpAggregatorVolume'],
+		IProtocolOverviewPageData['bridgeAggregatorVolume'],
+		IProtocolOverviewPageData['optionsPremiumVolume'],
+		IProtocolOverviewPageData['optionsNotionalVolume'],
 		IProtocolOverviewPageData['treasury'] | null,
 		any,
 		IArticle[],
 		any,
+		number | null,
 		{
 			activeUsers: number | null
 			newUsers: number | null
@@ -231,143 +247,144 @@ export const getProtocolOverviewPageData = async ({
 		any,
 		IProtocolOverviewPageData['incomeStatement']
 	] = await Promise.all([
-		getProtocol(metadata.name).then(async (data) => {
+		getProtocol(slug(metadata.displayName)).then(async (data) => {
 			try {
-				const devMetricsProtocolUrl = data.id?.includes('parent')
-					? `${DEV_METRICS_API}/parent/${data?.id?.replace('parent#', '')}.json`
-					: `${DEV_METRICS_API}/${data.id}.json`
-
-				const [tokenCGData, devActivity] = await Promise.all([
-					data.gecko_id
-						? fetchJson(`https://fe-cache.llama.fi/cgchart/${data.gecko_id}?fullChart=true`)
-								.then(({ data }) => data)
-								.catch(() => null as any)
-						: Promise.resolve(null),
-					data.github
-						? await fetchJson(devMetricsProtocolUrl, { timeout: 3_000 }).catch((e) => {
-								return null
-						  })
-						: Promise.resolve(null)
-				])
-
-				const devMetrics = devActivity?.report
-					? {
-							weeklyCommits: devActivity?.report?.weekly_contributers.slice(-1)[0]?.cc ?? null,
-							monthlyCommits: devActivity?.report?.monthly_contributers.slice(-1)[0]?.cc ?? null,
-							weeklyDevelopers: devActivity?.report?.weekly_contributers.slice(-1)[0]?.v ?? null,
-							monthlyDevelopers: devActivity?.report?.monthly_contributers.slice(-1)[0]?.v ?? null,
-							lastCommit: devActivity?.last_commit_update_time ?? null,
-							updatedAt: devActivity?.last_report_generated_time ?? null
-					  }
+				const tokenCGData = data.gecko_id
+					? await fetchJson(`https://fe-cache.llama.fi/cgchart/${data.gecko_id}?fullChart=true`)
+							.then(({ data }) => data)
+							.catch(() => null as any)
 					: null
-
-				return { ...data, devMetrics, tokenCGData: tokenCGData ? getTokenCGData(tokenCGData) : null }
+				return { ...data, tokenCGData: tokenCGData ? getTokenCGData(tokenCGData) : null }
 			} catch (e) {
 				console.log(e)
 				return data
 			}
 		}),
 		metadata.fees
-			? getAdapterChainOverview({
+			? getAdapterProtocolSummary({
 					adapterType: 'fees',
-					chain: 'All',
+					protocol: metadata.displayName,
 					excludeTotalDataChart: true,
 					excludeTotalDataChartBreakdown: true
 			  })
+					.then((data) => formatAdapterData({ data, methodologyKey: 'Fees' }))
+					.catch(() => null)
 			: Promise.resolve(null),
 		metadata.revenue
-			? getAdapterChainOverview({
+			? getAdapterProtocolSummary({
 					adapterType: 'fees',
 					dataType: 'dailyRevenue',
-					chain: 'All',
+					protocol: metadata.displayName,
 					excludeTotalDataChart: true,
 					excludeTotalDataChartBreakdown: true
 			  })
+					.then((data) => formatAdapterData({ data, methodologyKey: 'Revenue' }))
+					.catch(() => null)
 			: Promise.resolve(null),
 		metadata.holdersRevenue
-			? getAdapterChainOverview({
+			? getAdapterProtocolSummary({
 					adapterType: 'fees',
 					dataType: 'dailyHoldersRevenue',
-					chain: 'All',
+					protocol: metadata.displayName,
 					excludeTotalDataChart: true,
 					excludeTotalDataChartBreakdown: true
 			  })
+					.then((data) => formatAdapterData({ data, methodologyKey: 'HoldersRevenue' }))
+					.catch(() => null)
 			: Promise.resolve(null),
 		metadata.bribeRevenue
-			? getAdapterChainOverview({
+			? getAdapterProtocolSummary({
 					adapterType: 'fees',
 					dataType: 'dailyBribesRevenue',
-					chain: 'All',
+					protocol: metadata.displayName,
 					excludeTotalDataChart: true,
 					excludeTotalDataChartBreakdown: true
 			  })
+					.then((data) => formatAdapterData({ data, methodologyKey: 'BribeRevenue' }))
+					.catch(() => null)
 			: Promise.resolve(null),
 		metadata.tokenTax
-			? getAdapterChainOverview({
+			? getAdapterProtocolSummary({
 					adapterType: 'fees',
 					dataType: 'dailyTokenTaxes',
-					chain: 'All',
+					protocol: metadata.displayName,
 					excludeTotalDataChart: true,
 					excludeTotalDataChartBreakdown: true
 			  })
+					.then((data) => formatAdapterData({ data, methodologyKey: 'TokenTaxes' }))
+					.catch(() => null)
 			: Promise.resolve(null),
 		metadata.dexs
-			? getAdapterChainOverview({
+			? getAdapterProtocolSummary({
 					adapterType: 'dexs',
-					chain: 'All',
+					protocol: metadata.displayName,
 					excludeTotalDataChart: true,
 					excludeTotalDataChartBreakdown: true
 			  })
+					.then((data) => formatAdapterData({ data, methodologyKey: 'dexs' }))
+					.catch(() => null)
 			: Promise.resolve(null),
 		metadata.dexAggregators
-			? getAdapterChainOverview({
+			? getAdapterProtocolSummary({
 					adapterType: 'aggregators',
-					chain: 'All',
+					protocol: metadata.displayName,
 					excludeTotalDataChart: true,
 					excludeTotalDataChartBreakdown: true
 			  })
+					.then((data) => formatAdapterData({ data, methodologyKey: 'dexAggregators' }))
+					.catch(() => null)
 			: Promise.resolve(null),
 		metadata.perps
-			? getAdapterChainOverview({
+			? getAdapterProtocolSummary({
 					adapterType: 'derivatives',
-					chain: 'All',
+					protocol: metadata.displayName,
 					excludeTotalDataChart: true,
 					excludeTotalDataChartBreakdown: true
 			  })
+					.then((data) => formatAdapterData({ data, methodologyKey: 'perps' }))
+					.catch(() => null)
 			: Promise.resolve(null),
 		metadata.perpsAggregators
-			? getAdapterChainOverview({
+			? getAdapterProtocolSummary({
 					adapterType: 'aggregator-derivatives',
-					chain: 'All',
+					protocol: metadata.displayName,
 					excludeTotalDataChart: true,
 					excludeTotalDataChartBreakdown: true
 			  })
+					.then((data) => formatAdapterData({ data, methodologyKey: 'perpsAggregators' }))
+					.catch(() => null)
 			: Promise.resolve(null),
 		metadata.bridgeAggregators
-			? getAdapterChainOverview({
+			? getAdapterProtocolSummary({
 					adapterType: 'bridge-aggregators',
-					chain: 'All',
+					protocol: metadata.displayName,
 					excludeTotalDataChart: true,
 					excludeTotalDataChartBreakdown: true
 			  })
+					.then((data) => formatAdapterData({ data, methodologyKey: 'bridgeAggregators' }))
+					.catch(() => null)
 			: Promise.resolve(null),
 		metadata.options
-			? getAdapterChainOverview({
+			? getAdapterProtocolSummary({
 					adapterType: 'options',
 					dataType: 'dailyPremiumVolume',
-					chain: 'All',
+					protocol: metadata.displayName,
 					excludeTotalDataChart: true,
 					excludeTotalDataChartBreakdown: true
 			  })
+					.then((data) => formatAdapterData({ data, methodologyKey: 'optionsPremiumVolume' }))
+					.catch(() => null)
 			: Promise.resolve(null),
 		metadata.options
-			? getAdapterChainOverview({
+			? getAdapterProtocolSummary({
 					adapterType: 'options',
 					dataType: 'dailyNotionalVolume',
-					chain: 'All',
+					protocol: metadata.displayName,
 					excludeTotalDataChart: true,
 					excludeTotalDataChartBreakdown: true
 			  })
+					.then((data) => formatAdapterData({ data, methodologyKey: 'optionsNotionalVolume' }))
+					.catch(() => null)
 			: Promise.resolve(null),
 		metadata.treasury
 			? fetchJson(PROTOCOLS_TREASURY)
@@ -387,15 +404,23 @@ export const getProtocolOverviewPageData = async ({
 			: Promise.resolve(null),
 		metadata.yields
 			? fetchJson(YIELD_POOLS_API).catch((err) => {
-					console.log('[HTTP]:[ERROR]:[PROTOCOL_YIELD]:', metadata.name, err instanceof Error ? err.message : '')
+					console.log(
+						'[HTTP]:[ERROR]:[PROTOCOL_YIELD]:',
+						slug(metadata.displayName),
+						err instanceof Error ? err.message : ''
+					)
 					return {}
 			  })
 			: null,
-		fetchArticles({ tags: metadata.name }).catch((err) => {
-			console.log('[HTTP]:[ERROR]:[PROTOCOL_ARTICLE]:', metadata.name, err instanceof Error ? err.message : '')
+		fetchArticles({ tags: slug(metadata.displayName) }).catch((err) => {
+			console.log(
+				'[HTTP]:[ERROR]:[PROTOCOL_ARTICLE]:',
+				slug(metadata.displayName),
+				err instanceof Error ? err.message : ''
+			)
 			return []
 		}),
-		metadata?.emissions
+		metadata?.emissions && protocolId
 			? fetchJson(`https://api.llama.fi/emissionsBreakdownAggregated`)
 					.then((data) => {
 						const protocolEmissionsData = data.protocols.find((item) =>
@@ -416,7 +441,12 @@ export const getProtocolOverviewPageData = async ({
 					})
 					.catch(() => null)
 			: null,
-		metadata.activeUsers
+		metadata?.emissions && protocolId
+			? fetchJson(`${PROTOCOL_EMISSION_API2}/${slug(metadata.displayName)}`)
+					.then((data) => data?.supplyMetrics?.adjustedSupply ?? null)
+					.catch(() => null)
+			: null,
+		metadata.activeUsers && protocolId
 			? fetchJson(ACTIVE_USERS_API, { timeout: 10_000 })
 					.then((data) => data?.[protocolId] ?? null)
 					.then((data) => {
@@ -431,7 +461,7 @@ export const getProtocolOverviewPageData = async ({
 					})
 					.catch(() => null)
 			: null,
-		metadata.expenses
+		metadata.expenses && protocolId
 			? fetchJson(PROTOCOLS_EXPENSES_API)
 					.then((data) => data.find((item) => item.protocolId === protocolId))
 					.catch(() => {
@@ -450,123 +480,18 @@ export const getProtocolOverviewPageData = async ({
 			: [],
 		fetchJson(PROTOCOLS_API).catch(() => ({ protocols: [] })),
 		fetchJson(HACKS_API).catch(() => ({ hacks: [] })),
-		fetchJson(`${BRIDGEVOLUME_API_SLUG}/${slug(metadata.name)}`)
-			.then((data) => data.dailyVolumes || null)
-			.catch(() => null),
-		getProtocolIncomeStatement({ protocolId, metadata })
+		metadata.bridges
+			? fetchJson(`${BRIDGEVOLUME_API_SLUG}/${slug(metadata.displayName)}`)
+					.then((data) => data.dailyVolumes || null)
+					.catch(() => null)
+			: null,
+		getProtocolIncomeStatement({ metadata })
 	])
-
-	const feesData = formatAdapterData({
-		data: feesProtocols,
-		isParentProtocol: protocolData.isParentProtocol,
-		methodologyKey: 'Fees',
-		protocolName: metadata.displayName,
-		protocolId,
-		otherProtocols: protocolData.otherProtocols
-	})
-	const revenueData = formatAdapterData({
-		data: revenueProtocols,
-		isParentProtocol: protocolData.isParentProtocol,
-		methodologyKey: 'Revenue',
-		protocolName: metadata.displayName,
-		protocolId,
-		otherProtocols: protocolData.otherProtocols
-	})
-
-	const holdersRevenueData = formatAdapterData({
-		data: holdersRevenueProtocols,
-		isParentProtocol: protocolData.isParentProtocol,
-		methodologyKey: 'HoldersRevenue',
-		protocolName: metadata.displayName,
-		protocolId,
-		otherProtocols: protocolData.otherProtocols
-	})
-
-	const bribesData = formatAdapterData({
-		data: bribesProtocols,
-		isParentProtocol: protocolData.isParentProtocol,
-		methodologyKey: 'BribeRevenue',
-		protocolName: metadata.displayName,
-		protocolId,
-		otherProtocols: protocolData.otherProtocols
-	})
-
-	const tokenTaxData = formatAdapterData({
-		data: tokenTaxProtocols,
-		isParentProtocol: protocolData.isParentProtocol,
-		methodologyKey: 'TokenTaxes',
-		protocolName: metadata.displayName,
-		protocolId,
-		otherProtocols: protocolData.otherProtocols
-	})
-
-	const dexVolumeData = formatAdapterData({
-		data: dexVolumeProtocols,
-		isParentProtocol: protocolData.isParentProtocol,
-		methodologyKey: 'dexs',
-		protocolName: metadata.displayName,
-		protocolId,
-		otherProtocols: protocolData.otherProtocols
-	})
-
-	const dexAggregatorVolumeData = formatAdapterData({
-		data: dexAggregatorVolumeProtocols,
-		isParentProtocol: protocolData.isParentProtocol,
-		methodologyKey: 'dexAggregators',
-		protocolName: metadata.displayName,
-		protocolId,
-		otherProtocols: protocolData.otherProtocols
-	})
-
-	const perpVolumeData = formatAdapterData({
-		data: perpVolumeProtocols,
-		isParentProtocol: protocolData.isParentProtocol,
-		methodologyKey: 'perps',
-		protocolName: metadata.displayName,
-		protocolId,
-		otherProtocols: protocolData.otherProtocols
-	})
-
-	const perpAggregatorVolumeData = formatAdapterData({
-		data: perpAggregatorVolumeProtocols,
-		isParentProtocol: protocolData.isParentProtocol,
-		methodologyKey: 'perpsAggregators',
-		protocolName: metadata.displayName,
-		protocolId,
-		otherProtocols: protocolData.otherProtocols
-	})
-
-	const bridgeAggregatorVolumeData = formatAdapterData({
-		data: bridgeAggregatorVolumeProtocols,
-		isParentProtocol: protocolData.isParentProtocol,
-		methodologyKey: 'bridgeAggregators',
-		protocolName: metadata.displayName,
-		protocolId,
-		otherProtocols: protocolData.otherProtocols
-	})
-
-	const optionsPremiumVolumeData = formatAdapterData({
-		data: optionsPremiumVolumeProtocols,
-		isParentProtocol: protocolData.isParentProtocol,
-		methodologyKey: 'optionsPremiumVolume',
-		protocolName: metadata.displayName,
-		protocolId,
-		otherProtocols: protocolData.otherProtocols
-	})
-
-	const optionsNotionalVolumeData = formatAdapterData({
-		data: optionsNotionalVolumeProtocols,
-		isParentProtocol: protocolData.isParentProtocol,
-		methodologyKey: 'optionsNotionalVolume',
-		protocolName: metadata.displayName,
-		protocolId,
-		otherProtocols: protocolData.otherProtocols
-	})
 
 	const otherProtocols = protocolData.otherProtocols?.map((p) => slug(p)) ?? []
 	const projectYields = yieldsData?.data?.filter(
 		({ project }) =>
-			[metadata.name, metadata.displayName].includes(project) ||
+			[slug(metadata.displayName), metadata.displayName].includes(project) ||
 			(protocolData?.parentProtocol ? false : otherProtocols.includes(project))
 	)
 	const yields =
@@ -667,7 +592,11 @@ export const getProtocolOverviewPageData = async ({
 	const hacks =
 		(protocolData.id
 			? hacksData
-					?.filter((hack) => [String(hack.defillamaId), String(hack.parentProtocolId)].includes(String(protocolId)))
+					?.filter((hack) =>
+						isCEX
+							? [hack.name].includes(metadata.displayName)
+							: [String(hack.defillamaId), String(hack.parentProtocolId)].includes(String(protocolId))
+					)
 					?.sort((a, b) => a.date - b.date)
 			: null) ?? null
 
@@ -720,7 +649,7 @@ export const getProtocolOverviewPageData = async ({
 	}
 	const firstChain = chains.sort((a, b) => b[1] - a[1])?.[0]?.[0] ?? null
 	const chartDenominations: Array<{ symbol: string; geckoId?: string | null }> = []
-	if (firstChain) {
+	if (firstChain && !isCEX) {
 		chartDenominations.push({ symbol: 'USD', geckoId: null })
 
 		const cmetadata = chainMetadata?.[slug(firstChain)]
@@ -738,8 +667,8 @@ export const getProtocolOverviewPageData = async ({
 
 	const availableCharts: ProtocolChartsLabels[] = []
 
-	if (metadata.tvl) {
-		availableCharts.push('TVL')
+	if (metadata.tvl && tvlChartData.length > 0) {
+		availableCharts.push(isCEX ? 'Total Assets' : 'TVL')
 	}
 
 	if (protocolData.gecko_id) {
@@ -826,13 +755,6 @@ export const getProtocolOverviewPageData = async ({
 		availableCharts.push('Treasury')
 	}
 
-	if (metadata.activeUsers) {
-		availableCharts.push('Active Addresses')
-		availableCharts.push('New Addresses')
-		availableCharts.push('Transactions')
-		// availableCharts.push('Gas Used')
-	}
-
 	if (yields) {
 		availableCharts.push('Median APY')
 	}
@@ -841,13 +763,6 @@ export const getProtocolOverviewPageData = async ({
 		availableCharts.push('Total Proposals')
 		availableCharts.push('Successful Proposals')
 		availableCharts.push('Max Votes')
-	}
-
-	if (protocolData.devMetrics) {
-		availableCharts.push('Developers')
-		availableCharts.push('Devs Commits')
-		availableCharts.push('Contributers')
-		availableCharts.push('Contributers Commits')
 	}
 
 	if (metadata.nfts) {
@@ -860,14 +775,18 @@ export const getProtocolOverviewPageData = async ({
 	})
 
 	const hallmarks = {}
+	const rangeHallmarks = []
 	for (const hack of hacks ?? []) {
 		hallmarks[hack.date] = `Hack: ${hack.classification ?? ''}`
 	}
 	for (const mark of protocolData.hallmarks ?? []) {
-		if (hallmarks[mark[0]]) {
-			continue
+		if (Array.isArray(mark[0])) {
+			rangeHallmarks.push(mark)
+		} else {
+			if (!hallmarks[mark[0]]) {
+				hallmarks[mark[0]] = mark[1]
+			}
 		}
-		hallmarks[mark[0]] = mark[1]
 	}
 
 	return {
@@ -897,7 +816,10 @@ export const getProtocolOverviewPageData = async ({
 				? `https://github.com/DefiLlama/DefiLlama-Adapters/tree/main/projects/${protocolData.module}`
 				: null,
 		token: {
-			symbol: protocolData.symbol ?? protocolData.tokenCGData?.symbol ?? null,
+			symbol:
+				protocolData.symbol && protocolData.symbol !== '-'
+					? protocolData.symbol
+					: protocolData.tokenCGData?.symbol ?? null,
 			gecko_id: protocolData.gecko_id ?? null,
 			gecko_url: protocolData.gecko_id ? `https://www.coingecko.com/en/coins/${protocolData.gecko_id}` : null,
 			explorer_url: getProtocolTokenUrlOnExplorer(protocolData.address)
@@ -922,7 +844,6 @@ export const getProtocolOverviewPageData = async ({
 		yields,
 		articles,
 		incentives,
-		devMetrics: protocolData.devMetrics ?? null,
 		users,
 		raises: raises?.length ? raises : null,
 		expenses: expenses
@@ -943,6 +864,10 @@ export const getProtocolOverviewPageData = async ({
 				? { pools: tokenLiquidity, total: tokenLiquidity.reduce((acc, curr) => acc + curr[2], 0) }
 				: null,
 		tokenCGData: protocolData.tokenCGData ?? null,
+		outstandingFDV:
+			adjustedSupply && protocolData.tokenCGData?.price?.current
+				? adjustedSupply * protocolData.tokenCGData.price.current
+				: null,
 		audits:
 			+protocolData.audits > 0
 				? {
@@ -951,7 +876,7 @@ export const getProtocolOverviewPageData = async ({
 						note: protocolData.audit_note ?? null
 				  }
 				: null,
-		isCEX: false,
+		isCEX,
 		hasKeyMetrics,
 		competitors: Array.from(competitorsSet).map((protocolName) => competitors.find((p) => p.name === protocolName)),
 		hacks,
@@ -961,59 +886,39 @@ export const getProtocolOverviewPageData = async ({
 		tvlChartData,
 		extraTvlCharts,
 		hallmarks: Object.entries(hallmarks).map(([date, event]) => [+date * 1e3, event as string]),
+		rangeHallmarks: rangeHallmarks.map(([date, event]) => [[+date[0] * 1e3, +date[1] * 1e3], event as string]),
 		geckoId: protocolData.gecko_id ?? null,
 		governanceApis: governanceApis(protocolData.governanceID) ?? null,
-		incomeStatement
+		incomeStatement,
+		warningBanners: getProtocolWarningBanners(protocolData),
+		defaultChartView:
+			feesData?.defaultChartView ??
+			revenueData?.defaultChartView ??
+			holdersRevenueData?.defaultChartView ??
+			bribesData?.defaultChartView ??
+			tokenTaxData?.defaultChartView ??
+			dexVolumeData?.defaultChartView ??
+			dexAggregatorVolumeData?.defaultChartView ??
+			perpVolumeData?.defaultChartView ??
+			perpAggregatorVolumeData?.defaultChartView ??
+			bridgeAggregatorVolumeData?.defaultChartView ??
+			optionsPremiumVolumeData?.defaultChartView ??
+			optionsNotionalVolumeData?.defaultChartView ??
+			'daily'
 	}
 }
 
-function formatAdapterData({
-	data,
-	isParentProtocol,
-	methodologyKey,
-	protocolName,
-	protocolId,
-	otherProtocols
-}: {
-	data: IAdapterOverview | null
-	isParentProtocol: boolean
-	methodologyKey?: string
-	protocolName: string
-	protocolId: string
-	otherProtocols?: string[]
-}): {
-	total24h: number | null
-	total30d: number | null
-	totalAllTime: number | null
-	methodologyURLs?: Record<string, string>
-	methodology?: string | null
-	methodologyURL?: string | null
-	childMethodologies?: Array<[string, string | null, string | null]>
-} | null {
+function formatAdapterData({ data, methodologyKey }: { data: IAdapterSummary; methodologyKey?: string }) {
 	if (!data) {
 		return null
 	}
 
-	if (isParentProtocol) {
-		const childProtocols = data?.protocols?.filter((p) => p.linkedProtocols?.includes(protocolName))
-
-		if (childProtocols?.length === 0) {
-			return null
-		}
-
-		let total24h = 0
-		let total30d = 0
-		let totalAllTime = 0
-
+	if (data.childProtocols?.length) {
 		const childMethodologies = []
-		for (const childProtocol of childProtocols) {
-			total24h += childProtocol.total24h ?? 0
-			total30d += childProtocol.total30d ?? 0
-			totalAllTime += childProtocol.totalAllTime ?? 0
-
+		for (const childProtocol of data.childProtocols) {
 			if (methodologyKey && !commonMethodology[methodologyKey]) {
 				childMethodologies.push([
-					childProtocol.name,
+					childProtocol.displayName,
 					childProtocol.methodology?.[methodologyKey] ?? null,
 					childProtocol.methodologyURL ?? null
 				])
@@ -1022,35 +927,35 @@ function formatAdapterData({
 
 		const areMethodologiesDifferent = new Set(childMethodologies.map((m) => m[1])).size > 1
 		const topChildMethodology =
-			otherProtocols?.length > 1 ? childMethodologies.find((m) => m[0] === otherProtocols[1]) : null
+			data.childProtocols?.length > 1
+				? childMethodologies.find((m) => m[0] === data.childProtocols[0].displayName)
+				: null
 
 		return {
-			total24h,
-			total30d,
-			totalAllTime,
+			total24h: data.total24h ?? null,
+			total7d: data.total7d ?? null,
+			total30d: data.total30d ?? null,
+			totalAllTime: data.totalAllTime ?? null,
 			...(areMethodologiesDifferent
 				? { childMethodologies: childMethodologies.filter((m) => (m[1] || m[2] ? true : false)) }
 				: {
 						methodology: methodologyKey ? topChildMethodology?.[1] ?? commonMethodology[methodologyKey] ?? null : null,
 						methodologyURL: topChildMethodology?.[2] ?? null
-				  })
+				  }),
+			defaultChartView: data.defaultChartView ?? 'daily'
 		}
 	}
 
-	const adapterProtocol = data?.protocols.find((p) => p.defillamaId === protocolId)
-
-	if (!adapterProtocol) {
-		return null
-	}
-
 	return {
-		total24h: adapterProtocol.total24h ?? null,
-		total30d: adapterProtocol.total30d ?? null,
-		totalAllTime: adapterProtocol.totalAllTime ?? null,
+		total24h: data.total24h ?? null,
+		total7d: data.total7d ?? null,
+		total30d: data.total30d ?? null,
+		totalAllTime: data.totalAllTime ?? null,
 		methodology: methodologyKey
-			? adapterProtocol.methodology?.[methodologyKey] ?? commonMethodology[methodologyKey] ?? null
+			? data.methodology?.[methodologyKey] ?? commonMethodology[methodologyKey] ?? null
 			: null,
-		methodologyURL: adapterProtocol.methodologyURL ?? null
+		methodologyURL: data.methodologyURL ?? null,
+		defaultChartView: data.defaultChartView ?? 'daily'
 	}
 }
 
@@ -1140,13 +1045,7 @@ const governanceApis = (governanceID) =>
 		) ?? []
 	).map((g) => g.toLowerCase())
 
-export async function getProtocolIncomeStatement({
-	protocolId,
-	metadata
-}: {
-	protocolId: string
-	metadata: IProtocolMetadata
-}): Promise<{
+export async function getProtocolIncomeStatement({ metadata }: { metadata: IProtocolMetadata }): Promise<{
 	feesByMonth: Record<string, number>
 	revenueByMonth: Record<string, number>
 	holdersRevenueByMonth: Record<string, number> | null
@@ -1161,13 +1060,13 @@ export async function getProtocolIncomeStatement({
 		const [fees, revenue, holdersRevenue, incentives] = await Promise.all([
 			getAdapterProtocolSummary({
 				adapterType: 'fees',
-				protocol: metadata.name,
+				protocol: metadata.displayName,
 				excludeTotalDataChart: false,
 				excludeTotalDataChartBreakdown: true
 			}),
 			getAdapterProtocolSummary({
 				adapterType: 'fees',
-				protocol: metadata.name,
+				protocol: metadata.displayName,
 				excludeTotalDataChart: false,
 				excludeTotalDataChartBreakdown: true,
 				dataType: 'dailyRevenue'
@@ -1175,13 +1074,13 @@ export async function getProtocolIncomeStatement({
 			metadata.holdersRevenue
 				? getAdapterProtocolSummary({
 						adapterType: 'fees',
-						protocol: metadata.name,
+						protocol: metadata.displayName,
 						excludeTotalDataChart: false,
 						excludeTotalDataChartBreakdown: true,
 						dataType: 'dailyHoldersRevenue'
 				  })
 				: Promise.resolve(null),
-			getProtocolEmissons(metadata.name)
+			getProtocolEmissons(slug(metadata.displayName))
 				.then((data) => data.unlockUsdChart ?? [])
 				.then((chart) => {
 					const nonZeroIndex = chart.findIndex(([_, value]) => value > 0)
@@ -1227,7 +1126,7 @@ export async function getProtocolIncomeStatement({
 			incentivesByMonth: incentives.length > 0 ? incentivesByMonth : null,
 			monthDates: Array.from(monthDates)
 				.sort((a, b) => b - a)
-				.map((date) => [date, dayjs(date).format('MMM YYYY')] as [number, string])
+				.map((date) => [date, dayjs.utc(date).format('MMM YYYY')] as [number, string])
 		}
 	} catch (err) {
 		console.log(err)

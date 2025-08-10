@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { IFormattedProtocol } from '~/api/types'
 import { useLocalStorageSettingsManager } from '~/contexts/LocalStorage'
 import { formatDataWithExtraTvls, groupDataWithTvlsByDay, IFormattedDataWithExtraTvl } from './defi'
-import { getPercentChange } from '~/utils'
+import { formattedNum, getPercentChange } from '~/utils'
 
 type DataValue = number | null
 
@@ -41,7 +41,7 @@ export const useGroupChainsByParent = (chains, groupData): IFormattedDataWithExt
 			let tvlPrevMonth: DataValue = null
 			let mcap: DataValue = null
 			let stablesMcap: DataValue = null
-			let protocols: DataValue = null
+			// let protocols: DataValue = null
 			let users: DataValue = null
 			let totalVolume24h: DataValue = null
 			let totalFees24h: DataValue = null
@@ -67,7 +67,7 @@ export const useGroupChainsByParent = (chains, groupData): IFormattedDataWithExt
 				tvlPrevMonth = parentData.tvlPrevMonth || null
 				mcap = parentData.mcap || null
 				stablesMcap = parentData.stablesMcap || null
-				protocols = parentData.protocols || null
+				// protocols = parentData.protocols || null
 				users = parentData.users || null
 				totalVolume24h = parentData.totalVolume24h || null
 				totalFees24h = parentData.totalFees24h || null
@@ -104,7 +104,7 @@ export const useGroupChainsByParent = (chains, groupData): IFormattedDataWithExt
 							tvlPrevMonth += childData.tvlPrevMonth
 							mcap += childData.mcap
 							stablesMcap += childData.stablesMcap
-							protocols += childData.protocols
+							// protocols += childData.protocols
 							users += childData.users || null
 							totalVolume24h += childData.totalVolume24h || null
 							totalFees24h += childData.totalFees24h || null
@@ -122,7 +122,7 @@ export const useGroupChainsByParent = (chains, groupData): IFormattedDataWithExt
 
 							nftVolume += childData.nftVolume || null
 							const subChains = finalData[parentName].subRows || []
-							let mcaptvl = mcap && tvl ? +(mcap / tvl).toFixed(2) : null
+							let mcaptvl = mcap && tvl ? +formattedNum(mcap / tvl) : null
 							let change_1d = getPercentChange(tvl, tvlPrevDay)
 							let change_7d = getPercentChange(tvl, tvlPrevWeek)
 							let change_1m = getPercentChange(tvl, tvlPrevMonth)
@@ -136,7 +136,7 @@ export const useGroupChainsByParent = (chains, groupData): IFormattedDataWithExt
 								mcap,
 								stablesMcap,
 								mcaptvl: mcaptvl ?? undefined,
-								protocols,
+								protocols: null,
 								users,
 								totalVolume24h,
 								totalFees24h,

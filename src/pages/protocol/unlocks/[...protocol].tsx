@@ -5,6 +5,7 @@ import { maxAgeForNext } from '~/api'
 import { UnlocksCharts } from '~/containers/ProtocolOverview/Emissions'
 import { slug } from '~/utils'
 import { IProtocolMetadata } from '~/containers/ProtocolOverview/types'
+import { getProtocolWarningBanners } from '~/containers/ProtocolOverview/utils'
 
 export const getStaticProps = withPerformanceLogging(
 	'protocol/unlocks/[...protocol]',
@@ -18,7 +19,7 @@ export const getStaticProps = withPerformanceLogging(
 		const { protocolMetadata } = metadataCache
 		let metadata: [string, IProtocolMetadata] | undefined
 		for (const key in protocolMetadata) {
-			if (protocolMetadata[key].name === normalizedName) {
+			if (slug(protocolMetadata[key].displayName) === normalizedName) {
 				metadata = [key, protocolMetadata[key]]
 				break
 			}
@@ -37,7 +38,8 @@ export const getStaticProps = withPerformanceLogging(
 				name: protocolData.name,
 				otherProtocols: protocolData?.otherProtocols ?? [],
 				category: protocolData?.category ?? null,
-				metrics
+				metrics,
+				warningBanners: getProtocolWarningBanners(protocolData)
 			},
 			revalidate: maxAgeForNext([22])
 		}
@@ -56,8 +58,9 @@ export default function Protocols({ clientSide, protocolData, ...props }) {
 			otherProtocols={props.otherProtocols}
 			metrics={props.metrics}
 			tab="unlocks"
+			warningBanners={props.warningBanners}
 		>
-			<div className="bg-(--cards-bg) border border-(--cards-border) rounded-md">
+			<div className="flex flex-col gap-2 rounded-md">
 				<UnlocksCharts protocolName={props.name} />
 			</div>
 		</ProtocolOverviewLayout>

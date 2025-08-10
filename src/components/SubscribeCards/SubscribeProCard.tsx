@@ -7,11 +7,13 @@ import { useDarkModeManager } from '~/contexts/LocalStorage'
 export function SubscribeProCard({
 	context = 'page',
 	active = false,
-	onCancelSubscription
+	onCancelSubscription,
+	isLegacyActive = false
 }: {
 	context?: 'page' | 'account'
 	active?: boolean
 	onCancelSubscription?: () => void
+	isLegacyActive?: boolean
 }) {
 	return (
 		<div
@@ -41,7 +43,7 @@ export function SubscribeProCard({
 						'linear-gradient(135deg, rgba(92, 92, 249, 0.05) 0%, rgba(138, 138, 255, 0.02) 50%, rgba(70, 42, 146, 0.03) 100%)'
 				}}
 			></div>
-			<h2 className="whitespace-nowrap text-[2rem] font-extrabold text-center text-[#5C5CF9] relative z-10">Pro</h2>
+			<h2 className="whitespace-nowrap text-[2rem] font-extrabold text-center text-[#5C5CF9] relative z-10">API</h2>
 			<div className="flex items-center justify-center mt-1 relative z-10">
 				<span className="text-center text-2xl font-medium bg-linear-to-r from-[#5C5CF9] to-[#8a8aff] bg-clip-text text-transparent">
 					300 USD
@@ -66,7 +68,7 @@ export function SubscribeProCard({
 					<span className="font-medium">Priority support</span>
 				</li>
 				<p className="px-[26px] font-medium">
-					<a href="https://defillama.com/pro-api/docs" target="_blank" rel="noreferrer noopener" className="underline">
+					<a href="https://api-docs.defillama.com/" target="_blank" rel="noreferrer noopener" className="underline">
 						Pro API
 					</a>{' '}
 					limits:
@@ -79,7 +81,7 @@ export function SubscribeProCard({
 				</li>
 			</ul>
 			<div className="w-full max-w-[408px] mx-auto flex flex-col gap-3 relative z-10">
-				{active ? (
+				{active && !isLegacyActive ? (
 					<div className="flex flex-col gap-2">
 						<span className="text-center text-green-400 font-bold">Current Plan</span>
 						{onCancelSubscription && (
@@ -91,7 +93,7 @@ export function SubscribeProCard({
 							</button>
 						)}
 					</div>
-				) : context === 'account' ? (
+				) : context === 'account' || isLegacyActive ? (
 					<div className="flex flex-col gap-6 mt-2">
 						<div className="flex flex-col items-center">
 							<div className="grid grid-cols-2 gap-3 w-full">

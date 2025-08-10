@@ -1,24 +1,21 @@
 import { useMemo } from 'react'
 import { keepNeededProperties } from '~/api/shared'
-import { capitalizeFirstLetter, getPercentChange, getPrevVolumeFromChart, slug } from '~/utils'
+import { capitalizeFirstLetter, getPercentChange, getPrevVolumeFromChart, preparePieChartData, slug } from '~/utils'
+
+export interface ITokenData {
+	usdValue: number
+	amount: number
+	symbol: string
+	decimals: number
+}
 
 export interface IDailyBridgeStats {
 	date: number
 	totalTokensDeposited: {
-		[token: string]: {
-			usdValue: number
-			amount: number
-			symbol: string
-			decimals: number
-		}
+		[token: string]: ITokenData
 	}
 	totalTokensWithdrawn: {
-		[token: string]: {
-			usdValue: number
-			amount: number
-			symbol: string
-			decimals: number
-		}
+		[token: string]: ITokenData
 	}
 	totalAddressDeposited: {
 		[address: string]: {
@@ -119,7 +116,9 @@ export const formatChainsData = ({
 	chains = [],
 	chartDataByChain = [],
 	chainToChartDataIndex = {},
-	prevDayDataByChain = [] as IDailyBridgeStats[]
+	prevDayDataByChain = [] as IDailyBridgeStats[],
+	netflowsDataDay = null,
+	netflowsDataWeek = null
 }) => {
 	let filteredChains = [...chains]
 
@@ -133,20 +132,69 @@ export const formatChainsData = ({
 				return name === chain.name
 			}) ?? null
 		const prevDayChart = charts?.[charts.length - 1]
-		const prevDayUsdDeposits = prevDayChart?.depositUSD
-		const prevDayUsdWithdrawals = prevDayChart?.withdrawUSD
 		const totalTokensDeposited = prevDayData?.totalTokensDeposited
 		const totalTokensWithdrawn = prevDayData?.totalTokensWithdrawn
-		const prevDayNetFlow = prevDayUsdDeposits - prevDayUsdWithdrawals
 
-		const prevWeekCharts = chartDataByChain[chartIndex].slice(-8, -1)
-		let prevWeekUsdDeposits = 0
-		let prevWeekUsdWithdrawals = 0
-		for (const chart of prevWeekCharts) {
-			prevWeekUsdDeposits += chart.depositUSD
-			prevWeekUsdWithdrawals += chart.withdrawUSD
+		let prevDayUsdDeposits, prevDayUsdWithdrawals, prevDayNetFlow
+		if (netflowsDataDay && Array.isArray(netflowsDataDay)) {
+			const chainNetflowDay = netflowsDataDay.find(
+				(item) => item.chain && item.chain.toLowerCase() === name.toLowerCase()
+			)
+			if (chainNetflowDay) {
+				prevDayUsdDeposits =
+					chainNetflowDay.deposited_usd !== undefined ? Number(chainNetflowDay.deposited_usd) : prevDayChart?.depositUSD
+				prevDayUsdWithdrawals =
+					chainNetflowDay.withdrawn_usd !== undefined
+						? Number(chainNetflowDay.withdrawn_usd)
+						: prevDayChart?.withdrawUSD
+				prevDayNetFlow =
+					chainNetflowDay.net_flow !== undefined
+						? Number(chainNetflowDay.net_flow)
+						: prevDayUsdDeposits - prevDayUsdWithdrawals
+			} else {
+				prevDayUsdDeposits = prevDayChart?.depositUSD
+				prevDayUsdWithdrawals = prevDayChart?.withdrawUSD
+				prevDayNetFlow = prevDayUsdDeposits - prevDayUsdWithdrawals
+			}
+		} else {
+			prevDayUsdDeposits = prevDayChart?.depositUSD
+			prevDayUsdWithdrawals = prevDayChart?.withdrawUSD
+			prevDayNetFlow = prevDayUsdDeposits - prevDayUsdWithdrawals
 		}
-		const prevWeekNetFlow = prevWeekUsdWithdrawals - prevWeekUsdDeposits
+
+		let prevWeekUsdDeposits, prevWeekUsdWithdrawals, prevWeekNetFlow
+		if (netflowsDataWeek && Array.isArray(netflowsDataWeek)) {
+			const chainNetflowWeek = netflowsDataWeek.find(
+				(item) => item.chain && item.chain.toLowerCase() === name.toLowerCase()
+			)
+			if (chainNetflowWeek) {
+				prevWeekUsdDeposits = chainNetflowWeek.deposited_usd !== undefined ? Number(chainNetflowWeek.deposited_usd) : 0
+				prevWeekUsdWithdrawals =
+					chainNetflowWeek.withdrawn_usd !== undefined ? Number(chainNetflowWeek.withdrawn_usd) : 0
+				prevWeekNetFlow =
+					chainNetflowWeek.net_flow !== undefined
+						? Number(chainNetflowWeek.net_flow)
+						: prevWeekUsdWithdrawals - prevWeekUsdDeposits
+			} else {
+				const prevWeekCharts = chartDataByChain[chartIndex].slice(-8, -1)
+				prevWeekUsdDeposits = 0
+				prevWeekUsdWithdrawals = 0
+				for (const chart of prevWeekCharts) {
+					prevWeekUsdDeposits += chart.depositUSD
+					prevWeekUsdWithdrawals += chart.withdrawUSD
+				}
+				prevWeekNetFlow = prevWeekUsdWithdrawals - prevWeekUsdDeposits
+			}
+		} else {
+			const prevWeekCharts = chartDataByChain[chartIndex].slice(-8, -1)
+			prevWeekUsdDeposits = 0
+			prevWeekUsdWithdrawals = 0
+			for (const chart of prevWeekCharts) {
+				prevWeekUsdDeposits += chart.depositUSD
+				prevWeekUsdWithdrawals += chart.withdrawUSD
+			}
+			prevWeekNetFlow = prevWeekUsdWithdrawals - prevWeekUsdDeposits
+		}
 
 		let topTokenDepositedSymbol = null,
 			topTokenWithdrawnSymbol = null,
@@ -190,6 +238,15 @@ export const formatChainsData = ({
 	return filteredChains
 }
 
+const groupTokensBySymbol = (tokens: { [token: string]: ITokenData }) => {
+	const group = {}
+	for (const token in tokens) {
+		const symbol = tokens[token].symbol || 'Unknown'
+		group[symbol] = (group[symbol] ?? 0) + (tokens[token].usdValue || 0)
+	}
+	return group
+}
+
 export const useBuildBridgeChartData = (bridgeStatsCurrentDay: IDailyBridgeStats) => {
 	const { tokenDeposits, tokenWithdrawals } = useMemo(() => {
 		const tokensDeposited = bridgeStatsCurrentDay?.totalTokensDeposited
@@ -197,44 +254,19 @@ export const useBuildBridgeChartData = (bridgeStatsCurrentDay: IDailyBridgeStats
 		let tokenDeposits = [],
 			tokenWithdrawals = []
 		if (tokensDeposited && tokensWithdrawn) {
-			let uniqueTokenDeposits = {} as { [symbol: string]: number }
-			Object.entries(tokensDeposited).map(([token, tokenData]) => {
-				{
-					const symbol = tokenData.symbol
-					const usdValue = tokenData.usdValue
-					uniqueTokenDeposits[symbol] = (uniqueTokenDeposits[symbol] ?? 0) + usdValue
-				}
-			})
-			const fullTokenDeposits = Object.entries(uniqueTokenDeposits).map(([symbol, usdValue]) => {
-				return { name: symbol, value: usdValue }
-			})
-			const otherDeposits = fullTokenDeposits.slice(10).reduce((total, entry) => {
-				return (total += entry.value)
-			}, 0)
-			tokenDeposits = fullTokenDeposits
-				.slice(0, 10)
-				.sort((a, b) => b.value - a.value)
-				.concat({ name: 'Others', value: otherDeposits })
+			const uniqueTokenDeposits = groupTokensBySymbol(tokensDeposited)
 
-			let uniqueTokenWithdrawals = {} as { [symbol: string]: number }
-			Object.entries(tokensWithdrawn).map(([token, tokenData]) => {
-				{
-					const symbol = tokenData.symbol
-					const usdValue = tokenData.usdValue
-					uniqueTokenWithdrawals[symbol] = (uniqueTokenWithdrawals[symbol] ?? 0) + usdValue
-				}
+			tokenDeposits = preparePieChartData({
+				data: uniqueTokenDeposits,
+				limit: 10
 			})
 
-			const fullTokenWithdrawals = Object.entries(uniqueTokenWithdrawals).map(([symbol, usdValue]) => {
-				return { name: symbol, value: usdValue }
+			const uniqueTokenWithdrawals = groupTokensBySymbol(tokensWithdrawn)
+
+			tokenWithdrawals = preparePieChartData({
+				data: uniqueTokenWithdrawals,
+				limit: 10
 			})
-			const otherWithdrawals = fullTokenWithdrawals.slice(10).reduce((total, entry) => {
-				return (total += entry.value)
-			}, 0)
-			tokenWithdrawals = fullTokenWithdrawals
-				.slice(0, 10)
-				.sort((a, b) => b.value - a.value)
-				.concat({ name: 'Others', value: otherWithdrawals })
 		}
 
 		return { tokenDeposits, tokenWithdrawals }

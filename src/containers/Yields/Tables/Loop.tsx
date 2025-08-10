@@ -4,7 +4,7 @@ import { YieldsTableWrapper } from './shared'
 import { getColumnSizesKeys } from '~/components/Table/utils'
 import { ColumnDef } from '@tanstack/react-table'
 import { IconsRow } from '~/components/IconsRow'
-import { formattedNum, formattedPercent, toK } from '~/utils'
+import { formattedNum, formattedPercent } from '~/utils'
 import { NameYield, NameYieldPool } from './Name'
 import type { IYieldTableRow } from './types'
 import { QuestionHelper } from '~/components/QuestionHelper'
@@ -102,7 +102,7 @@ const columns: ColumnDef<IYieldTableRow>[] = [
 		accessorKey: 'boost',
 		enableSorting: true,
 		cell: (info) => {
-			return <ColoredAPY data-variant="borrow">{toK(info.getValue()) + 'x'}</ColoredAPY>
+			return <ColoredAPY data-variant="borrow">{formattedNum(info.getValue()) + 'x'}</ColoredAPY>
 		},
 		size: 140,
 		meta: {
@@ -142,7 +142,7 @@ const columns: ColumnDef<IYieldTableRow>[] = [
 						color: info.row.original.strikeTvl ? 'var(--text-disabled)' : 'inherit'
 					}}
 				>
-					{info.getValue() === null ? '' : '$' + formattedNum(info.getValue())}
+					{info.getValue() === null ? '' : formattedNum(info.getValue(), true)}
 				</span>
 			)
 		},
@@ -162,7 +162,7 @@ const columns: ColumnDef<IYieldTableRow>[] = [
 						color: info.row.original.strikeTvl ? 'var(--text-disabled)' : 'inherit'
 					}}
 				>
-					{info.getValue() === null ? '' : '$' + formattedNum(info.getValue())}
+					{info.getValue() === null ? '' : formattedNum(info.getValue(), true)}
 				</span>
 			)
 		},
@@ -186,12 +186,12 @@ const columns: ColumnDef<IYieldTableRow>[] = [
 						<QuestionHelper
 							text={`Morpho liquidity comes from the underlying lending protocol pool itself. Available P2P Liquidity: ${
 								info.row.original.totalSupplyUsd - info.row.original.totalBorrowUsd > 0
-									? '$' + formattedNum(info.row.original.totalSupplyUsd - info.row.original.totalBorrowUsd)
+									? formattedNum(info.row.original.totalSupplyUsd - info.row.original.totalBorrowUsd, true)
 									: '$0'
 							}`}
 						/>
 					) : null}
-					{info.getValue() === null ? null : '$' + formattedNum(info.getValue())}
+					{info.getValue() === null ? null : formattedNum(info.getValue(), true)}
 				</span>
 			)
 		},

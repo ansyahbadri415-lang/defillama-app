@@ -20,7 +20,7 @@ import {
 } from '~/containers/DimensionAdapters/queries'
 import { getPeggedOverviewPageData } from '~/containers/Stablecoins/queries.server'
 import { buildStablecoinChartData, getStablecoinDominance } from '~/containers/Stablecoins/utils'
-import { getNDistinctColors, getPercentChange, slug, tokenIconUrl } from '~/utils'
+import { formattedNum, getNDistinctColors, getPercentChange, slug, tokenIconUrl } from '~/utils'
 import { fetchJson } from '~/utils/async'
 import type {
 	IChainMetadata,
@@ -118,7 +118,16 @@ export async function getChainOverviewData({ chain }: { chain: string }): Promis
 			any,
 			any
 		] = await Promise.all([
-			fetchJson(`${CHART_API}${chain === 'All' ? '' : `/${metadata.name}`}`),
+			fetchJson(`${CHART_API}${chain === 'All' ? '' : `/${metadata.name}`}`).then(async (res) => {
+				if (!res) {
+					const data = await fetchJson(`https://api.llama.fi/lite/charts${chain === 'All' ? '' : `/${metadata.name}`}`)
+					if (!data) {
+						throw new Error('Missing chart data')
+					}
+					return data
+				}
+				return res
+			}),
 			getProtocolsByChain({ chain, metadata }),
 			getPeggedOverviewPageData(chain === 'All' ? null : metadata.name)
 				.then((data) => {
@@ -336,7 +345,7 @@ export async function getChainOverviewData({ chain }: { chain: string }): Promis
 		} = chartData || {}
 
 		const tvlAndFeesOptions = tvlOptions.filter((o) => chartData?.[o.key]?.length)
-		const extraTvlChart = {
+		const extraTvlCharts = {
 			staking: {},
 			borrowed: {},
 			pool2: {},
@@ -347,41 +356,41 @@ export async function getChainOverviewData({ chain }: { chain: string }): Promis
 			dcAndLsOverlap: {}
 		}
 		for (const [date, totalLiquidityUSD] of staking) {
-			extraTvlChart.staking[+date * 1e3] = Math.trunc(totalLiquidityUSD)
+			extraTvlCharts.staking[+date * 1e3] = Math.trunc(totalLiquidityUSD)
 		}
 		for (const [date, totalLiquidityUSD] of borrowed) {
-			extraTvlChart.borrowed[+date * 1e3] = Math.trunc(totalLiquidityUSD)
+			extraTvlCharts.borrowed[+date * 1e3] = Math.trunc(totalLiquidityUSD)
 		}
 		for (const [date, totalLiquidityUSD] of pool2) {
-			extraTvlChart.pool2[+date * 1e3] = Math.trunc(totalLiquidityUSD)
+			extraTvlCharts.pool2[+date * 1e3] = Math.trunc(totalLiquidityUSD)
 		}
 		for (const [date, totalLiquidityUSD] of vesting) {
-			extraTvlChart.vesting[+date * 1e3] = Math.trunc(totalLiquidityUSD)
+			extraTvlCharts.vesting[+date * 1e3] = Math.trunc(totalLiquidityUSD)
 		}
 		for (const [date, totalLiquidityUSD] of offers) {
-			extraTvlChart.offers[+date * 1e3] = Math.trunc(totalLiquidityUSD)
+			extraTvlCharts.offers[+date * 1e3] = Math.trunc(totalLiquidityUSD)
 		}
 		for (const [date, totalLiquidityUSD] of doublecounted) {
-			extraTvlChart.doublecounted[+date * 1e3] = Math.trunc(totalLiquidityUSD)
+			extraTvlCharts.doublecounted[+date * 1e3] = Math.trunc(totalLiquidityUSD)
 		}
 		for (const [date, totalLiquidityUSD] of liquidstaking) {
-			extraTvlChart.liquidstaking[+date * 1e3] = Math.trunc(totalLiquidityUSD)
+			extraTvlCharts.liquidstaking[+date * 1e3] = Math.trunc(totalLiquidityUSD)
 		}
 		for (const [date, totalLiquidityUSD] of dcAndLsOverlap) {
-			extraTvlChart.dcAndLsOverlap[+date * 1e3] = Math.trunc(totalLiquidityUSD)
+			extraTvlCharts.dcAndLsOverlap[+date * 1e3] = Math.trunc(totalLiquidityUSD)
 		}
 
 		// by default we should not include liquidstaking and doublecounted in the tvl chart, but include overlapping tvl so you dont subtract twice
 		const tvlChart = tvl.map(([date, totalLiquidityUSD]) => {
 			let sum = Math.trunc(totalLiquidityUSD)
-			if (extraTvlChart['liquidstaking']?.[+date * 1e3]) {
-				sum -= Math.trunc(extraTvlChart['liquidstaking'][+date * 1e3])
+			if (extraTvlCharts['liquidstaking']?.[+date * 1e3]) {
+				sum -= Math.trunc(extraTvlCharts['liquidstaking'][+date * 1e3])
 			}
-			if (extraTvlChart['doublecounted']?.[+date * 1e3]) {
-				sum -= Math.trunc(extraTvlChart['doublecounted'][+date * 1e3])
+			if (extraTvlCharts['doublecounted']?.[+date * 1e3]) {
+				sum -= Math.trunc(extraTvlCharts['doublecounted'][+date * 1e3])
 			}
-			if (extraTvlChart['dcAndLsOverlap']?.[+date * 1e3]) {
-				sum += Math.trunc(extraTvlChart['dcAndLsOverlap'][+date * 1e3])
+			if (extraTvlCharts['dcAndLsOverlap']?.[+date * 1e3]) {
+				sum += Math.trunc(extraTvlCharts['dcAndLsOverlap'][+date * 1e3])
 			}
 			return [+date * 1e3, sum]
 		}) as Array<[number, number]>
@@ -505,12 +514,16 @@ export async function getChainOverviewData({ chain }: { chain: string }): Promis
 			charts.push('Token Volume')
 		}
 
+		if (chain === 'All' && tvlChart.length === 0) {
+			throw new Error('Missing chart data')
+		}
+
 		return {
 			chain,
 			metadata,
 			protocols,
 			tvlChart,
-			extraTvlChart,
+			extraTvlCharts,
 			chainTokenInfo:
 				chain !== 'All'
 					? {
@@ -718,6 +731,7 @@ export const getProtocolsByChain = async ({ metadata, chain }: { chain: string; 
 
 	for (const protocol of protocols) {
 		if (
+			!protocol.defillamaId.startsWith('chain#') &&
 			metadataCache.protocolMetadata[protocol.defillamaId] &&
 			toFilterProtocol({
 				protocolMetadata: metadataCache.protocolMetadata[protocol.defillamaId],
@@ -779,13 +793,13 @@ export const getProtocolsByChain = async ({ metadata, chain }: { chain: string; 
 
 			const childStore: IChildProtocol = {
 				name: metadataCache.protocolMetadata[protocol.defillamaId].displayName,
-				slug: metadataCache.protocolMetadata[protocol.defillamaId].name,
+				slug: slug(metadataCache.protocolMetadata[protocol.defillamaId].displayName),
 				chains: metadataCache.protocolMetadata[protocol.defillamaId].chains,
 				category: protocol.category ?? null,
 				tvl: protocol.tvl != null ? tvls : null,
 				tvlChange: protocol.tvl != null ? tvlChange : null,
 				mcap: protocol.mcap ?? null,
-				mcaptvl: protocol.mcap && tvls?.default?.tvl ? +(protocol.mcap / tvls.default.tvl).toFixed(2) : null,
+				mcaptvl: protocol.mcap && tvls?.default?.tvl ? +formattedNum(protocol.mcap / tvls.default.tvl) : null,
 				strikeTvl: toStrikeTvl(protocol, {
 					liquidstaking: tvls?.liquidstaking ? true : false,
 					doublecounted: tvls?.doublecounted ? true : false
@@ -932,7 +946,7 @@ export const getProtocolsByChain = async ({ metadata, chain }: { chain: string; 
 
 			protocolsStore[parentProtocol.id] = {
 				name: metadataCache.protocolMetadata[parentProtocol.id].displayName,
-				slug: metadataCache.protocolMetadata[parentProtocol.id].name,
+				slug: slug(metadataCache.protocolMetadata[parentProtocol.id].displayName),
 				category: chilsProtocolCategories.length > 1 ? null : chilsProtocolCategories[0],
 				childProtocols: parentStore[parentProtocol.id],
 				chains: Array.from(new Set(...parentStore[parentProtocol.id].map((p) => p.chains ?? []))),
@@ -942,7 +956,7 @@ export const getProtocolsByChain = async ({ metadata, chain }: { chain: string; 
 				mcap: parentProtocol.mcap ?? null,
 				mcaptvl:
 					parentProtocol.mcap && parentTvl?.default?.tvl
-						? +(parentProtocol.mcap / parentTvl.default.tvl).toFixed(2)
+						? +formattedNum(parentProtocol.mcap / parentTvl.default.tvl)
 						: null
 			}
 
@@ -962,6 +976,7 @@ export const getProtocolsByChain = async ({ metadata, chain }: { chain: string; 
 	}
 
 	const finalProtocols: IProtocol[] = []
+
 	for (const protocol in protocolsStore) {
 		finalProtocols.push(protocolsStore[protocol])
 	}

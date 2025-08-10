@@ -303,7 +303,9 @@ export const descriptions = {
 	'Risk Curators':
 		'Projects that analyze DeFi risks and help users choose strategies across lending, trading, or staking systems to improve safety and returns.',
 	'DAO Service Provider': 'Protocols that provide services to DAOs',
-	'Staking Rental': 'Protocols that facilitate the borrowing or renting of staking rights'
+	'Staking Rental': 'Protocols that facilitate the borrowing or renting of staking rights',
+	'Canonical Bridge': 'The official bridge designated by a blockchain for transferring its assets across networks',
+	Interface: 'Projects that provide a user interface to interact with external protocols'
 }
 
 const finalTvlOptions = tvlOptions.filter((e) => !['liquidstaking', 'doublecounted'].includes(e.key))
@@ -447,11 +449,10 @@ export default function Protocols({ categories, tableData, chartData, extraTvlCh
 						labelType="smol"
 					/>
 				</div>
-				<div className="bg-(--cards-bg) rounded-md relative">
-					<React.Suspense fallback={<div className="flex items-center justify-center m-auto min-h-[360px]" />}>
-						<LineAndBarChart charts={charts} valueSymbol="$" solidChartAreaStyle />
-					</React.Suspense>
-				</div>
+
+				<React.Suspense fallback={<div className="flex items-center justify-center m-auto min-h-[360px]" />}>
+					<LineAndBarChart charts={charts} valueSymbol="$" solidChartAreaStyle />
+				</React.Suspense>
 			</div>
 
 			<React.Suspense
@@ -517,9 +518,12 @@ const categoriesColumn: ColumnDef<ICategoryRow>[] = [
 					) : null}
 					<span className="shrink-0">{index + 1}</span>{' '}
 					{row.depth > 0 ? (
-						<span className="text-sm font-medium overflow-hidden whitespace-nowrap text-ellipsis">
+						<BasicLink
+							href={`/protocols/${slug(getValue() as string)}`}
+							className="text-sm font-medium text-(--link-text) overflow-hidden whitespace-nowrap text-ellipsis hover:underline"
+						>
 							{getValue() as string}
-						</span>
+						</BasicLink>
 					) : (
 						<BasicLink
 							href={`/protocols/${slug(getValue() as string)}`}

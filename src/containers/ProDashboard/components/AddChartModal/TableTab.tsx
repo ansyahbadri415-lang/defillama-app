@@ -56,6 +56,12 @@ const tableTypeOptions = [
 		icon: '💵'
 	},
 	{
+		value: 'fees',
+		label: 'Fees',
+		description: 'Protocol fees generated across timeframes',
+		icon: '💸'
+	},
+	{
 		value: 'revenue',
 		label: 'Revenue',
 		description: 'Protocol revenue generation across timeframes',
@@ -73,6 +79,7 @@ const tableTypeOptions = [
 		description: 'Protocol profitability and earnings data',
 		icon: '📈'
 	},
+
 	{
 		value: 'token-usage',
 		label: 'Token Usage',
@@ -254,6 +261,7 @@ export function TableTab({
 			) : selectedTableType === 'revenue' ||
 			  selectedTableType === 'holders-revenue' ||
 			  selectedTableType === 'earnings' ||
+			  selectedTableType === 'fees' ||
 			  selectedTableType === 'yields' ||
 			  selectedTableType === 'aggregators' ||
 			  selectedTableType === 'perps' ||
@@ -301,33 +309,19 @@ export function TableTab({
 						placeholder="Select chain..."
 						itemType="chain"
 					/>
-					<div>
-						<label className="block mb-1.5 md:mb-2 text-sm font-medium pro-text2">Time Period</label>
-						<ReactSelect
-							options={[
-								{ value: '1d', label: '1 Day' },
-								{ value: '7d', label: '7 Days' },
-								{ value: '30d', label: '30 Days' }
-							]}
-							value={
-								selectedDatasetTimeframe
-									? {
-											value: selectedDatasetTimeframe,
-											label:
-												selectedDatasetTimeframe === '1d'
-													? '1 Day'
-													: selectedDatasetTimeframe === '7d'
-													? '7 Days'
-													: '30 Days'
-									  }
-									: null
-							}
-							onChange={(option: any) => onDatasetTimeframeChange(option?.value || '1d')}
-							placeholder="Select time period..."
-							className="w-full text-sm md:text-base"
-							styles={reactSelectStyles}
-						/>
-					</div>
+					<ItemSelect
+						label="Time Period"
+						options={[
+							{ value: '1d', label: '1 Day' },
+							{ value: '7d', label: '7 Days' },
+							{ value: '30d', label: '30 Days' }
+						]}
+						selectedValue={selectedDatasetTimeframe}
+						onChange={(option: any) => onDatasetTimeframeChange(option?.value || '1d')}
+						isLoading={false}
+						placeholder="Select time period..."
+						itemType="text"
+					/>
 				</>
 			) : selectedTableType === 'token-usage' ? (
 				<>

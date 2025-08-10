@@ -34,8 +34,8 @@ export const SubscriberContent = ({
 	legacySubscription
 }: SubscriberContentProps) => {
 	const isLlamaFeed = llamafeedSubscription?.status === 'active'
-	const isPro = apiSubscription?.status === 'active'
-	const isLegacy = legacySubscription?.status === 'active'
+	const isPro = apiSubscription?.status === 'active' && apiSubscription?.provider !== 'legacy'
+	const isLegacy = apiSubscription?.status === 'active' && apiSubscription?.provider === 'legacy'
 	const creditsLimit = isLlamaFeed ? 0 : 1_000_000
 
 	async function handleManageSubscription(type: 'llamafeed' | 'api') {
@@ -70,8 +70,9 @@ export const SubscriberContent = ({
 				/>
 				<SubscribeProCard
 					context="account"
-					active={isPro}
+					active={isPro || isLegacy}
 					onCancelSubscription={isPro ? () => handleManageSubscription('api') : undefined}
+					isLegacyActive={isLegacy}
 				/>
 				<SubscribeEnterpriseCard active={subscription?.type === 'enterprise'} />
 			</div>
@@ -94,7 +95,7 @@ export const SubscriberContent = ({
 								</div>
 							</div>
 							<a
-								href="https://defillama.com/pro-api/docs"
+								href="https://api-docs.defillama.com/"
 								target="_blank"
 								rel="noreferrer noopener"
 								className="px-4 py-2 bg-[#5C5CF9]/10 hover:bg-[#5C5CF9]/20 text-[#5C5CF9] rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
@@ -306,7 +307,7 @@ export const SubscriberContent = ({
 						<div>
 							<h3 className="text-xl font-bold">Subscription</h3>
 							<p className="text-sm text-[#b4b7bc]">
-								Manage your <span className="font-bold">{isLlamaFeed ? 'Llama+' : isPro ? 'Pro' : ''}</span>{' '}
+								Manage your <span className="font-bold">{isLlamaFeed ? 'Llama+' : isPro ? 'API' : ''}</span>{' '}
 								subscription details
 							</p>
 						</div>
@@ -319,7 +320,7 @@ export const SubscriberContent = ({
 							<div className="flex justify-between items-center mb-4">
 								<h4 className="font-medium flex items-center gap-2">
 									<Icon name="bookmark" height={16} width={16} className="text-[#5C5CF9]" />
-									<span>{isLlamaFeed ? 'Llama+' : isPro ? 'Pro' : ''} Plan</span>
+									<span>{isLlamaFeed ? 'Llama+' : isPro ? 'API' : ''} Plan</span>
 								</h4>
 								<div className="flex items-center gap-4">
 									<div className="flex items-center gap-2">

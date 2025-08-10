@@ -13,7 +13,7 @@ import {
 	useFormatStablecoinQueryParams
 } from '~/hooks/data/stablecoins'
 import { buildStablecoinChartData, getStablecoinDominance } from '~/containers/Stablecoins/utils'
-import { formattedNum, getPercentChange, toNiceCsvDate, download, slug } from '~/utils'
+import { formattedNum, getPercentChange, toNiceCsvDate, download, slug, preparePieChartData } from '~/utils'
 import { PeggedFilters } from '~/components/Filters/stablecoins'
 import { Icon } from '~/components/Icon'
 import { Tooltip } from '~/components/Tooltip'
@@ -26,7 +26,6 @@ const BarChart = React.lazy(() => import('~/components/ECharts/BarChart')) as Re
 
 const PieChart = React.lazy(() => import('~/components/ECharts/PieChart')) as React.FC<IPieChartProps>
 
-// TODO: chart colors by stablecoins logo
 function PeggedAssetsOverview({
 	selectedChain = 'All',
 	chains = [],
@@ -133,16 +132,7 @@ function PeggedAssetsOverview({
 	const peggedTotals = useCalcCirculating(peggedAssets)
 
 	const chainsCirculatingValues = React.useMemo(() => {
-		const data = peggedTotals.map((chain) => ({ name: chain.symbol, value: chain.mcap }))
-
-		const otherCirculating = data.slice(10).reduce((total, entry) => {
-			return (total += entry.value)
-		}, 0)
-
-		return data
-			.slice(0, 10)
-			.sort((a, b) => b.value - a.value)
-			.concat({ name: 'Others', value: otherCirculating })
+		return preparePieChartData({ data: peggedTotals, sliceIdentifier: 'symbol', sliceValue: 'mcap', limit: 10 })
 	}, [peggedTotals])
 
 	const { data: stackedData, dataWithExtraPeggedAndDominanceByDay } = useCalcGroupExtraPeggedByDay(stackedDataset)
@@ -238,8 +228,8 @@ function PeggedAssetsOverview({
 
 			<RowLinksWithDropdown links={chainOptions} activeLink={selectedChain} />
 
-			<div className="grid grid-cols-2 relative isolate xl:grid-cols-3 gap-1">
-				<div className="bg-(--cards-bg) rounded-md flex flex-col gap-6 p-5 col-span-2 w-full xl:col-span-1 overflow-x-auto">
+			<div className="grid grid-cols-2 relative isolate xl:grid-cols-3 gap-2">
+				<div className="bg-(--cards-bg) border border-(--cards-border) rounded-md flex flex-col gap-6 p-5 col-span-2 w-full xl:col-span-1 overflow-x-auto">
 					<p className="flex flex-col">
 						<span className="text-[#545757] dark:text-[#cccccc]">Total {title}</span>
 						<span className="font-semibold text-2xl font-jetbrains">{mcapToDisplay}</span>
@@ -295,7 +285,7 @@ function PeggedAssetsOverview({
 					</p>
 				</div>
 				<div
-					className={`bg-(--cards-bg) rounded-md flex flex-col gap-4 col-span-2 min-h-[424px] relative ${
+					className={`bg-(--cards-bg) border border-(--cards-border) rounded-md flex flex-col gap-4 col-span-2 min-h-[424px] relative ${
 						chartType === 'Token Inflows' && tokenInflows ? '*:first:-mb-6' : ''
 					}`}
 				>
@@ -323,6 +313,7 @@ function PeggedAssetsOverview({
 								valueSymbol="$"
 								hideDefaultLegend={true}
 								hideGradient={true}
+								stackColors={tokenColors}
 							/>
 						</React.Suspense>
 					)}
@@ -336,12 +327,13 @@ function PeggedAssetsOverview({
 								hideDefaultLegend={true}
 								hideGradient={true}
 								expandTo100Percent={true}
+								stackColors={tokenColors}
 							/>
 						</React.Suspense>
 					)}
 					{chartType === 'Pie' && (
 						<React.Suspense fallback={<></>}>
-							<PieChart chartData={chainsCirculatingValues} />
+							<PieChart chartData={chainsCirculatingValues} stackColors={tokenColors} />
 						</React.Suspense>
 					)}
 					{chartType === 'Token Inflows' && tokenInflows && (
@@ -354,6 +346,7 @@ function PeggedAssetsOverview({
 								customLegendOptions={tokenInflowNames}
 								key={tokenInflowNames} // escape hatch to rerender state in legend options
 								chartOptions={inflowsChartOptions}
+								stackColors={tokenColors}
 							/>
 						</React.Suspense>
 					)}
@@ -403,6 +396,20 @@ const inflowsChartOptions = {
 	overrides: {
 		inflow: true
 	}
+}
+
+const tokenColors = {
+	USDT: '#009393',
+	USDC: '#0B53BF',
+	DAI: '#F4B731',
+	USDe: '#3A3A3A',
+	BUIDL: '#111111',
+	USD1: '#D2B48C',
+	USDS: '#E67E22',
+	PYUSD: '#4A90E2',
+	USDTB: '#C0C0C0',
+	FDUSD: '#00FF00',
+	Others: '#FF1493'
 }
 
 export default PeggedAssetsOverview

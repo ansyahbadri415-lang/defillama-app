@@ -6,11 +6,11 @@ import {
 	YIELD_CHAIN_API,
 	YIELD_LEND_BORROW_API,
 	YIELD_PERPS_API,
-	PROTOCOLS_API,
-	COINS_PRICES_API
+	PROTOCOLS_API
 } from '~/constants'
 import { fetchApi } from '~/utils/async'
 import { formatYieldsPageData } from './utils'
+import { fetchCoinPrices } from '~/api'
 
 export async function getYieldPageData() {
 	let poolsAndConfig = await fetchApi([
@@ -41,7 +41,7 @@ export async function getYieldPageData() {
 	for (let p of data.pools) {
 		const rewardTokens = p.rewardTokens?.filter((t) => !!t)
 
-		if (rewardTokens) {
+		if (rewardTokens?.length) {
 			let priceChainName = p.chain.toLowerCase()
 			priceChainName = Object.keys(priceChainMapping).includes(priceChainName)
 				? priceChainMapping[priceChainName]
@@ -49,29 +49,15 @@ export async function getYieldPageData() {
 
 			// using coingecko ids for projects on Neo, otherwise empty object
 			pricesList.push(
-				p.chain === 'Neo' ? [`coingecko:${p.project}`] : rewardTokens.map((t) => `${priceChainName}:${t.toLowerCase()}`)
+				p.chain === 'Neo'
+					? [`coingecko:${p.project}`]
+					: rewardTokens.map((t) => `${priceChainName}:${t.replaceAll('/', ':').toLowerCase()}`)
 			)
 		}
 	}
 	pricesList = [...new Set(pricesList.flat())]
 
-	// price endpoint seems to break with too many tokens, splitting it to max 150 per request
-	const maxSize = 50
-	const pages = Math.ceil(pricesList.length / maxSize)
-	let pricesA = []
-	let x = ''
-	for (const p of [...Array(pages).keys()]) {
-		x = pricesList
-			.slice(p * maxSize, maxSize * (p + 1))
-			.join(',')
-			.replaceAll('/', '')
-		pricesA = [...pricesA, (await fetchApi([`${COINS_PRICES_API}/current/${x}`]))[0].coins]
-	}
-	// flatten
-	let prices = {}
-	for (const p of pricesA.flat()) {
-		prices = { ...prices, ...p }
-	}
+	const coinsPrices = await fetchCoinPrices(pricesList)
 
 	for (let p of data.pools) {
 		let priceChainName = p.chain.toLowerCase()
@@ -96,7 +82,7 @@ export async function getYieldPageData() {
 				  ]
 				: [
 						...new Set(
-							rewardTokens.map((t) => prices[`${priceChainName}:${t.toLowerCase()}`]?.symbol.toUpperCase() ?? null)
+							rewardTokens.map((t) => coinsPrices[`${priceChainName}:${t.toLowerCase()}`]?.symbol.toUpperCase() ?? null)
 						)
 				  ]
 	}

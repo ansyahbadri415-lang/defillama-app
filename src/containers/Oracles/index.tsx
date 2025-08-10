@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { download, formattedNum } from '~/utils'
+import { download, formattedNum, preparePieChartData } from '~/utils'
 import { RowLinksWithDropdown } from '~/components/RowLinksWithDropdown'
 import { useCalcGroupExtraTvlsByDay } from '~/hooks/data'
 import type { IChartProps, IPieChartProps } from '~/components/ECharts/types'
@@ -27,17 +27,15 @@ export const OraclesByChain = ({
 }) => {
 	const { chainsWithExtraTvlsByDay, chainsWithExtraTvlsAndDominanceByDay } = useCalcGroupExtraTvlsByDay(chartData)
 	const { tokenTvls, tokensList } = React.useMemo(() => {
-		const tvls = Object.entries(chainsWithExtraTvlsByDay[chainsWithExtraTvlsByDay.length - 1] ?? {})
+		const tvls = Object.entries(chainsWithExtraTvlsByDay[chainsWithExtraTvlsByDay.length - 1])
 			.filter((item) => item[0] !== 'date')
 			.map((token) => ({ name: token[0], value: token[1] ?? 0 } as { name: string; value: number }))
 			.sort((a, b) => b.value - a.value)
 
-		const otherTvl = tvls.slice(5).reduce((total, entry) => {
-			return (total += entry.value)
-		}, 0)
-
-		const tokenTvls = tvls.slice(0, 5).concat({ name: 'Others', value: otherTvl })
-
+		const tokenTvls = preparePieChartData({
+			data: tvls,
+			limit: 5
+		})
 		const tokensList = tvls.map(({ name, value }) => {
 			return {
 				name,
@@ -64,13 +62,17 @@ export const OraclesByChain = ({
 			<RowLinksWithDropdown links={tokenLinks} activeLink={chain || 'All'} />
 
 			<div className="flex flex-col gap-1 xl:flex-row">
-				<div className="isolate relative rounded-md p-3 bg-(--cards-bg) flex-1 min-h-[360px] flex flex-col">
-					<CSVDownloadButton onClick={downloadCsv} className="ml-auto absolute right-3 top-3 z-10" />
+				<div className="isolate relative rounded-md bg-(--cards-bg) flex-1 min-h-[406px] flex flex-col pt-2">
+					<CSVDownloadButton
+						onClick={downloadCsv}
+						smol
+						className="ml-auto mx-2 z-10 h-[30px] bg-transparent! border border-(--form-control-border) text-[#666]! dark:text-[#919296]! hover:bg-(--link-hover-bg)! focus-visible:bg-(--link-hover-bg)!"
+					/>
 					<React.Suspense fallback={<></>}>
 						<PieChart chartData={tokenTvls} stackColors={oraclesColors} />
 					</React.Suspense>
 				</div>
-				<div className="rounded-md p-3 bg-(--cards-bg) flex-1 min-h-[360px]">
+				<div className="rounded-md bg-(--cards-bg) flex-1 min-h-[406px] pt-2">
 					<React.Suspense fallback={<></>}>
 						<AreaChart
 							chartData={chainsWithExtraTvlsAndDominanceByDay}
@@ -80,7 +82,6 @@ export const OraclesByChain = ({
 							valueSymbol="%"
 							title=""
 							expandTo100Percent={true}
-							chartOptions={chartOptions}
 						/>
 					</React.Suspense>
 				</div>
@@ -104,16 +105,6 @@ export const OraclesByChain = ({
 		</Layout>
 	)
 }
-
-const chartOptions = {
-	grid: {
-		top: 10,
-		bottom: 60,
-		left: 0,
-		right: 0
-	},
-	dataZoom: [{}, { bottom: 32, right: 6 }]
-} as any
 
 interface IOraclesRow {
 	name: string
@@ -165,7 +156,7 @@ const columns: ColumnDef<IOraclesRow>[] = [
 	{
 		header: 'TVS',
 		accessorKey: 'tvs',
-		cell: ({ getValue }) => <>{'$' + formattedNum(getValue())}</>,
+		cell: ({ getValue }) => <>{formattedNum(getValue(), true)}</>,
 		meta: {
 			align: 'end',
 			headerHelperText: 'Total Value Secured by the Oracle. Excludes CeFi'

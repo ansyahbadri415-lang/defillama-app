@@ -24,7 +24,7 @@ export const getStaticProps = withPerformanceLogging('top-protocols', async () =
 
 	protocols.forEach((p) => {
 		const { chainTvls, category, name } = p
-		if (['Bridge', 'Cross-Chain'].includes(category)) {
+		if (['Bridge', 'Canonical Bridge'].includes(category)) {
 			return
 		}
 		Object.entries(chainTvls ?? {}).forEach(([chain, { tvl }]: [string, { tvl: number }]) => {
@@ -142,7 +142,7 @@ export default function Chains({ data, uniqueCategories }) {
 	return (
 		<Layout title="Top Protocols - DefiLlama" defaultSEO>
 			<ProtocolsChainsSearch />
-			<div className="bg-(--cards-bg) rounded-md p-3 flex items-center gap-2 justify-between">
+			<div className="bg-(--cards-bg) border border-(--cards-bg) rounded-md p-3 flex items-center gap-2 justify-between">
 				<h1 className="text-xl font-semibold mr-auto">Top Protocols by Chain</h1>
 				<CSVDownloadButton onClick={downloadCSV} />
 			</div>

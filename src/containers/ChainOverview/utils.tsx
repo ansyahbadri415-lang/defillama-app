@@ -1,4 +1,4 @@
-import { removedCategories } from '~/constants'
+import { removedCategoriesFromChainTvl } from '~/constants'
 import type { IChainAsset, IFormattedChainAsset, ILiteProtocol } from './types'
 import { IProtocolMetadata } from '../ProtocolOverview/types'
 
@@ -11,22 +11,20 @@ export const toFilterProtocol = ({
 	protocolData: ILiteProtocol
 	chainDisplayName: string | null
 }): boolean => {
-	return protocolMetadata.name &&
-		!protocolMetadata.name.startsWith('chain#') &&
-		protocolMetadata.displayName &&
+	return protocolMetadata.displayName &&
 		protocolMetadata.chains &&
 		(chainDisplayName !== 'All'
 			? Array.from(new Set([...(protocolMetadata.chains ?? []), ...(protocolData.chains ?? [])])).includes(
 					chainDisplayName
 			  )
 			: true) &&
-		protocolData.category !== 'Bridge'
+		!['Bridge', 'Canonical Bridge'].includes(protocolData.category)
 		? true
 		: false
 }
 
 export const toStrikeTvl = (protocol, toggledSettings) => {
-	if (removedCategories.includes(protocol.category)) return true
+	if (removedCategoriesFromChainTvl.includes(protocol.category)) return true
 
 	if (toggledSettings['liquidstaking'] || toggledSettings['doublecounted']) return true
 

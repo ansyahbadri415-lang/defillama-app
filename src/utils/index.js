@@ -1,6 +1,6 @@
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
-import { ICONS_CDN, ICONS_PALETTE_CDN, timeframeOptions } from '~/constants'
+import { ICONS_CDN, timeframeOptions } from '~/constants'
 export * from './blockExplorers'
 import { colord, extend } from 'colord'
 import lchPlugin from 'colord/plugins/lch'
@@ -87,7 +87,7 @@ export function formatUnlocksEvent({ description, noOfTokens, timestamp, price, 
 	return description
 }
 
-export const toK = (num) => {
+const toK = (num) => {
 	if ((!num && num !== 0) || Number.isNaN(Number(num))) {
 		return null
 	}
@@ -138,7 +138,7 @@ export const formattedNum = (number, symbol = false) => {
 	const currencyMark = isNegative ? `-${currencySymbol}` : currencySymbol
 	const normalMark = isNegative ? '-' : ''
 
-	if (num > 1_000_000) {
+	if (num >= 1_000_000) {
 		return `${symbol ? currencyMark : normalMark}${toK(num)}`
 	}
 
@@ -182,10 +182,6 @@ export function chainIconUrl(chain) {
 	return `${ICONS_CDN}/chains/rsz_${chain.toLowerCase()}?w=48&h=48`
 }
 
-export function chainIconPaletteUrl(chain) {
-	return `${ICONS_PALETTE_CDN}/chains/rsz_${chain.toLowerCase()}`
-}
-
 export function tokenIconUrl(name) {
 	const x = name ?? ''
 	return `${ICONS_CDN}/protocols/${
@@ -194,21 +190,8 @@ export function tokenIconUrl(name) {
 			.toLowerCase()
 			.replace(/[()'"]/g, '') // Remove parentheses and quotes
 			.replace(/\s+/g, '-') // Replace spaces with hyphens
-			.replace(/[^\w.-]/g, '') // Remove any other non-word chars except hyphens and dots
+			.replace(/[^\w.!&-]/g, '') // Remove any other non-word chars except hyphens, !, & and .
 	}?w=48&h=48`
-}
-
-export function tokenIconPaletteUrl(name) {
-	if (!name) return null
-
-	return `${ICONS_PALETTE_CDN}/protocols/${
-		name
-			.trim()
-			.toLowerCase()
-			.replace(/[()'"]/g, '') // Remove parentheses and quotes
-			.replace(/\s+/g, '-') // Replace spaces with hyphens
-			.replace(/[^\w.-]/g, '') // Remove any other non-word chars except hyphens and dots
-	}`
 }
 
 /**
@@ -224,16 +207,8 @@ export function liquidationsIconUrl(symbol, hd = false) {
 	}
 }
 
-export function liquidationsIconPaletteUrl(symbol) {
-	return `${ICONS_PALETTE_CDN}/protocols/${symbol.toLowerCase()}`
-}
-
 export function peggedAssetIconUrl(name) {
 	return `${ICONS_CDN}/pegged/${encodeURIComponent(name.toLowerCase().split(' ').join('-'))}?w=48&h=48`
-}
-
-export function peggedAssetIconPalleteUrl(name) {
-	return `${ICONS_PALETTE_CDN}/pegged/${encodeURIComponent(name.toLowerCase().split(' ').join('-'))}`
 }
 
 export function formattedPercent(percent, noSign = false, fontWeight = 400, returnTextOnly) {
@@ -320,12 +295,7 @@ export const getPercentChange = (valueNow, value24HoursAgo) => {
 
 export const capitalizeFirstLetter = (word) => word.charAt(0).toUpperCase() + word.slice(1)
 
-export const slug = (name = '') =>
-	name
-		?.toLowerCase()
-		.replace(/[()'"]/g, '') // Remove parentheses and quotes
-		.replace(/\s+/g, '-') // Replace spaces with hyphens
-		.replace(/[^\w.-]/g, '') // Remove any other non-word chars except hyphens and dots
+export const slug = (name = '') => name?.toLowerCase().split(' ').join('-').split("'").join('')
 
 export function getRandomColor() {
 	var letters = '0123456789ABCDEF'
@@ -712,7 +682,41 @@ export function formatValue(value, formatType = 'auto') {
 	return String(value)
 }
 
-export function formatUsdWithSign(value) {
-	const absValue = Math.abs(value)
-	return value < 0 ? `-$${formattedNum(absValue)}` : `$${formattedNum(value)}`
+export const preparePieChartData = ({ data, sliceIdentifier = 'name', sliceValue = 'value', limit }) => {
+	let pieData = []
+
+	if (Array.isArray(data)) {
+		pieData = data.map((entry) => {
+			return {
+				name: entry[sliceIdentifier],
+				value: Number(entry[sliceValue])
+			}
+		})
+	} else {
+		pieData = Object.entries(data).map(([name, value]) => {
+			return {
+				name: name,
+				value: Number(value)
+			}
+		})
+	}
+
+	pieData = pieData.toSorted((a, b) => b.value - a.value)
+
+	if (!limit) {
+		return pieData
+	}
+
+	const mainSlices = pieData.slice(0, limit)
+	const otherSlices = pieData.slice(limit)
+
+	const otherSlicesValue = otherSlices.reduce((acc, curr) => {
+		return acc + curr.value
+	}, 0)
+
+	if (otherSlicesValue > 0) {
+		return [...mainSlices, { name: 'Others', value: otherSlicesValue }]
+	}
+
+	return mainSlices
 }

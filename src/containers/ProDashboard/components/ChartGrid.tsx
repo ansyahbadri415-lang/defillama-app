@@ -10,6 +10,7 @@ import {
 	RevenueDataset,
 	HoldersRevenueDataset,
 	EarningsDataset,
+	FeesDataset,
 	TokenUsageDataset,
 	YieldsDataset,
 	AggregatorsDataset,
@@ -23,7 +24,8 @@ import {
 import { Icon } from '~/components/Icon'
 import { useProDashboard } from '../ProDashboardAPIContext'
 import { DashboardItemConfig } from '../types'
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useState, useEffect } from 'react'
+import { ConfirmationModal } from './ConfirmationModal'
 
 const MultiChartCard = lazy(() => import('./MultiChartCard'))
 
@@ -35,10 +37,24 @@ interface ChartGridProps {
 export function ChartGrid({ onAddChartClick, onEditItem }: ChartGridProps) {
 	const { chartsWithData, handleChartsReordered, handleRemoveItem, handleColSpanChange, handleEditItem, isReadOnly } =
 		useProDashboard()
+	const [deleteConfirmItem, setDeleteConfirmItem] = useState<string | null>(null)
+	const [isSmallScreen, setIsSmallScreen] = useState(false)
+
+	useEffect(() => {
+		const checkScreenSize = () => {
+			setIsSmallScreen(window.innerWidth <= 768)
+		}
+
+		checkScreenSize()
+		window.addEventListener('resize', checkScreenSize)
+
+		return () => window.removeEventListener('resize', checkScreenSize)
+	}, [])
+
 	const sensors = useSensors(
 		useSensor(PointerSensor, {
 			activationConstraint: {
-				distance: 5
+				distance: isSmallScreen ? 999999 : 5
 			}
 		}),
 		useSensor(KeyboardSensor)
@@ -55,6 +71,21 @@ export function ChartGrid({ onAddChartClick, onEditItem }: ChartGridProps) {
 		}
 	}
 
+	const handleDeleteClick = (itemId: string) => {
+		setDeleteConfirmItem(itemId)
+	}
+
+	const handleConfirmDelete = () => {
+		if (deleteConfirmItem) {
+			handleRemoveItem(deleteConfirmItem)
+			setDeleteConfirmItem(null)
+		}
+	}
+
+	const handleCancelDelete = () => {
+		setDeleteConfirmItem(null)
+	}
+
 	const getColSpanClass = (colSpan?: 1 | 2) => {
 		return colSpan === 2 ? 'md:col-span-2' : 'md:col-span-1'
 	}
@@ -67,7 +98,7 @@ export function ChartGrid({ onAddChartClick, onEditItem }: ChartGridProps) {
 		if (item.kind === 'multi') {
 			return (
 				<Suspense fallback={<></>}>
-					<MultiChartCard multi={item} />
+					<MultiChartCard key={`${item.id}-${item.items?.map(i => i.id).join('-')}`} multi={item} />
 				</Suspense>
 			)
 		}
@@ -82,6 +113,7 @@ export function ChartGrid({ onAddChartClick, onEditItem }: ChartGridProps) {
 				if (item.datasetType === 'revenue') return <RevenueDataset chains={item.chains} />
 				if (item.datasetType === 'holders-revenue') return <HoldersRevenueDataset chains={item.chains} />
 				if (item.datasetType === 'earnings') return <EarningsDataset chains={item.chains} />
+				if (item.datasetType === 'fees') return <FeesDataset chains={item.chains} />
 				if (item.datasetType === 'token-usage')
 					return <TokenUsageDataset config={item} onConfigChange={(newConfig) => handleEditItem(item.id, newConfig)} />
 				if (item.datasetType === 'yields')
@@ -148,7 +180,7 @@ export function ChartGrid({ onAddChartClick, onEditItem }: ChartGridProps) {
 			<div className="mt-2">
 				<div className="grid grid-cols-1 md:grid-cols-2 gap-2" style={{ gridAutoFlow: 'dense' }}>
 					{chartsWithData.map((item) => (
-						<div key={`${item.id}-${item.colSpan}`} className={`${getColSpanClass(item.colSpan)}`}>
+						<div key={`${item.id}-${item.colSpan}${item.kind === 'multi' ? `-${item.items?.map(i => i.id).join('-')}` : ''}`} className={`${getColSpanClass(item.colSpan)}`}>
 							<div className={`pro-glass h-full relative ${item.kind === 'table' ? 'overflow-visible' : ''}`}>
 								<div className={item.kind === 'table' ? 'pr-12' : ''}>{renderItemContent(item)}</div>
 							</div>
@@ -165,7 +197,7 @@ export function ChartGrid({ onAddChartClick, onEditItem }: ChartGridProps) {
 				<SortableContext items={chartsWithData.map((c) => c.id)} strategy={rectSortingStrategy}>
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-2" style={{ gridAutoFlow: 'dense' }}>
 						{chartsWithData.map((item) => (
-							<div key={`${item.id}-${item.colSpan}`} className={`${getColSpanClass(item.colSpan)}`}>
+							<div key={`${item.id}-${item.colSpan}${item.kind === 'multi' ? `-${item.items?.map(i => i.id).join('-')}` : ''}`} className={`${getColSpanClass(item.colSpan)}`}>
 								<SortableItem id={item.id} isTable={item.kind === 'table'} className="h-full">
 									<div
 										className={`pro-glass h-full relative ${item.kind === 'table' ? 'pt-6' : ''} ${
@@ -197,7 +229,7 @@ export function ChartGrid({ onAddChartClick, onEditItem }: ChartGridProps) {
 											)}
 											<button
 												className="p-1.5 text-sm pro-hover-bg pro-text1 transition-colors pro-bg1 dark:bg-[#070e0f]"
-												onClick={() => handleRemoveItem(item.id)}
+												onClick={() => handleDeleteClick(item.id)}
 												aria-label="Remove item"
 											>
 												<Icon name="x" height={14} width={14} />
@@ -231,6 +263,16 @@ export function ChartGrid({ onAddChartClick, onEditItem }: ChartGridProps) {
 					</div>
 				</SortableContext>
 			</DndContext>
+
+			<ConfirmationModal
+				isOpen={!!deleteConfirmItem}
+				onClose={handleCancelDelete}
+				onConfirm={handleConfirmDelete}
+				title="Remove Item"
+				message="Are you sure you want to remove this item from your dashboard? This action cannot be undone."
+				confirmText="Remove"
+				cancelText="Cancel"
+			/>
 		</div>
 	)
 }

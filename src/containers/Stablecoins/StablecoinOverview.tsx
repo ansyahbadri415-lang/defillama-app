@@ -15,8 +15,8 @@ import {
 	formattedNum,
 	download,
 	getBlockExplorer,
-	toK,
-	peggedAssetIconUrl
+	peggedAssetIconUrl,
+	preparePieChartData
 } from '~/utils'
 import type { IChartProps, IPieChartProps } from '~/components/ECharts/types'
 import { PeggedAssetByChainTable } from './Table'
@@ -124,18 +124,7 @@ export const PeggedAssetInfo = ({
 	const chainTotals = useCalcCirculating(chainCirculatings)
 
 	const chainsCirculatingValues = React.useMemo(() => {
-		const data = chainTotals.map((chain) => ({
-			name: chain.name,
-			value: chain.circulating
-		}))
-		const otherCirculating = data.slice(10).reduce((total, entry) => {
-			return (total += entry.value)
-		}, 0)
-
-		return data
-			.slice(0, 10)
-			.sort((a, b) => b.value - a.value)
-			.concat({ name: 'Others', value: otherCirculating })
+		return preparePieChartData({ data: chainTotals, sliceIdentifier: 'name', sliceValue: 'circulating', limit: 10 })
 	}, [chainTotals])
 
 	const { data: stackedData, dataWithExtraPeggedAndDominanceByDay } = useCalcGroupExtraPeggedByDay(stackedDataset)
@@ -170,8 +159,8 @@ export const PeggedAssetInfo = ({
 
 	return (
 		<>
-			<div className="grid grid-cols-2 relative isolate xl:grid-cols-3 gap-1" style={tagStyles as any}>
-				<div className="bg-(--cards-bg) rounded-md flex flex-col col-span-2 w-full xl:col-span-1 overflow-x-auto">
+			<div className="grid grid-cols-2 relative isolate xl:grid-cols-3 gap-2" style={tagStyles as any}>
+				<div className="bg-(--cards-bg) border border-(--cards-border) rounded-md flex flex-col col-span-2 w-full xl:col-span-1 overflow-x-auto">
 					<Ariakit.TabProvider defaultSelectedId={defaultSelectedId}>
 						<Ariakit.TabList aria-label="Pegged Tabs" className="flex">
 							<Ariakit.Tab
@@ -227,7 +216,7 @@ export const PeggedAssetInfo = ({
 										<tbody>
 											<tr>
 												<th className="text-[#545757] dark:text-[#cccccc] font-normal text-left">Total Circulating</th>
-												<td className="font-jetbrains text-right">{toK(totalCirculating)}</td>
+												<td className="font-jetbrains text-right">{formattedNum(totalCirculating)}</td>
 											</tr>
 										</tbody>
 									</table>
@@ -255,7 +244,7 @@ export const PeggedAssetInfo = ({
 															</span>
 														</label>
 													</th>
-													<td className="font-jetbrains text-right">{toK(unreleased)}</td>
+													<td className="font-jetbrains text-right">{formattedNum(unreleased)}</td>
 												</tr>
 											))}
 										</tbody>
@@ -367,7 +356,7 @@ export const PeggedAssetInfo = ({
 					</Ariakit.TabProvider>
 				</div>
 
-				<div className="bg-(--cards-bg) rounded-md min-h-[416px] flex flex-col col-span-2">
+				<div className="bg-(--cards-bg) border border-(--cards-border) rounded-md min-h-[416px] flex flex-col col-span-2">
 					<div className="text-xs font-medium flex items-center rounded-md overflow-x-auto flex-nowrap w-fit border border-(--tag-border-color) m-3">
 						<button
 							data-active={chartType === 'Mcap'}

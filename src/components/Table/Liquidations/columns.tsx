@@ -37,7 +37,7 @@ export const liquidatableProtocolsColumns: ColumnDef<ILiquidableProtocolRow>[] =
 
 			if (isSmol) {
 				return (
-					<span style={{ color: isNegative ? '#F56565' : '#48BB78' }}>
+					<span className={`${isNegative ? 'text-(--pct-red)' : 'text-(--pct-green)'}`}>
 						{'<'}
 						{isNegative ? '-' : '+'}
 						{'0.01%'}
@@ -47,7 +47,7 @@ export const liquidatableProtocolsColumns: ColumnDef<ILiquidableProtocolRow>[] =
 
 			const _value = (value as number).toFixed(2)
 			return (
-				<span style={{ color: isNegative ? '#F56565' : '#48BB78' }}>
+				<span className={`${isNegative ? 'text-(--pct-red)' : 'text-(--pct-green)'}`}>
 					{isNegative ? '' : '+'}
 					{_value}%
 				</span>
@@ -186,7 +186,22 @@ const ProtocolName = ({ value, index }: { value: string; index: number }) => {
 			_value = 'benqi-lending'
 			break
 		case 'maker':
-			_value = 'makerdao'
+			_value = 'sky'
+			break
+		case 'mimo-protocol':
+			_value = 'mimo'
+			break
+		case 'compound':
+			_value = 'compound-finance'
+			break
+		case 'solend':
+			_value = 'save-protocol'
+			break
+		case 'trader-joe-lend':
+			_value = 'joe-lend'
+			break
+		case 'navi':
+			_value = 'navi-lending'
 			break
 		default:
 			_value = value as string

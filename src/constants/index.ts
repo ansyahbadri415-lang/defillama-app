@@ -21,13 +21,17 @@ export const LANGS_API = `${SERVER_URL}/langs`
 export const ORACLE_API = `${SERVER_URL}/oracles`
 export const FORK_API = `${SERVER_URL}/forks`
 export const CATEGORY_API = `${SERVER_URL}/categories`
+export const CATEGORY_CHART_API = `${SERVER_URL}/charts/categories`
+export const TAGS_CHART_API = `${SERVER_URL}/charts/tags`
 export const PROTOCOLS_BY_TOKEN_API = `${SERVER_URL}/tokenProtocols`
 export const PROTOCOL_TREASURY_API = `${SERVER_URL}/treasury`
 export const PROTOCOLS_TREASURY = `${SERVER_URL}/treasuries`
 export const PROTOCOL_EMISSIONS_API = `${SERVER_URL}/emissions`
 export const PROTOCOL_EMISSIONS_LIST_API = `${DATASETS_SERVER_URL}/emissionsProtocolsList`
 export const PROTOCOL_EMISSION_API = `${SERVER_URL}/emission`
+export const PROTOCOL_EMISSION_API2 = `${DATASETS_SERVER_URL}/emissions`
 export const EMISSION_BREAKDOWN_API = `${SERVER_URL}/emissionsBreakdown`
+export const EMISSION_SUPPLY_METRICS = `${DATASETS_SERVER_URL}/emissionsSupplyMetrics`
 export const INFLOWS_API = `${SERVER_URL}/inflows`
 export const ACTIVE_USERS_API = `${SERVER_URL}/activeUsers`
 export const PROTOCOL_ACTIVE_USERS_API = `${SERVER_URL}/userData/users`
@@ -135,20 +139,16 @@ export const CG_TOKEN_API =
 
 export const ICONS_CDN = 'https://icons.llamao.fi/icons'
 export const ICONS_NFT_CDN = 'https://nft-icons.llamao.fi/icons'
-export const ICONS_PALETTE_CDN = 'https://icons.llamao.fi/palette'
-// export const ICONS_PALETTE_CDN = 'https://palette.llamao.fi/palette'
 
 export const TWITTER_POSTS_API = `${DATASETS_SERVER_URL}/dev-metrics/twitter-files`
 export const TWITTER_POSTS_API_V2 = `${SERVER_URL}/twitter/user`
 
 export const HACKS_API = `${SERVER_URL}/hacks`
 
-export const DEV_METRICS_API = `${DATASETS_SERVER_URL}/dev-metrics/github`
-
 const COINS_SERVER_URL = process.env.COINS_SERVER_URL ?? 'https://coins.llama.fi'
 export const COINS_PRICES_API = `${COINS_SERVER_URL}/prices`
 export const COINS_CHART_API = `${COINS_SERVER_URL}/chart`
-export const MCAPS_API = 'https://coins.llama.fi/mcaps'
+export const COINS_MCAPS_API = 'https://coins.llama.fi/mcaps' // pro api does not support this endpoint
 
 export const CACHE_SERVER = 'https://fe-cache.llama.fi'
 
@@ -165,51 +165,29 @@ export const POCKETBASE_URL = 'https://pb.llama.fi'
 
 export const TOTAL_TRACKED_BY_METRIC_API = 'https://api.llama.fi/config/smol/appMetadata-totalTrackedByMetric.json'
 
-export const scams = [
-	'SyncDEX Finance',
-	'Avatr',
-	'SatoshiCoreSwap',
-	'Opankeswap',
-	'PolyLend',
-	'Syncus',
-	'Drachma Exchange',
-	'StableDoin',
-	'CroLend Finance',
-	'Agora',
-	'MinerSwap',
-	'Mosquitos Finance',
-	'SatoshiCoreSwap',
-	'Swaprum',
-	'Cells Finance',
-	'SkyDex',
-	'Avault',
-	'Tegro Finance',
-	'Lendora Protocol',
-	'MantaSwap',
-	'Onchain Trade',
-	'Venuswap',
-	'Scroll Swap',
-	'StakeSteak',
-	'Glori Finance',
-	'ZebraDAO',
-	'Leaper Finance',
-	'ShibaNova',
-	'DaikoDEX',
-	'BaySwap',
-	'Sorta Finance',
-	'Magnate Finance',
-	'Kokomo Finance',
-	'HashDAO Finance',
-	'AbstraDEX',
-	'Honeyswap',
-	'YFII',
-	'Sboom',
-	'Beralis Dex',
-	'Beralis V2',
-	'Beralis V3'
+export const removedCategoriesFromChainTvl = [
+	'Chain',
+	'CEX',
+	'Infrastructure',
+	'Staking Pool',
+	'RWA',
+	'Basis Trading',
+	'CeDeFi',
+	'Bridge',
+	'Canonical Bridge',
+	'Farm',
+	'Yield Aggregator',
+	'Yield',
+	'Liquidity manager',
+	'Onchain Capital Allocator',
+	'Risk Curators',
+	'Treasury Manager',
+	'Anchor BTC',
+	'CDP Manager',
+	'Restaked BTC',
+	'RWA Lending',
+	'RWA'
 ]
-
-export const removedCategories = ['Basis Trading', 'RWA', 'Infrastructure', 'Staking Pool']
 
 export const REV_PROTOCOLS = {
 	ethereum: ['flashbots', 'eden-relay'],

@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { ColumnDef } from '@tanstack/react-table'
 import { formattedNum, formattedPercent } from '~/utils'
+import { percentageSortingFn } from '../../../utils/tableSorting'
 
 export const aggregatorsDatasetColumns: ColumnDef<any>[] = [
 	{
@@ -30,6 +31,8 @@ export const aggregatorsDatasetColumns: ColumnDef<any>[] = [
 		header: '24h Change',
 		accessorKey: 'change_1d',
 		size: 100,
+		sortUndefined: 'last',
+		sortingFn: percentageSortingFn,
 		cell: ({ getValue }) => {
 			const value = getValue() as number
 			return (
@@ -43,6 +46,8 @@ export const aggregatorsDatasetColumns: ColumnDef<any>[] = [
 		header: '7d Change',
 		accessorKey: 'change_7d',
 		size: 100,
+		sortUndefined: 'last',
+		sortingFn: percentageSortingFn,
 		cell: ({ getValue }) => {
 			const value = getValue() as number
 			return (
@@ -63,6 +68,15 @@ export const aggregatorsDatasetColumns: ColumnDef<any>[] = [
 		accessorKey: 'total7d',
 		size: 120,
 		cell: ({ getValue }) => <span className="font-mono pro-text2">{formattedNum(getValue() as number, true)}</span>
+	},
+	{
+		header: '7d Market Share',
+		accessorKey: 'marketShare7d',
+		size: 120,
+		cell: ({ getValue }) => {
+			const value = getValue() as number
+			return <span className="font-mono pro-text2">{formattedPercent(value, true)}</span>
+		}
 	},
 	{
 		header: '30d Volume',

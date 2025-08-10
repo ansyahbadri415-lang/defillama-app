@@ -1,11 +1,11 @@
 import { maxAgeForNext } from '~/api'
-import type { IChainTvl } from '~/api/types'
 import { withPerformanceLogging } from '~/utils/perf'
 
-import 'react-datepicker/dist/react-datepicker.css'
 import { Cexs } from '~/containers/Cexs'
 import { fetchJson } from '~/utils/async'
 import { COINS_PRICES_API, INFLOWS_API, PROTOCOL_API } from '~/constants'
+
+//trigger caches
 
 interface ICex {
 	name: string
@@ -167,6 +167,13 @@ export const cexData: Array<ICex> = [
 		cgId: null
 	},
 	{
+		name: 'Gemini',
+		slug: 'gemini',
+		coin: null,
+		cgId: 'gemini',
+		walletsLink: 'https://www.gemini.com/trust-center/'
+	},
+	{
 		name: 'Bybit',
 		slug: 'Bybit',
 		coin: 'BIT',
@@ -204,7 +211,7 @@ export const cexData: Array<ICex> = [
 		cgDeriv: 'huobi_dm'
 	},
 	{
-		name: 'Kucoin',
+		name: 'KuCoin',
 		slug: 'kucoin',
 		coin: 'KCS',
 		coinSymbol: 'KCS',
@@ -492,6 +499,18 @@ export const cexData: Array<ICex> = [
 		walletsLink: 'https://www.ourbit.com/assets/reserve-proof'
 	},
 	{
+		name: 'Indodax',
+		slug: 'indodax',
+		coin: null,
+		walletsLink: null
+	},
+	{
+		name: 'Tothemoon',
+		slug: 'tothemoon',
+		coin: null,
+		walletsLink: null
+	},
+	{
 		name: 'HashKey Global',
 		slug: 'hashkey-global',
 		coin: null,
@@ -694,15 +713,16 @@ export const getStaticProps = withPerformanceLogging('cexs/index', async () => {
 	])
 	const cexs = await Promise.all(
 		cexData.map(async (c) => {
-			if (c.slug === undefined) {
+			if (c.slug == null) {
 				return c
 			} else {
 				const res = await Promise.allSettled([
 					fetchJson(`${PROTOCOL_API}/${c.slug}`).catch(() => ({ chainTvls: {} })),
-					fetchJson(`${INFLOWS_API}/${c.slug}/${hour24ms}?tokensToExclude=${c.coin ?? ''}`),
-					fetchJson(`${INFLOWS_API}/${c.slug}/${hour7dms}?tokensToExclude=${c.coin ?? ''}`),
-					fetchJson(`${INFLOWS_API}/${c.slug}/${hour1mms}?tokensToExclude=${c.coin ?? ''}`)
+					fetchJson(`${INFLOWS_API}/${c.slug}/${hour24ms}?tokensToExclude=${c.coin ?? ''}`).catch(() => null),
+					fetchJson(`${INFLOWS_API}/${c.slug}/${hour7dms}?tokensToExclude=${c.coin ?? ''}`).catch(() => null),
+					fetchJson(`${INFLOWS_API}/${c.slug}/${hour1mms}?tokensToExclude=${c.coin ?? ''}`).catch(() => null)
 				]).catch((e) => null)
+
 				if (res === null) {
 					return c
 				}
@@ -713,15 +733,15 @@ export const getStaticProps = withPerformanceLogging('cexs/index', async () => {
 
 				let ownToken = 0
 
-				Object.values(chainTvls as IChainTvl).map((item) => {
-					if (item.tvl) {
-						cexTvl += item.tvl[item.tvl.length - 1]?.totalLiquidityUSD ?? 0
+				for (const chain in chainTvls) {
+					if (chainTvls[chain].tvl) {
+						cexTvl += chainTvls[chain].tvl[chainTvls[chain].tvl.length - 1]?.totalLiquidityUSD ?? 0
 					}
 
-					if (item.tokensInUsd) {
-						ownToken += item.tokensInUsd[item.tokensInUsd.length - 1]?.tokens[c.coin] ?? 0
+					if (chainTvls[chain].tokensInUsd) {
+						ownToken += chainTvls[chain].tokensInUsd[chainTvls[chain].tokensInUsd.length - 1]?.tokens[c.coin] ?? 0
 					}
-				})
+				}
 
 				const cleanTvl = cexTvl - ownToken
 
@@ -777,5 +797,3 @@ export const getStaticProps = withPerformanceLogging('cexs/index', async () => {
 export default function Protocols({ cexs }) {
 	return <Cexs cexs={cexs} />
 }
-
-//trigger server gogo

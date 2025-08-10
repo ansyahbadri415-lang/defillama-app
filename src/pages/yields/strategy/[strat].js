@@ -9,7 +9,7 @@ import {
 	useYieldConfigData
 } from '~/containers/Yields/queries/client'
 import { calculateLoopAPY } from '~/containers/Yields/queries/index'
-import { toK } from '~/utils'
+import { formattedNum } from '~/utils'
 
 const BarChart = lazy(() => import('~/components/ECharts/BarChart'))
 
@@ -166,8 +166,8 @@ const PageView = () => {
 
 	return (
 		<>
-			<div className="grid grid-cols-2 relative isolate xl:grid-cols-3 gap-1">
-				<div className="bg-(--cards-bg) rounded-md flex flex-col gap-6 p-5 col-span-2 w-full xl:col-span-1 overflow-x-auto">
+			<div className="grid grid-cols-2 relative isolate xl:grid-cols-3 gap-2">
+				<div className="bg-(--cards-bg) border border-(--cards-border) rounded-md flex flex-col gap-6 p-5 col-span-2 w-full xl:col-span-1 overflow-x-auto">
 					<h1 className="text-xl">APY Breakdown:</h1>
 					<table className="w-full text-base border-collapse">
 						<tbody>
@@ -200,23 +200,23 @@ const PageView = () => {
 								<th className="text-[#545757] dark:text-[#cccccc] font-normal text-left">
 									Available Borrow Liquidity:
 								</th>
-								<td className="font-jetbrains text-right">${toK(borrowAvailable)}</td>
+								<td className="font-jetbrains text-right">${formattedNum(borrowAvailable)}</td>
 							</tr>
 
 							<tr>
 								<th className="text-[#545757] dark:text-[#cccccc] font-normal text-left">Farm TVL:</th>
-								<td className="font-jetbrains text-right">${toK(farmTVL)}</td>
+								<td className="font-jetbrains text-right">{formattedNum(farmTVL, true)}</td>
 							</tr>
 						</tbody>
 					</table>
 				</div>
 
-				<LazyChart className="bg-(--cards-bg) rounded-md pt-3 col-span-2 min-h-[480px]">
+				<LazyChart className="bg-(--cards-bg) border border-(--cards-border) rounded-md pt-3 col-span-2 min-h-[480px]">
 					<AreaChart title="Strategy APY" chartData={finalChart} color={backgroundColor} valueSymbol={'%'} />
 				</LazyChart>
 			</div>
 
-			<div className="flex flex-col gap-4 bg-(--cards-bg) rounded-md p-3">
+			<div className="flex flex-col gap-4 bg-(--cards-bg) border border-(--cards-border) rounded-md p-3">
 				<h3>Steps</h3>
 				<p className="flex items-center gap-2">
 					<span>1.</span>

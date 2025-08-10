@@ -14,7 +14,7 @@ import { DLNewsLogo } from '~/components/News/Logo'
 import dayjs from 'dayjs'
 import { feesOptions, tvlOptions } from '~/components/Filters/options'
 import { Menu } from '~/components/Menu'
-import { ProtocolChart2 } from './Chart/ProtocolChartNew'
+import { ProtocolChart } from './Chart/ProtocolChart'
 import { useGetTokenPrice } from '~/api/categories/protocols/client'
 import { useRouter } from 'next/router'
 
@@ -94,6 +94,7 @@ export const ProtocolOverview = (props: IProtocolOverviewPageData) => {
 			otherProtocols={props.otherProtocols}
 			toggleOptions={toggleOptions}
 			metrics={props.metrics}
+			warningBanners={props.warningBanners}
 			tab="information"
 		>
 			<SEO
@@ -149,7 +150,7 @@ export const ProtocolOverview = (props: IProtocolOverviewPageData) => {
 								tvlByChain={tvlByChain}
 							/>
 						</div>
-						<ProtocolChart2 {...props} />
+						<ProtocolChart {...props} />
 					</div>
 					{props.hasKeyMetrics ? (
 						<div className="col-span-full flex flex-col gap-6 bg-(--cards-bg) border border-(--cards-border) rounded-md p-2 xl:hidden">
@@ -231,7 +232,7 @@ const ProtocolTVL = ({
 				</span>
 			</summary>
 			<div className="flex flex-col my-3 max-h-[50vh] overflow-auto">
-				<h2 className="font-semibold">TVL by Chain</h2>
+				<h2 className="font-semibold">{isCEX ? 'Total Assets by Chain' : 'TVL by Chain'}</h2>
 				{tvlByChain.map(([chain, tvl]) => (
 					<p
 						key={`${chain}-${tvl}-${name}`}
@@ -250,7 +251,7 @@ interface IKeyMetricsProps extends IProtocolOverviewPageData {
 	formatPrice: (value: number | string | null) => string | number | null
 }
 
-const KeyMetrics = (props: IKeyMetricsProps) => {
+export const KeyMetrics = (props: IKeyMetricsProps) => {
 	if (!props.hasKeyMetrics) return null
 	return (
 		<div className="flex flex-col flex-1 gap-2">
@@ -362,7 +363,7 @@ const Articles = (props: IProtocolOverviewPageData) => {
 					<div className="flex flex-col gap-3 justify-between">
 						<p className="text-sm font-medium whitespace-pre-wrap break-keep">{article.headline}</p>
 						<div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-end">
-							<p className="text-xs">{dayjs(article.date).format('MMMM D, YYYY')}</p>
+							<p className="text-xs">{dayjs.utc(article.date).format('MMMM D, YYYY')}</p>
 							<p className="flex items-center justify-between flex-nowrap font-semibold rounded-md">
 								<span>Read on DL News</span> <Icon name="arrow-up-right" height={14} width={14} />
 							</p>
@@ -385,13 +386,16 @@ function Fees(props: IKeyMetricsProps) {
 	if (!feesExists) return null
 
 	const bribeRevenue24h = extraTvlsEnabled.bribes ? bribeRevenue?.total24h : 0
+	const bribeRevenue7d = extraTvlsEnabled.bribes ? bribeRevenue?.total7d : 0
 	const bribeRevenue30d = extraTvlsEnabled.bribes ? bribeRevenue?.total30d : 0
 	const bribeRevenueAllTime = extraTvlsEnabled.bribes ? bribeRevenue?.totalAllTime : 0
 	const tokenTax24h = extraTvlsEnabled.tokentax ? tokenTax?.total24h : 0
+	const tokenTax7d = extraTvlsEnabled.tokentax ? tokenTax?.total7d : 0
 	const tokenTax30d = extraTvlsEnabled.tokentax ? tokenTax?.total30d : 0
 	const tokenTaxAllTime = extraTvlsEnabled.tokentax ? tokenTax?.totalAllTime : 0
 
 	const fees24h = feesExists ? (fees?.total24h ?? 0) + (bribeRevenue24h ?? 0) + (tokenTax24h ?? 0) : null
+	const fees7d = feesExists ? (fees?.total7d ?? 0) + (bribeRevenue7d ?? 0) + (tokenTax7d ?? 0) : null
 	const fees30d = feesExists ? (fees?.total30d ?? 0) + (bribeRevenue30d ?? 0) + (tokenTax30d ?? 0) : null
 	const feesAllTime = feesExists
 		? (fees?.totalAllTime ?? 0) + (bribeRevenueAllTime ?? 0) + (tokenTaxAllTime ?? 0)
@@ -411,6 +415,14 @@ function Fees(props: IKeyMetricsProps) {
 			name: 'Fees 30d',
 			tooltipContent: 'Total fees paid by users in the last 30 days, updated daily at 00:00UTC',
 			value: fees30d
+		})
+	}
+
+	if (fees7d != null) {
+		metrics.push({
+			name: 'Fees 7d',
+			tooltipContent: 'Total fees paid by users in the last 7 days, updated daily at 00:00UTC',
+			value: fees7d
 		})
 	}
 
@@ -436,6 +448,7 @@ function Fees(props: IKeyMetricsProps) {
 			protocolName={props.name}
 			category={props.category ?? ''}
 			formatPrice={props.formatPrice}
+			openSmolStatsSummaryByDefault={props.openSmolStatsSummaryByDefault}
 		/>
 	)
 }
@@ -452,13 +465,16 @@ function Revenue(props: IKeyMetricsProps) {
 	if (!revenueExists) return null
 
 	const bribeRevenue24h = extraTvlsEnabled.bribes ? bribeRevenue?.total24h : 0
+	const bribeRevenue7d = extraTvlsEnabled.bribes ? bribeRevenue?.total7d : 0
 	const bribeRevenue30d = extraTvlsEnabled.bribes ? bribeRevenue?.total30d : 0
 	const bribeRevenueAllTime = extraTvlsEnabled.bribes ? bribeRevenue?.totalAllTime : 0
 	const tokenTax24h = extraTvlsEnabled.tokentax ? tokenTax?.total24h : 0
+	const tokenTax7d = extraTvlsEnabled.tokentax ? tokenTax?.total7d : 0
 	const tokenTax30d = extraTvlsEnabled.tokentax ? tokenTax?.total30d : 0
 	const tokenTaxAllTime = extraTvlsEnabled.tokentax ? tokenTax?.totalAllTime : 0
 
 	const revenue24h = revenueExists ? (revenue?.total24h ?? 0) + (bribeRevenue24h ?? 0) + (tokenTax24h ?? 0) : null
+	const revenue7d = revenueExists ? (revenue?.total7d ?? 0) + (bribeRevenue7d ?? 0) + (tokenTax7d ?? 0) : null
 	const revenue30d = revenueExists ? (revenue?.total30d ?? 0) + (bribeRevenue30d ?? 0) + (tokenTax30d ?? 0) : null
 	const revenueAllTime = revenueExists
 		? (revenue?.totalAllTime ?? 0) + (bribeRevenueAllTime ?? 0) + (tokenTaxAllTime ?? 0)
@@ -478,6 +494,14 @@ function Revenue(props: IKeyMetricsProps) {
 			name: 'Revenue 30d',
 			tooltipContent: 'Total revenue earned by the protocol in the last 30 days, updated daily at 00:00UTC',
 			value: revenue30d
+		})
+	}
+
+	if (revenue7d != null) {
+		metrics.push({
+			name: 'Revenue 7d',
+			tooltipContent: 'Total revenue earned by the protocol in the last 7 days, updated daily at 00:00UTC',
+			value: revenue7d
 		})
 	}
 
@@ -503,6 +527,7 @@ function Revenue(props: IKeyMetricsProps) {
 			protocolName={props.name}
 			category={props.category ?? ''}
 			formatPrice={props.formatPrice}
+			openSmolStatsSummaryByDefault={props.openSmolStatsSummaryByDefault}
 		/>
 	)
 }
@@ -518,14 +543,19 @@ function HoldersRevenue(props: IKeyMetricsProps) {
 	if (!holdersRevenueExists) return null
 
 	const bribeRevenue24h = extraTvlsEnabled.bribes ? bribeRevenue?.total24h : 0
+	const bribeRevenue7d = extraTvlsEnabled.bribes ? bribeRevenue?.total7d : 0
 	const bribeRevenue30d = extraTvlsEnabled.bribes ? bribeRevenue?.total30d : 0
 	const bribeRevenueAllTime = extraTvlsEnabled.bribes ? bribeRevenue?.totalAllTime : 0
 	const tokenTax24h = extraTvlsEnabled.tokentax ? tokenTax?.total24h : 0
+	const tokenTax7d = extraTvlsEnabled.tokentax ? tokenTax?.total7d : 0
 	const tokenTax30d = extraTvlsEnabled.tokentax ? tokenTax?.total30d : 0
 	const tokenTaxAllTime = extraTvlsEnabled.tokentax ? tokenTax?.totalAllTime : 0
 
 	const holdersRevenue24h = holdersRevenueExists
 		? (holdersRevenue?.total24h ?? 0) + (bribeRevenue24h ?? 0) + (tokenTax24h ?? 0)
+		: null
+	const holdersRevenue7d = holdersRevenueExists
+		? (holdersRevenue?.total7d ?? 0) + (bribeRevenue7d ?? 0) + (tokenTax7d ?? 0)
 		: null
 	const holdersRevenue30d = holdersRevenueExists
 		? (holdersRevenue?.total30d ?? 0) + (bribeRevenue30d ?? 0) + (tokenTax30d ?? 0)
@@ -552,6 +582,15 @@ function HoldersRevenue(props: IKeyMetricsProps) {
 		})
 	}
 
+	if (holdersRevenue7d != null) {
+		metrics.push({
+			name: 'Holders Revenue 7d',
+			tooltipContent:
+				"Total revenue that is distributed to protocol's token holders in the last 7 days, updated daily at 00:00UTC",
+			value: holdersRevenue7d
+		})
+	}
+
 	if (holdersRevenue24h != null) {
 		metrics.push({
 			name: 'Holders Revenue 24h',
@@ -575,6 +614,7 @@ function HoldersRevenue(props: IKeyMetricsProps) {
 			protocolName={props.name}
 			category={props.category ?? ''}
 			formatPrice={props.formatPrice}
+			openSmolStatsSummaryByDefault={props.openSmolStatsSummaryByDefault}
 		/>
 	)
 }
@@ -596,6 +636,14 @@ function Incentives(props: IKeyMetricsProps) {
 			name: 'Incentives 30d',
 			tooltipContent: 'Total incentives distributed by the protocol in the last 30 days, updated daily at 00:00UTC',
 			value: props.incentives.emissions30d
+		})
+	}
+
+	if (props.incentives.emissions7d != null) {
+		metrics.push({
+			name: 'Incentives 7d',
+			tooltipContent: 'Total incentives distributed by the protocol in the last 7 days, updated daily at 00:00UTC',
+			value: props.incentives.emissions7d
 		})
 	}
 
@@ -621,6 +669,7 @@ function Incentives(props: IKeyMetricsProps) {
 			protocolName={props.name}
 			category={props.category ?? ''}
 			formatPrice={props.formatPrice}
+			openSmolStatsSummaryByDefault={props.openSmolStatsSummaryByDefault}
 		/>
 	)
 }
@@ -634,19 +683,24 @@ function Earnings(props: IKeyMetricsProps) {
 	const incentivesData = props.incentives
 
 	const bribeRevenue24h = extraTvlsEnabled.bribes ? bribeRevenue?.total24h : 0
+	const bribeRevenue7d = extraTvlsEnabled.bribes ? bribeRevenue?.total7d : 0
 	const bribeRevenue30d = extraTvlsEnabled.bribes ? bribeRevenue?.total30d : 0
 	const bribeRevenueAllTime = extraTvlsEnabled.bribes ? bribeRevenue?.totalAllTime : 0
 	const tokenTax24h = extraTvlsEnabled.tokentax ? tokenTax?.total24h : 0
+	const tokenTax7d = extraTvlsEnabled.tokentax ? tokenTax?.total7d : 0
 	const tokenTax30d = extraTvlsEnabled.tokentax ? tokenTax?.total30d : 0
 	const tokenTaxAllTime = extraTvlsEnabled.tokentax ? tokenTax?.totalAllTime : 0
 
 	const revenue24h = revenue?.total24h != null ? revenue.total24h + (bribeRevenue24h ?? 0) + (tokenTax24h ?? 0) : null
+	const revenue7d = revenue?.total7d != null ? revenue.total7d + (bribeRevenue7d ?? 0) + (tokenTax7d ?? 0) : null
 	const revenue30d = revenue?.total30d != null ? revenue.total30d + (bribeRevenue30d ?? 0) + (tokenTax30d ?? 0) : null
 	const revenueAllTime =
 		revenue?.totalAllTime != null ? revenue.totalAllTime + (bribeRevenueAllTime ?? 0) + (tokenTaxAllTime ?? 0) : null
 
 	const earnings24h =
 		revenue24h != null && incentivesData?.emissions24h != null ? revenue24h - incentivesData.emissions24h : null
+	const earnings7d =
+		revenue7d != null && incentivesData?.emissions7d != null ? revenue7d - incentivesData.emissions7d : null
 	const earnings30d =
 		revenue30d != null && incentivesData?.emissions30d != null ? revenue30d - incentivesData.emissions30d : null
 	const earningsAllTime =
@@ -658,7 +712,7 @@ function Earnings(props: IKeyMetricsProps) {
 
 	const metrics = []
 
-	if (earnings30d != null) {
+	if (earnings30d) {
 		metrics.push({
 			name: 'Earnings (Annualized)',
 			tooltipContent:
@@ -671,6 +725,15 @@ function Earnings(props: IKeyMetricsProps) {
 			tooltipContent:
 				'Total earnings (revenue - incentives) of the protocol in the last 30 days, updated daily at 00:00UTC',
 			value: earnings30d
+		})
+	}
+
+	if (earnings7d != null) {
+		metrics.push({
+			name: 'Earnings 7d',
+			tooltipContent:
+				'Total earnings (revenue - incentives) of the protocol in the last 7 days, updated daily at 00:00UTC',
+			value: earnings7d
 		})
 	}
 
@@ -697,6 +760,7 @@ function Earnings(props: IKeyMetricsProps) {
 			protocolName={props.name}
 			category={props.category ?? ''}
 			formatPrice={props.formatPrice}
+			openSmolStatsSummaryByDefault={props.openSmolStatsSummaryByDefault}
 		/>
 	)
 }
@@ -708,6 +772,9 @@ function DexVolume(props: IKeyMetricsProps) {
 
 	if (props.dexVolume.total30d != null) {
 		metrics.push({ name: 'DEX Volume 30d', tooltipContent: null, value: props.dexVolume.total30d })
+	}
+	if (props.dexVolume.total7d != null) {
+		metrics.push({ name: 'DEX Volume 7d', tooltipContent: null, value: props.dexVolume.total7d })
 	}
 	if (props.dexVolume.total24h != null) {
 		metrics.push({ name: 'DEX Volume 24h', tooltipContent: null, value: props.dexVolume.total24h })
@@ -722,6 +789,7 @@ function DexVolume(props: IKeyMetricsProps) {
 			protocolName={props.name}
 			category={props.category ?? ''}
 			formatPrice={props.formatPrice}
+			openSmolStatsSummaryByDefault={props.openSmolStatsSummaryByDefault}
 		/>
 	)
 }
@@ -733,6 +801,9 @@ function DexAggregatorVolume(props: IKeyMetricsProps) {
 
 	if (props.dexAggregatorVolume.total30d != null) {
 		metrics.push({ name: 'DEX Aggregator Volume 30d', tooltipContent: null, value: props.dexAggregatorVolume.total30d })
+	}
+	if (props.dexAggregatorVolume.total7d != null) {
+		metrics.push({ name: 'DEX Aggregator Volume 7d', tooltipContent: null, value: props.dexAggregatorVolume.total7d })
 	}
 	if (props.dexAggregatorVolume.total24h != null) {
 		metrics.push({ name: 'DEX Aggregator Volume 24h', tooltipContent: null, value: props.dexAggregatorVolume.total24h })
@@ -751,6 +822,7 @@ function DexAggregatorVolume(props: IKeyMetricsProps) {
 			protocolName={props.name}
 			category={props.category ?? ''}
 			formatPrice={props.formatPrice}
+			openSmolStatsSummaryByDefault={props.openSmolStatsSummaryByDefault}
 		/>
 	)
 }
@@ -762,6 +834,9 @@ function PerpVolume(props: IKeyMetricsProps) {
 
 	if (props.perpVolume.total30d != null) {
 		metrics.push({ name: 'Perp Volume 30d', tooltipContent: null, value: props.perpVolume.total30d })
+	}
+	if (props.perpVolume.total7d != null) {
+		metrics.push({ name: 'Perp Volume 7d', tooltipContent: null, value: props.perpVolume.total7d })
 	}
 	if (props.perpVolume.total24h != null) {
 		metrics.push({ name: 'Perp Volume 24h', tooltipContent: null, value: props.perpVolume.total24h })
@@ -780,6 +855,7 @@ function PerpVolume(props: IKeyMetricsProps) {
 			protocolName={props.name}
 			category={props.category ?? ''}
 			formatPrice={props.formatPrice}
+			openSmolStatsSummaryByDefault={props.openSmolStatsSummaryByDefault}
 		/>
 	)
 }
@@ -794,6 +870,13 @@ function PerpAggregatorVolume(props: IKeyMetricsProps) {
 			name: 'Perp Aggregator Volume 30d',
 			tooltipContent: null,
 			value: props.perpAggregatorVolume.total30d
+		})
+	}
+	if (props.perpAggregatorVolume.total7d != null) {
+		metrics.push({
+			name: 'Perp Aggregator Volume 7d',
+			tooltipContent: null,
+			value: props.perpAggregatorVolume.total7d
 		})
 	}
 	if (props.perpAggregatorVolume.total24h != null) {
@@ -817,6 +900,7 @@ function PerpAggregatorVolume(props: IKeyMetricsProps) {
 			protocolName={props.name}
 			category={props.category ?? ''}
 			formatPrice={props.formatPrice}
+			openSmolStatsSummaryByDefault={props.openSmolStatsSummaryByDefault}
 		/>
 	)
 }
@@ -831,6 +915,13 @@ function BridgeAggregatorVolume(props: IKeyMetricsProps) {
 			name: 'Bridge Aggregator Volume 30d',
 			tooltipContent: null,
 			value: props.bridgeAggregatorVolume.total30d
+		})
+	}
+	if (props.bridgeAggregatorVolume.total7d != null) {
+		metrics.push({
+			name: 'Bridge Aggregator Volume 7d',
+			tooltipContent: null,
+			value: props.bridgeAggregatorVolume.total7d
 		})
 	}
 	if (props.bridgeAggregatorVolume.total24h != null) {
@@ -854,6 +945,7 @@ function BridgeAggregatorVolume(props: IKeyMetricsProps) {
 			protocolName={props.name}
 			category={props.category ?? ''}
 			formatPrice={props.formatPrice}
+			openSmolStatsSummaryByDefault={props.openSmolStatsSummaryByDefault}
 		/>
 	)
 }
@@ -865,9 +957,11 @@ function BridgeVolume(props: IKeyMetricsProps) {
 
 	const now = Date.now()
 	const oneDayAgo = now - 24 * 60 * 60 * 1000
+	const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000
 	const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000
 
 	let total24h = 0
+	let total7d = 0
 	let total30d = 0
 	let totalAllTime = 0
 
@@ -881,6 +975,10 @@ function BridgeVolume(props: IKeyMetricsProps) {
 			total30d += volume
 		}
 
+		if (timestamp >= sevenDaysAgo) {
+			total7d += volume
+		}
+
 		if (timestamp >= oneDayAgo) {
 			total24h += volume
 		}
@@ -891,6 +989,13 @@ function BridgeVolume(props: IKeyMetricsProps) {
 			name: 'Bridge Volume 30d',
 			tooltipContent: null,
 			value: total30d
+		})
+	}
+	if (total7d > 0) {
+		metrics.push({
+			name: 'Bridge Volume 7d',
+			tooltipContent: null,
+			value: total7d
 		})
 	}
 	if (total24h > 0) {
@@ -914,6 +1019,7 @@ function BridgeVolume(props: IKeyMetricsProps) {
 			protocolName={props.name}
 			category={props.category ?? ''}
 			formatPrice={props.formatPrice}
+			openSmolStatsSummaryByDefault={props.openSmolStatsSummaryByDefault}
 		/>
 	)
 }
@@ -928,6 +1034,13 @@ function OptionsPremiumVolume(props: IKeyMetricsProps) {
 			name: 'Options Premium Volume 30d',
 			tooltipContent: null,
 			value: props.optionsPremiumVolume.total30d
+		})
+	}
+	if (props.optionsPremiumVolume.total7d != null) {
+		metrics.push({
+			name: 'Options Premium Volume 7d',
+			tooltipContent: null,
+			value: props.optionsPremiumVolume.total7d
 		})
 	}
 	if (props.optionsPremiumVolume.total24h != null) {
@@ -951,6 +1064,7 @@ function OptionsPremiumVolume(props: IKeyMetricsProps) {
 			protocolName={props.name}
 			category={props.category ?? ''}
 			formatPrice={props.formatPrice}
+			openSmolStatsSummaryByDefault={props.openSmolStatsSummaryByDefault}
 		/>
 	)
 }
@@ -965,6 +1079,13 @@ function OptionsNotionalVolume(props: IKeyMetricsProps) {
 			name: 'Options Notional Volume 30d',
 			tooltipContent: null,
 			value: props.optionsNotionalVolume.total30d
+		})
+	}
+	if (props.optionsNotionalVolume.total7d != null) {
+		metrics.push({
+			name: 'Options Notional Volume 7d',
+			tooltipContent: null,
+			value: props.optionsNotionalVolume.total7d
 		})
 	}
 	if (props.optionsNotionalVolume.total24h != null) {
@@ -988,6 +1109,7 @@ function OptionsNotionalVolume(props: IKeyMetricsProps) {
 			protocolName={props.name}
 			category={props.category ?? ''}
 			formatPrice={props.formatPrice}
+			openSmolStatsSummaryByDefault={props.openSmolStatsSummaryByDefault}
 		/>
 	)
 }
@@ -1053,7 +1175,7 @@ const Expenses = (props: IKeyMetricsProps) => {
 				{props.expenses?.lastUpdate ? (
 					<p className="flex flex-wrap justify-between gap-4 border-b border-dashed border-(--cards-border) group-last:border-none py-1 text-[#545757] dark:text-[#cccccc]">
 						<span className="text-[#545757] dark:text-[#cccccc]">Last Update</span>
-						<span>{dayjs(props.expenses.lastUpdate).format('MMM D, YYYY')}</span>
+						<span>{dayjs.utc(props.expenses.lastUpdate).format('MMM D, YYYY')}</span>
 					</p>
 				) : null}
 			</div>
@@ -1181,6 +1303,17 @@ const TokenCGData = (props: IKeyMetricsProps) => {
 					<span className="font-jetbrains">{props.formatPrice(props.tokenCGData.fdv.current)}</span>
 				</p>
 			) : null}
+			{props.outstandingFDV ? (
+				<p className="group flex flex-wrap justify-between gap-4 border-b border-(--cards-border) last:border-none py-1 first:pt-0 last:pb-0">
+					<Tooltip
+						className="text-[#545757] dark:text-[#cccccc] underline decoration-dotted"
+						content={`Outstanding FDV is calculated by taking the outstanding supply of the token and multiplying it by the price.\n\nOutstanding supply is the total supply minus the supply that is not yet allocated to anything (eg coins in treasury or reserve).`}
+					>
+						Outstanding FDV
+					</Tooltip>
+					<span className="font-jetbrains">{props.formatPrice(props.outstandingFDV)}</span>
+				</p>
+			) : null}
 			{props.tokenCGData.volume24h?.total ? (
 				<details className="group">
 					<summary className="flex flex-wrap justify-start gap-4 border-b border-(--cards-border) group-open:font-semibold group-open:border-none group-last:border-none py-1">
@@ -1231,7 +1364,8 @@ const SmolStats = ({
 	data,
 	protocolName,
 	category,
-	formatPrice
+	formatPrice,
+	openSmolStatsSummaryByDefault = false
 }: {
 	data: Array<{
 		name: string
@@ -1241,6 +1375,7 @@ const SmolStats = ({
 	protocolName: string
 	category: string
 	formatPrice: (value: number | string | null) => string | number | null
+	openSmolStatsSummaryByDefault?: boolean
 }) => {
 	if (data.length === 0) return null
 
@@ -1269,7 +1404,7 @@ const SmolStats = ({
 	}
 
 	return (
-		<details className="group">
+		<details className="group" open={openSmolStatsSummaryByDefault}>
 			<summary className="flex flex-wrap justify-start gap-4 border-b border-(--cards-border) group-open:font-semibold group-open:border-none group-last:border-none py-1">
 				{data[0].tooltipContent ? (
 					<Tooltip
@@ -1447,14 +1582,31 @@ const Raises = (props: IProtocolOverviewPageData) => {
 					>
 						<span className="flex flex-wrap justify-between">
 							<span className="text-[#545757] dark:text-[#cccccc]">
-								{dayjs(raise.date * 1000).format('MMM D, YYYY')}
+								{dayjs.utc(raise.date * 1000).format('MMM D, YYYY')}
 							</span>
-							<span className="font-jetbrains">{formattedNum(raise.amount * 1_000_000, true)}</span>
+							{raise.amount ? (
+								<span className="font-jetbrains">{formattedNum(raise.amount * 1_000_000, true)}</span>
+							) : null}
 						</span>
 						<span className="flex gap-1 flex-wrap justify-between text-[#545757] dark:text-[#cccccc]">
 							<span>Round: {raise.round}</span>
 							{raise.investors?.length ? <span>Investors: {raise.investors.join(', ')}</span> : null}
 						</span>
+						{raise.source ? (
+							<span className="flex gap-1 flex-wrap justify-between text-[#545757] dark:text-[#cccccc]">
+								<span className="flex items-center gap-1 flex-nowrap">
+									Source:{' '}
+									<a
+										href={raise.source}
+										target="_blank"
+										rel="noopener noreferrer"
+										className="underline whitespace-nowrap overflow-hidden text-ellipsis"
+									>
+										{raise.source}
+									</a>
+								</span>
+							</span>
+						) : null}
 					</p>
 				))}
 			</div>
@@ -1476,7 +1628,6 @@ const AdditionalInfo = (props: IProtocolOverviewPageData) => {
 					<ProtocolInfo {...props} />
 					<Articles {...props} />
 					<Yields {...props} />
-					<DevActivity {...props} />
 					<Users {...props} />
 				</div>
 				<Methodology {...props} />
@@ -1496,7 +1647,6 @@ const AdditionalInfo = (props: IProtocolOverviewPageData) => {
 			<Yields {...props} />
 			{/* <Unlocks {...props} />
 			<Governance {...props} /> */}
-			<DevActivity {...props} />
 			<Users {...props} />
 			<Hacks {...props} />
 			<Competitors {...props} />
@@ -1508,7 +1658,7 @@ const ProtocolInfo = (props: IProtocolOverviewPageData) => {
 	return (
 		<div className="flex flex-col gap-2 bg-(--cards-bg) border border-(--cards-border) rounded-md p-2 xl:p-4 col-span-1">
 			<h2 className="relative group text-base font-semibold flex items-center gap-1" id="protocol-information">
-				Protocol Information
+				{props.isCEX ? 'Exchange Information' : 'Protocol Information'}
 				<a
 					aria-hidden="true"
 					tabIndex={-1}
@@ -1602,7 +1752,8 @@ const Methodology = (props: IProtocolOverviewPageData) => {
 			</h2>
 			{props.methodologyURL ? (
 				<a href={props.methodologyURL} target="_blank" rel="noopener noreferrer" className="hover:underline">
-					<span className="font-medium">TVL:</span> <span>{props.methodology ?? ''}</span>
+					<span className="font-medium">{props.isCEX ? 'Total Assets:' : 'TVL:'}</span>{' '}
+					<span>{props.methodology ?? ''}</span>
 					{props.methodologyURL ? (
 						<span className="inline-block relative left-1 top-[2px]">
 							<Icon name="external-link" className="w-[14px] h-[14px]" />
@@ -1612,7 +1763,8 @@ const Methodology = (props: IProtocolOverviewPageData) => {
 				</a>
 			) : props.methodology ? (
 				<p>
-					<span className="font-medium">TVL:</span> <span>{props.methodology ?? ''}</span>
+					<span className="font-medium">{props.isCEX ? 'Total Assets:' : 'TVL:'}</span>{' '}
+					<span>{props.methodology ?? ''}</span>
 				</p>
 			) : null}
 			<MethodologyByAdapter adapter={props.fees} title="Fees" />
@@ -1819,66 +1971,6 @@ function Yields(props: IProtocolOverviewPageData) {
 	)
 }
 
-function DevActivity(props: IProtocolOverviewPageData) {
-	const devActivity = props.devMetrics
-	if (!devActivity) return null
-	return (
-		<div className="col-span-1 flex flex-col gap-2 bg-(--cards-bg) border border-(--cards-border) rounded-md p-2 xl:p-4">
-			<div>
-				<h2 className="relative group text-base font-semibold flex items-center gap-1" id="dev-activity">
-					Development Activity
-					<a
-						aria-hidden="true"
-						tabIndex={-1}
-						href="#dev-activity"
-						className="absolute top-0 right-0 z-10 h-full w-full flex items-center"
-					/>
-					<Icon name="link" className="w-[14px] h-[14px] invisible group-hover:visible group-focus-visible:visible" />
-				</h2>
-				{devActivity.updatedAt != null ? (
-					<p className="text-xs text-[#545757] dark:text-[#cccccc]">
-						Updated at {dayjs(devActivity.updatedAt).format('MMM D, YYYY')}
-					</p>
-				) : null}
-			</div>
-			<div className="flex flex-col">
-				{devActivity.weeklyCommits != null ? (
-					<p className="flex flex-wrap justify-between gap-4 border-b border-(--cards-border) last:border-none py-1 first:pt-0 last:pb-0">
-						<span className="text-[#545757] dark:text-[#cccccc]">Weekly commits</span>
-						<span className="font-jetbrains">{devActivity.weeklyCommits}</span>
-					</p>
-				) : null}
-				{devActivity.monthlyCommits != null ? (
-					<p className="flex flex-wrap justify-between gap-4 border-b border-(--cards-border) last:border-none py-1 first:pt-0 last:pb-0">
-						<span className="text-[#545757] dark:text-[#cccccc]">Monthly commits</span>
-						<span className="font-jetbrains">{devActivity.monthlyCommits}</span>
-					</p>
-				) : null}
-				{devActivity.weeklyDevelopers != null ? (
-					<p className="flex flex-wrap justify-between gap-4 border-b border-(--cards-border) last:border-none py-1 first:pt-0 last:pb-0">
-						<span className="text-[#545757] dark:text-[#cccccc]">Weekly developers</span>
-						<span className="font-jetbrains">{devActivity.weeklyDevelopers}</span>
-					</p>
-				) : null}
-				{devActivity.monthlyDevelopers != null ? (
-					<p className="flex flex-wrap justify-between gap-4 border-b border-(--cards-border) last:border-none py-1 first:pt-0 last:pb-0">
-						<span className="text-[#545757] dark:text-[#cccccc]">Monthly developers</span>
-						<span className="font-jetbrains">{devActivity.monthlyDevelopers}</span>
-					</p>
-				) : null}
-				{devActivity.lastCommit != null ? (
-					<p className="flex flex-wrap justify-between gap-4 border-b border-(--cards-border) last:border-none py-1 first:pt-0 last:pb-0">
-						<span className="text-[#545757] dark:text-[#cccccc]">Last commit</span>
-						<span className="font-jetbrains">{`${dayjs(devActivity.lastCommit).format('DD/MM/YY')} (${dayjs(
-							devActivity.lastCommit
-						).fromNow()})`}</span>
-					</p>
-				) : null}
-			</div>
-		</div>
-	)
-}
-
 const Hacks = (props: IProtocolOverviewPageData) => {
 	if (!props.hacks?.length) return null
 	return (
@@ -1902,7 +1994,7 @@ const Hacks = (props: IProtocolOverviewPageData) => {
 						{hack.date ? (
 							<p>
 								<span>Date: </span>
-								<span>{dayjs(hack.date * 1e3).format('MMM D, YYYY')}</span>
+								<span>{dayjs.utc(hack.date * 1e3).format('MMM D, YYYY')}</span>
 							</p>
 						) : null}
 						{props.id.startsWith('parent#') ? (
@@ -1919,7 +2011,7 @@ const Hacks = (props: IProtocolOverviewPageData) => {
 						) : null}
 						{hack.classification ? <p>Classification: {hack.classification}</p> : null}
 						{hack.technique ? <p>Technique: {hack.technique}</p> : null}
-						{hack.chain.length ? (
+						{hack.chain?.length ? (
 							<p>
 								<span>Chains: </span>
 								<span>{hack.chain.join(', ')}</span>
@@ -2013,8 +2105,9 @@ const IncomeStatement = (props: IProtocolOverviewPageData) => {
 				monthDates: Array.from(quarterlyDates)
 					.sort((a, b) => b - a)
 					.map((date) => {
-						const quarter = Math.ceil((dayjs(date).month() + 1) / 3)
-						const year = dayjs(date).year()
+						const dateObj = new Date(date)
+						const quarter = Math.ceil((dateObj.getUTCMonth() + 1) / 3)
+						const year = dateObj.getUTCFullYear()
 						return [date, `Q${quarter} ${year}`]
 					}),
 				feesByMonth: quarterlyFeesByMonth,
@@ -2030,7 +2123,8 @@ const IncomeStatement = (props: IProtocolOverviewPageData) => {
 			const yearlyHoldersRevenueByMonth = {}
 			const yearlyIncentivesByMonth = {}
 			for (const [date] of props.incomeStatement.monthDates) {
-				const yearKey = +dayjs(date).year()
+				const dateObj = new Date(date)
+				const yearKey = dateObj.getUTCFullYear()
 				yearlyDates.add(yearKey)
 				yearlyFeesByMonth[yearKey] = (yearlyFeesByMonth[yearKey] ?? 0) + (props.incomeStatement.feesByMonth[date] ?? 0)
 				yearlyRevenueByMonth[yearKey] =
@@ -2054,6 +2148,7 @@ const IncomeStatement = (props: IProtocolOverviewPageData) => {
 		}
 		return props.incomeStatement
 	}, [groupBy, props.incomeStatement.monthDates])
+
 	return (
 		<div className="col-span-full flex flex-col gap-2 bg-(--cards-bg) border border-(--cards-border) rounded-md p-2 xl:p-4">
 			<div className="flex flex-wrap items-center justify-between gap-1">
@@ -2087,12 +2182,24 @@ const IncomeStatement = (props: IProtocolOverviewPageData) => {
 					<thead>
 						<tr>
 							<th className="py-2 px-8 whitespace-nowrap overflow-hidden text-ellipsis bg-(--cards-bg) border border-black/10 dark:border-white/10 font-semibold"></th>
-							{monthDates.map((month) => (
+							{monthDates.map((month, i) => (
 								<th
 									key={`${props.name}-${groupBy}-income-statement-${month[0]}`}
 									className="py-2 px-8 whitespace-nowrap overflow-hidden text-ellipsis bg-(--cards-bg) border border-black/10 dark:border-white/10 font-semibold"
 								>
-									{month[1]}
+									{i === 0 ? (
+										<span className="flex justify-center -mr-2 items-center gap-1">
+											<span className="whitespace-nowrap overflow-hidden text-ellipsis">{month[1]}</span>
+											<Tooltip
+												content={`Current ${groupBy.toLowerCase()} data is incomplete`}
+												className="text-(--pct-red) text-xs"
+											>
+												*
+											</Tooltip>
+										</span>
+									) : (
+										month[1]
+									)}
 								</th>
 							))}
 						</tr>
@@ -2116,13 +2223,14 @@ const IncomeStatement = (props: IProtocolOverviewPageData) => {
 									key={`${props.name}-${groupBy}-fees-${month[0]}`}
 									className="py-2 px-8 whitespace-nowrap overflow-hidden text-ellipsis bg-(--cards-bg) border border-black/10 dark:border-white/10 font-normal text-center"
 								>
-									{monthDates[i + 1] ? (
+									{i !== 0 && monthDates[i + 1] ? (
 										<Tooltip
 											content={
 												<PerformanceTooltipContent
 													currentValue={feesByMonth[month[0]]}
 													previousValue={monthDates[i + 1] ? feesByMonth[monthDates[i + 1][0]] : null}
 													groupBy={groupBy}
+													dataType="fees"
 												/>
 											}
 											className="underline decoration-dotted justify-center"
@@ -2153,13 +2261,14 @@ const IncomeStatement = (props: IProtocolOverviewPageData) => {
 									key={`${props.name}-${groupBy}-revenue-${month[0]}`}
 									className="py-2 px-8 whitespace-nowrap overflow-hidden text-ellipsis bg-(--cards-bg) border border-black/10 dark:border-white/10 font-normal text-center"
 								>
-									{monthDates[i + 1] ? (
+									{i !== 0 && monthDates[i + 1] ? (
 										<Tooltip
 											content={
 												<PerformanceTooltipContent
 													currentValue={revenueByMonth[month[0]]}
 													previousValue={monthDates[i + 1] ? revenueByMonth[monthDates[i + 1][0]] : null}
 													groupBy={groupBy}
+													dataType="revenue"
 												/>
 											}
 											className="underline decoration-dotted justify-center"
@@ -2191,13 +2300,14 @@ const IncomeStatement = (props: IProtocolOverviewPageData) => {
 										key={`${props.name}-${groupBy}-incentives-${month[0]}`}
 										className="py-2 px-8 whitespace-nowrap overflow-hidden text-ellipsis bg-(--cards-bg) border border-black/10 dark:border-white/10 font-normal text-center"
 									>
-										{monthDates[i + 1] ? (
+										{i !== 0 && monthDates[i + 1] ? (
 											<Tooltip
 												content={
 													<PerformanceTooltipContent
 														currentValue={incentivesByMonth[month[0]]}
 														previousValue={monthDates[i + 1] ? incentivesByMonth[monthDates[i + 1][0]] : null}
 														groupBy={groupBy}
+														dataType="incentives"
 													/>
 												}
 												className="underline decoration-dotted justify-center"
@@ -2232,13 +2342,14 @@ const IncomeStatement = (props: IProtocolOverviewPageData) => {
 											earnings > 0 ? 'text-(--pct-green)' : earnings < 0 ? 'text-(--pct-red)' : ''
 										}`}
 									>
-										{monthDates[i + 1] ? (
+										{i !== 0 && monthDates[i + 1] ? (
 											<Tooltip
 												content={
 													<PerformanceTooltipContent
 														currentValue={earnings}
 														previousValue={previousEarnings}
 														groupBy={groupBy}
+														dataType="earnings"
 													/>
 												}
 												className="underline decoration-dotted justify-center"
@@ -2271,13 +2382,14 @@ const IncomeStatement = (props: IProtocolOverviewPageData) => {
 										key={`${props.name}-${groupBy}-holders-revenue-${month[0]}`}
 										className="py-2 px-8 whitespace-nowrap overflow-hidden text-ellipsis bg-(--cards-bg) border border-black/10 dark:border-white/10 font-normal text-center"
 									>
-										{monthDates[i + 1] ? (
+										{i !== 0 && monthDates[i + 1] ? (
 											<Tooltip
 												content={
 													<PerformanceTooltipContent
 														currentValue={holdersRevenueByMonth[month[0]]}
 														previousValue={monthDates[i + 1] ? holdersRevenueByMonth[monthDates[i + 1][0]] : null}
 														groupBy={groupBy}
+														dataType="token holders net income"
 													/>
 												}
 												className="underline decoration-dotted justify-center"
@@ -2301,11 +2413,13 @@ const IncomeStatement = (props: IProtocolOverviewPageData) => {
 const PerformanceTooltipContent = ({
 	currentValue,
 	previousValue,
-	groupBy
+	groupBy,
+	dataType
 }: {
 	currentValue: number
 	previousValue: number
 	groupBy: 'Yearly' | 'Quarterly' | 'Monthly'
+	dataType: 'fees' | 'revenue' | 'incentives' | 'earnings' | 'token holders net income'
 }) => {
 	if (previousValue == null) return null
 	const valueChange = currentValue - previousValue
@@ -2319,7 +2433,10 @@ const PerformanceTooltipContent = ({
 			<span className={`${percentageChange > 0 ? 'text-(--pct-green)' : 'text-(--pct-red)'}`}>
 				{`${percentageChangeText}`}
 			</span>{' '}
-			<span>from previous {groupBy === 'Yearly' ? 'year' : groupBy === 'Quarterly' ? 'quarter' : 'month'}</span>
+			<span>
+				compared to previous {groupBy === 'Yearly' ? 'year' : groupBy === 'Quarterly' ? 'quarter' : 'month'} total{' '}
+				{dataType}
+			</span>
 		</p>
 	)
 }

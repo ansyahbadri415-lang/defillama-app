@@ -159,7 +159,7 @@ export function ChainsByCategoryTable({ data }: { data: Array<IFormattedDataWith
 	}, [groupTvls])
 
 	return (
-		<div className="bg-(--cards-bg) rounded-md isolate border border-(--cards-border)">
+		<div className="bg-(--cards-bg) border border-(--cards-border) rounded-md isolate">
 			<div className="flex items-center justify-end flex-wrap gap-2 p-2">
 				<div className="relative w-full sm:max-w-[280px] mr-auto">
 					<Icon
@@ -342,7 +342,7 @@ const columns: ColumnDef<IFormattedDataWithExtraTvl>[] = [
 	{
 		header: 'Active Addresses',
 		accessorKey: 'users',
-		cell: (info) => <>{info.getValue() === 0 || formattedNum(info.getValue())}</>,
+		cell: (info) => <>{+info?.getValue() > 0 ? formattedNum(info.getValue()) : null}</>,
 		size: 180,
 		meta: {
 			align: 'end',

@@ -1,8 +1,12 @@
 import chainMetadata from '../../.cache/chains.json'
 import protocolMetadata from '../../.cache/protocols.json'
+import categoriesAndTags from '../../.cache/categoriesAndTags.json'
+import searchList from '../../.cache/searchList.json'
+import { slug } from '~/utils'
 
 const PROTOCOLS_DATA_URL = 'https://api.llama.fi/config/smol/appMetadata-protocols.json'
 const CHAINS_DATA_URL = 'https://api.llama.fi/config/smol/appMetadata-chains.json'
+const CATEGORIES_AND_TAGS_DATA_URL = 'https://api.llama.fi/config/smol/appMetadata-categoriesAndTags.json'
 
 interface IChainMetadata {
 	stablecoins?: boolean
@@ -22,10 +26,10 @@ interface IChainMetadata {
 	tokenSymbol?: string
 	github?: boolean
 	id: string
+	protocolCount?: number
 }
 
 interface IProtocolMetadata {
-	name?: string
 	tvl?: boolean
 	yields?: boolean
 	forks?: boolean
@@ -58,38 +62,69 @@ interface IProtocolMetadata {
 const metadataCache: {
 	chainMetadata: Record<string, IChainMetadata>
 	protocolMetadata: Record<string, IProtocolMetadata>
+	categoriesAndTags: {
+		categories: Array<string>
+		tags: Array<string>
+	}
+	searchList: {
+		protocols: Array<{ name: string; route: string }>
+		chains: Array<{ name: string; route: string }>
+		categories: Array<{ name: string; route: string }>
+		tags: Array<{ name: string; route: string }>
+	}
 } = {
 	chainMetadata,
-	protocolMetadata
+	protocolMetadata,
+	categoriesAndTags,
+	searchList
 }
 
 setInterval(async () => {
 	const fetchJson = async (url) => fetch(url).then((res) => res.json())
 
-	const [protocols, chains] = await Promise.all([fetchJson(PROTOCOLS_DATA_URL), fetchJson(CHAINS_DATA_URL)])
+	const [protocols, chains, categoriesAndTags] = await Promise.all([
+		fetchJson(PROTOCOLS_DATA_URL),
+		fetchJson(CHAINS_DATA_URL),
+		fetchJson(CATEGORIES_AND_TAGS_DATA_URL)
+	])
 
-	const protocolKeys = Object.keys(protocols)
-	const chainKeys = Object.keys(chains)
-	const protocolKeySet = new Set(protocolKeys)
-	const chainKeySet = new Set(chainKeys)
+	const searchList = generateSearchList({ protocols, chains, categoriesAndTags })
 
-	// Remove any keys that are no longer in the new data
-	for (const key in metadataCache.protocolMetadata) {
-		if (!protocolKeySet.has(key)) delete metadataCache.protocolMetadata[key]
-	}
-
-	for (const key in metadataCache.chainMetadata) {
-		if (!chainKeySet.has(key)) delete metadataCache.chainMetadata[key]
-	}
-
-	// Add any new keys that are in the new data
-	protocolKeys.forEach((key) => {
-		metadataCache.protocolMetadata[key] = protocols[key]
-	})
-
-	chainKeys.forEach((key) => {
-		metadataCache.chainMetadata[key] = chains[key]
-	})
+	metadataCache.protocolMetadata = protocols
+	metadataCache.chainMetadata = chains
+	metadataCache.categoriesAndTags = categoriesAndTags
+	metadataCache.searchList = searchList
 }, 60 * 60 * 1000)
 
 export default metadataCache
+
+function generateSearchList({ protocols, chains, categoriesAndTags }) {
+	const searchList = {
+		protocols: [],
+		chains: [],
+		categories: [],
+		tags: []
+	}
+
+	for (const protocol in protocols) {
+		if (!protocols[protocol].displayName) continue
+		searchList.protocols.push({
+			name: protocols[protocol].displayName,
+			route: `/protocol/${slug(protocols[protocol].name)}`
+		})
+	}
+
+	for (const chain in chains) {
+		searchList.chains.push({ name: chains[chain].name, route: `/chain/${slug(chains[chain].name)}` })
+	}
+
+	for (const category of categoriesAndTags.categories) {
+		searchList.categories.push({ name: category, route: `/category/${slug(category)}` })
+	}
+
+	for (const tag of categoriesAndTags.tags) {
+		searchList.tags.push({ name: tag, route: `/tag/${slug(tag)}` })
+	}
+
+	return searchList
+}

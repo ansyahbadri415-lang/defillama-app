@@ -1,7 +1,14 @@
-import { slug, chainIconUrl, tokenIconUrl, getRandomColor } from '~/utils'
+import { slug, chainIconUrl, tokenIconUrl, getRandomColor, preparePieChartData } from '~/utils'
 import { formatBridgesData, formatChainsData } from './utils'
 import type { IChainData } from '~/api/types'
-import { CONFIG_API, BRIDGEDAYSTATS_API, BRIDGES_API, BRIDGEVOLUME_API, BRIDGELARGETX_API } from '~/constants'
+import {
+	CONFIG_API,
+	BRIDGEDAYSTATS_API,
+	BRIDGES_API,
+	BRIDGEVOLUME_API,
+	BRIDGELARGETX_API,
+	NETFLOWS_API
+} from '~/constants'
 import { fetchJson } from '~/utils/async'
 
 export const getBridges = () =>
@@ -204,6 +211,18 @@ export async function getBridgeChainsPageData() {
 	const currentTimestamp = Math.floor(new Date().getTime() / 1000 / 3600) * 3600
 	// 25 hours behind current time, gives 1 hour for BRIDGEDAYSTATS to update, may change this
 	const prevDayTimestamp = currentTimestamp - 86400 - 3600
+
+	let netflowsDataDay = null
+	let netflowsDataWeek = null
+	try {
+		;[netflowsDataDay, netflowsDataWeek] = await Promise.all([
+			fetchJson(`${NETFLOWS_API}/day`).catch(() => null),
+			fetchJson(`${NETFLOWS_API}/week`).catch(() => null)
+		])
+	} catch (e) {
+		console.error('Failed to fetch netflows data:', e)
+	}
+
 	let prevDayDataByChain = []
 	prevDayDataByChain = (
 		await Promise.all(
@@ -223,7 +242,9 @@ export async function getBridgeChainsPageData() {
 		chains,
 		chartDataByChain,
 		chainToChartDataIndex,
-		prevDayDataByChain
+		prevDayDataByChain,
+		netflowsDataDay,
+		netflowsDataWeek
 	})
 
 	return {
@@ -477,20 +498,15 @@ export async function getBridgePageDatanew(bridge: string) {
 				}, [])
 			}
 
-			const otherDeposits = fullTokenDeposits.slice(10).reduce((total, entry) => {
-				return (total += entry.value)
-			}, 0)
-			tokenDeposits = fullTokenDeposits
-				.slice(0, 15)
-				.sort((a, b) => b.value - a.value)
-				.concat({ name: 'Others', value: otherDeposits })
-			const otherWithdrawals = fullTokenWithdrawals.slice(10).reduce((total, entry) => {
-				return (total += entry.value)
-			}, 0)
-			tokenWithdrawals = fullTokenWithdrawals
-				.slice(0, 15)
-				.sort((a, b) => b.value - a.value)
-				.concat({ name: 'Others', value: otherWithdrawals })
+			const tokenDeposits = preparePieChartData({
+				data: fullTokenDeposits,
+				limit: 15
+			})
+			const tokenWithdrawals = preparePieChartData({
+				data: fullTokenWithdrawals,
+				limit: 15
+			})
+
 			tokenColor = Object.fromEntries(
 				[...tokenDeposits, ...tokenWithdrawals, 'Others'].map((token) => {
 					return typeof token === 'string' ? ['-', getRandomColor()] : [token.name, getRandomColor()]

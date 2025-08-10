@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { useFetchProtocol } from '~/api/categories/protocols/client'
 import type { IChainTvl } from '~/api/types'
-import type { IRaise } from '~/containers/ProtocolOverview/types'
+import type { IRaise, IUpdatedProtocol } from '~/containers/ProtocolOverview/types'
 import { useLocalStorageSettingsManager } from '~/contexts/LocalStorage'
+import { preparePieChartData } from '~/utils'
+import { postRuntimeLogs } from '~/utils/async'
 
 export const formatTvlsByChain = ({ historicalChainTvls, extraTvlsEnabled }) => {
 	const tvlDictionary: { [data: number]: { [chain: string]: number } } = {}
@@ -262,24 +264,9 @@ function buildTokensBreakdown({ chainTvls, extraTvlsEnabled, tokensUnique }) {
 			? Object.entries(tokenBreakdownUSD[tokenBreakdownUSD.length - 1])
 					.filter((values) => values[0] !== 'date')
 					.map(([name, value]) => ({ name, value }))
-					.sort((a, b) => b.value - a.value)
 			: []
 
-	const pieChartData = []
-
-	let othersDataInPieChart = 0
-
-	tokenBreakdownPieChart.forEach((token, index) => {
-		if (index < 15 && token.name !== 'Others') {
-			pieChartData.push(token)
-		} else {
-			othersDataInPieChart += token.value
-		}
-	})
-
-	if (othersDataInPieChart) {
-		pieChartData.push({ name: 'Others', value: othersDataInPieChart })
-	}
+	const pieChartData = preparePieChartData({ data: tokenBreakdownPieChart, limit: 15 })
 
 	return { tokenBreakdownUSD, tokenBreakdownPieChart: pieChartData, tokenBreakdown: Object.values(rawTokens) }
 }
@@ -384,5 +371,55 @@ export const useFetchProtocolAddlChartsData = (protocolName) => {
 		refetchInterval: 10 * 60 * 1000
 	})
 
-	return { ...data, isLoading: data.isLoading || isLoading }
+	return { ...data, historicalChainTvls: addlProtocolData?.chainTvls ?? null, isLoading: data.isLoading || isLoading }
+}
+
+export const getProtocolWarningBanners = (protocolData: IUpdatedProtocol) => {
+	// Helper function to check if a date is in valid format
+	const isValidDateFormat = (date: any): boolean => {
+		if (!date || date === 'forever') return true
+
+		// Check if it's a number (seconds or milliseconds)
+		if (typeof date === 'number') {
+			const dateObj = new Date(date * 1000)
+			return !isNaN(dateObj.getTime())
+		}
+
+		// Check if it's a string in YYYY-MM-DD format
+		if (typeof date === 'string') {
+			const dateObj = new Date(date)
+			return !isNaN(dateObj.getTime())
+		}
+
+		return false
+	}
+
+	const banners = [...(protocolData.warningBanners ?? [])].filter((banner) => {
+		if (!banner.until || banner.until === 'forever') {
+			return true
+		}
+
+		// Validate date format first
+		if (!isValidDateFormat(banner.until)) {
+			postRuntimeLogs(`Invalid date format for ${protocolData.name} banner`)
+			return false
+		}
+
+		return new Date(typeof banner.until === 'number' ? banner.until * 1000 : banner.until) > new Date()
+	})
+
+	if (protocolData.rugged && protocolData.deadUrl) {
+		banners.push({
+			message: 'This protocol rug pulled user funds, their website is down.',
+			level: 'rug'
+		})
+	} else {
+		if (protocolData.rugged) {
+			banners.push({
+				message: 'This protocol rug pulled user funds.',
+				level: 'rug'
+			})
+		}
+	}
+	return banners
 }

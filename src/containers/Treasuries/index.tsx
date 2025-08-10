@@ -16,6 +16,7 @@ import { TokenLogo } from '~/components/TokenLogo'
 import { Tooltip } from '~/components/Tooltip'
 import { TableWithSearch } from '~/components/Table/TableWithSearch'
 import { ProtocolsChainsSearch } from '~/components/Search/ProtocolsChains'
+import { Metrics } from '~/components/Metrics'
 
 export function Treasuries({ data, entity }) {
 	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
@@ -88,6 +89,7 @@ export function Treasuries({ data, entity }) {
 	return (
 		<Layout title={`${entity ? 'Entities' : 'Treasuries'} - DefiLlama`} defaultSEO>
 			<ProtocolsChainsSearch />
+			{!entity && <Metrics currentMetric="Treasury" />}
 			<TableWithSearch
 				data={data}
 				columns={tableColumns}
@@ -96,7 +98,10 @@ export function Treasuries({ data, entity }) {
 				header={'Treasuries'}
 				customFilters={
 					<>
-						<CSVDownloadButton onClick={downloadCSV} className="min-h-[34px]" />
+						<CSVDownloadButton
+							onClick={downloadCSV}
+							className="h-[30px] bg-transparent! border border-(--form-control-border) text-[#666]! dark:text-[#919296]! hover:bg-(--link-hover-bg)! focus-visible:bg-(--link-hover-bg)!"
+						/>
 					</>
 				}
 			/>
@@ -120,7 +125,7 @@ export const columns: ColumnDef<any>[] = [
 					<span className="shrink-0">{index + 1}</span>
 					<TokenLogo logo={tokenIconUrl(name)} data-lgonly />
 					<BasicLink
-						href={`/protocol/${slug}#treasury`}
+						href={`/protocol/${slug}?treasury=true&tvl=false`}
 						className="text-sm font-medium text-(--link-text) overflow-hidden whitespace-nowrap text-ellipsis"
 					>
 						{name}
@@ -186,7 +191,7 @@ export const columns: ColumnDef<any>[] = [
 		accessorKey: 'stablecoins',
 		id: 'stablecoins',
 		cell: (info) => {
-			return <>{'$' + formattedNum(info.getValue())}</>
+			return <>{formattedNum(info.getValue(), true)}</>
 		},
 		size: 115,
 		meta: {
@@ -198,7 +203,7 @@ export const columns: ColumnDef<any>[] = [
 		accessorKey: 'majors',
 		id: 'majors',
 		cell: (info) => {
-			return <>{'$' + formattedNum(info.getValue())}</>
+			return <>{formattedNum(info.getValue(), true)}</>
 		},
 		size: 160,
 		meta: {
@@ -209,7 +214,7 @@ export const columns: ColumnDef<any>[] = [
 		header: 'Own Tokens',
 		accessorKey: 'ownTokens',
 		cell: (info) => {
-			return <>{'$' + formattedNum(info.getValue())}</>
+			return <>{formattedNum(info.getValue(), true)}</>
 		},
 		size: 120,
 		meta: {
@@ -221,7 +226,7 @@ export const columns: ColumnDef<any>[] = [
 		accessorKey: 'others',
 		id: 'others',
 		cell: (info) => {
-			return <>{'$' + formattedNum(info.getValue())}</>
+			return <>{formattedNum(info.getValue(), true)}</>
 		},
 		size: 100,
 		meta: {
@@ -233,7 +238,7 @@ export const columns: ColumnDef<any>[] = [
 		accessorKey: 'coreTvl',
 		id: 'coreTvl',
 		cell: (info) => {
-			return <>{'$' + formattedNum(info.getValue())}</>
+			return <>{formattedNum(info.getValue(), true)}</>
 		},
 		size: 185,
 		meta: {
@@ -245,7 +250,7 @@ export const columns: ColumnDef<any>[] = [
 		accessorKey: 'tvl',
 		id: 'total-treasury',
 		cell: (info) => {
-			return <>{'$' + formattedNum(info.getValue())}</>
+			return <>{formattedNum(info.getValue(), true)}</>
 		},
 		size: 135,
 		meta: {
@@ -257,7 +262,7 @@ export const columns: ColumnDef<any>[] = [
 		accessorKey: 'mcap',
 		id: 'mcap',
 		cell: (info) => {
-			return <>{info.getValue() === null ? null : '$' + formattedNum(info.getValue())}</>
+			return <>{info.getValue() === null ? null : formattedNum(info.getValue(), true)}</>
 		},
 		size: 128,
 		meta: {

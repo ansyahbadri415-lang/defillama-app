@@ -1,7 +1,6 @@
 import { useMemo } from 'react'
 import { useProDashboard } from '../../ProDashboardAPIContext'
 import { useModalState } from './useModalState'
-import { sluggify } from '~/utils/cache-client'
 import {
 	DashboardItemConfig,
 	ChartConfig,
@@ -57,7 +56,7 @@ export function useModalActions(
 	const protocolOptions = useMemo(
 		() =>
 			protocols.map((protocol: Protocol) => ({
-				value: sluggify(protocol.name),
+				value: protocol.slug,
 				label: protocol.name,
 				logo: protocol.logo
 			})),
@@ -118,8 +117,6 @@ export function useModalActions(
 			}
 			actions.setComposerItems((prev) => [...prev, newChart])
 		}
-		actions.setSelectedChain(null)
-		actions.setSelectedProtocol(null)
 		actions.setSelectedChartType('tvl')
 		actions.setSelectedChartTypes([])
 	}
@@ -235,6 +232,14 @@ export function useModalActions(
 						kind: 'table',
 						tableType: 'dataset',
 						datasetType: 'earnings',
+						chains: state.selectedChains
+					} as ProtocolsTableConfig
+				} else if (state.selectedTableType === 'fees') {
+					newItem = {
+						...editItem,
+						kind: 'table',
+						tableType: 'dataset',
+						datasetType: 'fees',
 						chains: state.selectedChains
 					} as ProtocolsTableConfig
 				} else if (state.selectedTableType === 'token-usage') {
@@ -368,6 +373,8 @@ export function useModalActions(
 					handleAddTable(state.selectedChains, 'dataset', 'holders-revenue')
 				} else if (state.selectedTableType === 'earnings') {
 					handleAddTable(state.selectedChains, 'dataset', 'earnings')
+				} else if (state.selectedTableType === 'fees') {
+					handleAddTable(state.selectedChains, 'dataset', 'fees')
 				} else if (state.selectedTableType === 'token-usage' && state.selectedTokens.length > 0) {
 					handleAddTable([], 'dataset', 'token-usage', undefined, state.selectedTokens, state.includeCex)
 				} else if (state.selectedTableType === 'yields') {
@@ -383,7 +390,7 @@ export function useModalActions(
 				} else if (state.selectedTableType === 'bridge-aggregators') {
 					handleAddTable(state.selectedChains, 'dataset', 'bridge-aggregators')
 				} else if (state.selectedTableType === 'trending-contracts' && state.selectedDatasetChain) {
-					handleAddTable([state.selectedDatasetChain], 'dataset', 'trending-contracts', state.selectedDatasetChain)
+					handleAddTable([state.selectedDatasetChain], 'dataset', 'trending-contracts', state.selectedDatasetChain, undefined, undefined, state.selectedDatasetTimeframe || '1d')
 				} else if (state.selectedTableType === 'chains') {
 					handleAddTable([], 'dataset', 'chains', state.selectedDatasetChain)
 				}

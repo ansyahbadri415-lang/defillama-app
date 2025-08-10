@@ -29,6 +29,7 @@ export default function PieChart({
 	customLabel,
 	legendPosition,
 	legendTextStyle,
+	toRight = 0,
 	...props
 }: IPieChartProps) {
 	const id = useId()
@@ -38,15 +39,11 @@ export default function PieChart({
 		const series: Record<string, any> = {
 			name: '',
 			type: 'pie',
-			left: 0,
-			right: 0,
-			top: title ? 25 : 0,
-			bottom: 0,
 			label: {
 				fontFamily: 'sans-serif',
 				color: isDark ? 'rgba(255, 255, 255, 1)' : 'rgba(0, 0, 0, 1)',
 				formatter: (x) => {
-					return `${x.name.slice(0, 5)}${x.name.length > 5 ? '..' : ''}: (${x.percent}%)`
+					return `${x.name}: (${x.percent}%)`
 				},
 				show: showLegend ? false : true
 			},
@@ -61,11 +58,11 @@ export default function PieChart({
 				}
 			},
 
-			data: chartData.map((item) => ({
+			data: chartData.map((item, idx) => ({
 				name: item.name,
 				value: item.value,
 				itemStyle: {
-					color: stackColors?.[item.name] ?? null
+					color: stackColors?.[item.name] ?? undefined
 				}
 			}))
 		}
@@ -87,20 +84,10 @@ export default function PieChart({
 		const chartInstance = createInstance()
 
 		chartInstance.setOption({
-			...(title && {
-				title: {
-					text: title,
-					textStyle: {
-						fontFamily: 'sans-serif',
-						fontWeight: 600,
-						color: isDark ? 'rgba(255, 255, 255, 1)' : 'rgba(0, 0, 0, 1)'
-					}
-				}
-			}),
 			tooltip: {
 				trigger: 'item',
 				confine: true,
-				valueFormatter: (value) => (usdFormat ? '$' + formattedNum(value) : formattedNum(value))
+				valueFormatter: (value) => (usdFormat ? formattedNum(value, true) : formattedNum(value))
 			},
 			grid: {
 				left: 0,
@@ -145,6 +132,7 @@ export default function PieChart({
 
 	return (
 		<div className="relative" {...props}>
+			{title && <h1 className="text-lg mr-auto font-bold px-2">{title}</h1>}
 			<div id={id} className="min-h-[360px] my-auto mx-0" style={height ? { height } : undefined}></div>
 		</div>
 	)

@@ -1,13 +1,11 @@
 import * as React from 'react'
 import Layout from '~/layout'
-import { scams } from '~/constants'
 import { ProtocolsChainsSearch } from '~/components/Search/ProtocolsChains'
 import { slug, tokenIconUrl } from '~/utils'
 import { BasicLink } from '~/components/Link'
 import { IProtocolPageMetrics } from './types'
 import * as Ariakit from '@ariakit/react'
 import { TokenLogo } from '~/components/TokenLogo'
-import { oldBlue } from '~/constants/colors'
 import { defaultProtocolPageStyles } from './Chart/constants'
 
 export function ProtocolOverviewLayout({
@@ -18,7 +16,8 @@ export function ProtocolOverviewLayout({
 	otherProtocols,
 	toggleOptions,
 	metrics,
-	tab
+	tab,
+	warningBanners
 }: {
 	children: React.ReactNode
 	isCEX?: boolean
@@ -48,27 +47,18 @@ export function ProtocolOverviewLayout({
 		| 'options'
 		| 'governance'
 		| 'forks'
+	warningBanners?: Array<{
+		message: string
+		until?: number | string // unix timestamp or "forever" or date string  in 'YYYY-MM-DD' format, 'forever' if the field is not set
+		level: 'low' | 'alert' | 'rug'
+	}>
 }) {
 	return (
-		<Layout title={`${name} - DefiLlama`} style={defaultProtocolPageStyles} className="gap-2">
+		<Layout title={`${name} - DefiLlama`} style={defaultProtocolPageStyles}>
 			<ProtocolsChainsSearch options={toggleOptions} />
-			{scams.includes(name) && (
-				<p className="relative p-2 text-xs text-black dark:text-white text-center rounded-md bg-(--btn-bg) border border-(--bg-color) mb-1">
-					Project has some red flags and multiple users have reported concerns. Be careful.
-				</p>
-			)}
-			{name === '01' && (
-				<p className="relative p-2 text-xs text-black dark:text-white text-center rounded-md bg-(--btn-bg) border border-(--bg-color) mb-1">
-					01 Exchange was winded down. Please withdraw your remaining assets.
-				</p>
-			)}
-			{name === 'Curve Finance' && (
-				<p className="relative p-2 text-xs text-black dark:text-white text-center rounded-md bg-(--btn-bg) border border-(--bg-color) mb-1">
-					Curve Finance updated their website to curve.finance. Update all your bookmarks.
-				</p>
-			)}
+
 			{(category === 'Uncollateralized Lending' || category === 'RWA Lending') && (
-				<p className="relative p-2 text-xs text-black dark:text-white text-center rounded-md bg-(--btn-bg) border border-(--bg-color) mb-1">
+				<p className="relative p-2 text-xs text-black dark:text-white text-center rounded-md bg-(--btn-bg) border border-(--bg-color)">
 					Borrowed coins are not included into TVL by default, to include them toggle Borrows. For more info on this
 					click{' '}
 					<a
@@ -83,34 +73,20 @@ export function ProtocolOverviewLayout({
 				</p>
 			)}
 
-			{name === 'Multichain' && (
-				<p className="relative p-2 text-xs text-black dark:text-white text-center rounded-md bg-(--btn-bg) border border-(--bg-color) mb-1">
-					Please avoid using Multichain. The Multichain team doesn't control the keys and your money will get
-					stuck/lost.
+			{warningBanners?.map((banner) => (
+				<p
+					className={`relative p-2 text-xs text-black dark:text-white text-center rounded-md border ${
+						banner.level === 'rug'
+							? 'bg-(--pct-red)/20 border-(--pct-red)'
+							: banner.level === 'alert'
+							? 'bg-(--pct-yellow)/20 border-(--pct-yellow)'
+							: 'bg-(--btn-bg) border-(--bg-color)'
+					}`}
+					key={`${banner.message}-${banner.level}-${name}`}
+				>
+					{banner.message}
 				</p>
-			)}
-
-			{(name === 'ReHold' || name === 'ReHold V1' || name === 'ReHold V2') && (
-				<p className="relative p-2 text-xs text-black dark:text-white text-center rounded-md bg-(--btn-bg) border border-(--bg-color) mb-1">
-					$700,000 Unsanctioned Withdrawal Be cautious when interacting with ReHold, ReHold V1, and ReHold V2. It is
-					important to review both sides of the story: Check both the history here:
-					medium.com/@bifotofficial/700-000-unauthorized-withdrawal-from-rehold-protocol-full-disclosure-and-next-steps-097119d545cd
-					and the other side here: prnt.sc/HspPo_049Lzk. On rehold.io. Made on 26/09/2024.
-				</p>
-			)}
-			{[
-				'DeSyn Liquid Strategy',
-				'YieldNest',
-				'DeSyn Safe',
-				'Sumer.Money',
-				'Bullbaswap',
-				'Zircuit Staking',
-				'Magpie Ecosystem'
-			].includes(name) && (
-				<p className="relative p-2 text-xs text-black dark:text-white text-center rounded-md bg-(--btn-bg) border border-(--bg-color) mb-1">
-					This protocol includes unproductive positions that may contribute to inflated metrics. Be safe
-				</p>
-			)}
+			))}
 
 			<div className="flex flex-col gap-2 isolate">
 				<div className="w-full flex overflow-x-auto text-xs font-medium">
@@ -137,8 +113,8 @@ export function ProtocolOverviewLayout({
 											render={<BasicLink href={`/protocol/${slug(value)}`} />}
 											data-active={name === value}
 											className={`group flex items-center gap-2 py-2 relative ${
-												i === 0 ? 'px-3' : 'ml-5 pr-3'
-											} shrink-0 hover:bg-(--primary1-hover) focus-visible:bg-(--primary1-hover) data-active-item:bg-(--primary1-hover) data-[active=true]:bg-(--primary1-hover) cursor-pointer first-of-type:rounded-t-md last-of-type:rounded-b-md whitespace-nowrap overflow-hidden text-ellipsis`}
+												i === 0 ? 'px-3' : 'ml-[22px] pr-3'
+											} shrink-0 hover:bg-(--primary1-hover) focus-visible:bg-(--primary1-hover) data-active-item:bg-(--primary1-hover) data-[active=true]:bg-(--primary1-hover) cursor-pointer first-of-type:rounded-t-md whitespace-nowrap overflow-hidden text-ellipsis`}
 										>
 											{i !== 0 && (
 												<>
@@ -149,7 +125,7 @@ export function ProtocolOverviewLayout({
 											<TokenLogo logo={tokenIconUrl(value)} size={24} />
 											{i === 0 ? (
 												<span className="flex flex-col">
-													<span>{`${name} (Combined)`}</span>
+													<span>{`${value} (Combined)`}</span>
 													<span className="text-[10px] text-[#666] dark:text-[#919296]">Aggregated view</span>
 												</span>
 											) : (

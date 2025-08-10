@@ -1,4 +1,4 @@
-import { FetchOverCacheOptions, fetchOverCache } from './perf'
+import { FetchWithPoolingOnServerOptions, fetchWithPoolingOnServer } from './perf'
 
 export function withErrorLogging<T extends any[], R>(
 	fn: (...args: T) => Promise<R>,
@@ -21,12 +21,12 @@ export function withErrorLogging<T extends any[], R>(
 
 async function fetchWithErrorLogging(
 	url: RequestInfo | URL,
-	options?: FetchOverCacheOptions,
+	options?: FetchWithPoolingOnServerOptions,
 	retry: boolean = false
 ): Promise<Response> {
 	const start = Date.now()
 	try {
-		const res = await fetchOverCache(url, options)
+		const res = await fetchWithPoolingOnServer(url, options)
 		if (res.status !== 200) {
 			// const end = Date.now()
 			// postRuntimeLogs(`[HTTP] [error] [${res.status}] [${end - start}ms] < ${url} >`)
@@ -35,7 +35,7 @@ async function fetchWithErrorLogging(
 	} catch (error) {
 		if (retry) {
 			try {
-				const res = await fetchOverCache(url, options)
+				const res = await fetchWithPoolingOnServer(url, options)
 				if (res.status >= 400) {
 					const end = Date.now()
 					postRuntimeLogs(`[HTTP] [1] [error] [${res.status}] [${end - start}ms] < ${url} >`)
@@ -43,7 +43,7 @@ async function fetchWithErrorLogging(
 				return res
 			} catch (error) {
 				try {
-					const res = await fetchOverCache(url, options)
+					const res = await fetchWithPoolingOnServer(url, options)
 					if (res.status >= 400) {
 						const end = Date.now()
 						postRuntimeLogs(`[HTTP] [2] [error] [${res.status}] [${end - start}ms] < ${url} >`)
@@ -94,7 +94,7 @@ export function postRuntimeLogs(log) {
 async function handleFetchResponse(
 	res: Response,
 	url: RequestInfo | URL,
-	options?: FetchOverCacheOptions,
+	options?: FetchWithPoolingOnServerOptions,
 	callerInfo?: string
 ) {
 	try {
@@ -147,9 +147,11 @@ async function handleFetchResponse(
 
 export async function fetchJson(
 	url: RequestInfo | URL,
-	options?: FetchOverCacheOptions,
+	options?: FetchWithPoolingOnServerOptions,
 	retry: boolean = false
 ): Promise<any> {
+	const start = Date.now()
+
 	// Capture caller information at the time of call
 	const callerInfo = getCallerInfo(new Error().stack)
 
@@ -157,12 +159,19 @@ export async function fetchJson(
 		const res = await fetchWithErrorLogging(url, options, retry).then((res) =>
 			handleFetchResponse(res, url, options, callerInfo)
 		)
+
+		const end = Date.now()
+		if (end - start > 5000) {
+			postRuntimeLogs(`[fetchJson] [success] [${end - start}ms] < ${url} >`)
+		}
+
 		return res
 	} catch (error) {
+		const end = Date.now()
 		// Only log here if the error didn't come from handleFetchResponse
 		if (!error.message.includes('[HTTP]')) {
 			postRuntimeLogs(
-				`[fetchJson] [error] [caller: ${callerInfo}] [${
+				`[fetchJson] [error] [${end - start}ms] [caller: ${callerInfo}] [${
 					error instanceof Error ? error.message : 'Unknown error'
 				}] < ${url} >`
 			)

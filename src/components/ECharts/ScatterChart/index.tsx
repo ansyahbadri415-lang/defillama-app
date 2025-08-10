@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId } from 'react'
-import { toK } from '~/utils'
+import { formattedNum } from '~/utils'
 import * as echarts from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { ScatterChart as EChartScatter } from 'echarts/charts'
@@ -56,7 +56,6 @@ export default function ScatterChart({ chartData }: IChartProps) {
 				type: 'scatter',
 				symbols: 5,
 				large: true,
-				largeThreshold: 0,
 				emphasis: {
 					focus: 'series'
 				},
@@ -93,8 +92,8 @@ export default function ScatterChart({ chartData }: IChartProps) {
 							'Pool: ' +
 							params.value[4] +
 							'<br/>' +
-							'TVL: $' +
-							toK(params.value[5]) +
+							'TVL: ' +
+							formattedNum(params.value[5], true) +
 							'<br/>' +
 							'APY Spot: ' +
 							params.value[6].toFixed(2) +
@@ -146,11 +145,11 @@ export default function ScatterChart({ chartData }: IChartProps) {
 					nameTextStyle: {
 						fontFamily: 'sans-serif',
 						fontSize: 14,
-						fontWeight: 500,
-						color: isDark ? 'rgba(255, 255, 255, 1)' : 'rgba(0, 0, 0, 1)'
+						fontWeight: 500
 					},
 					axisLabel: {
-						formatter: '{value}'
+						formatter: '{value}',
+						color: isDark ? 'rgba(255, 255, 255, 1)' : 'rgba(0, 0, 0, 1)'
 					},
 					splitLine: {
 						lineStyle: {
@@ -170,11 +169,11 @@ export default function ScatterChart({ chartData }: IChartProps) {
 					nameTextStyle: {
 						fontFamily: 'sans-serif',
 						fontSize: 14,
-						fontWeight: 500,
-						color: isDark ? 'rgba(255, 255, 255, 1)' : 'rgba(0, 0, 0, 1)'
+						fontWeight: 500
 					},
 					axisLabel: {
-						formatter: '{value}'
+						formatter: '{value}',
+						color: isDark ? 'rgba(255, 255, 255, 1)' : 'rgba(0, 0, 0, 1)'
 					},
 					splitLine: {
 						lineStyle: {

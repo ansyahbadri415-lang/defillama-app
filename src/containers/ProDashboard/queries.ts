@@ -1,6 +1,6 @@
 import { useQuery, useQueries } from '@tanstack/react-query'
 import { CHAINS_API, PROTOCOLS_API } from '~/constants'
-import { sluggify } from '~/utils/cache-client'
+import { sluggifyProtocol } from '~/utils/cache-client'
 import ProtocolCharts from './services/ProtocolCharts'
 import ChainCharts from './services/ChainCharts'
 import { getProtocolChartTypes, getChainChartTypes } from './types'
@@ -37,6 +37,12 @@ function filterDataByTimePeriod(data: [number, number][], timePeriod: TimePeriod
 			break
 		case '365d':
 			cutoffDate = now.subtract(365, 'day')
+			break
+		case 'ytd':
+			cutoffDate = now.startOf('year')
+			break
+		case '3y':
+			cutoffDate = now.subtract(3, 'year')
 			break
 		default:
 			return data
@@ -254,7 +260,11 @@ export function useChains() {
 		queryFn: async () => {
 			const response = await fetch(CHAINS_API)
 			const data = await response.json()
-			return data.sort((a, b) => b.tvl - a.tvl)
+			const transformedData = data.map((chain) => ({
+				...chain,
+				name: chain.name === 'Binance' ? 'BSC' : chain.name
+			}))
+			return transformedData.sort((a, b) => b.tvl - a.tvl)
 		}
 	})
 }
@@ -273,9 +283,17 @@ export function useProtocolsAndChains() {
 			const protocolsData = await protocolsResponse.json()
 			const chainsData = await chainsResponse.json()
 
+			const transformedChains = chainsData.map((chain) => ({
+				...chain,
+				name: chain.name === 'Binance' ? 'BSC' : chain.name
+			}))
 			return {
-				protocols: protocolsData.protocols.map((p) => ({ ...p, slug: sluggify(p.name), geckoId: p.geckoId || null })),
-				chains: chainsData.sort((a, b) => b.tvl - a.tvl)
+				protocols: protocolsData.protocols.map((p) => ({
+					...p,
+					slug: sluggifyProtocol(p.name),
+					geckoId: p.geckoId || null
+				})),
+				chains: transformedChains.sort((a, b) => b.tvl - a.tvl)
 			}
 		}
 	})

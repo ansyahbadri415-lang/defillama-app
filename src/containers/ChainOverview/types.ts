@@ -19,6 +19,7 @@ export interface IChainMetadata {
 	tokenSymbol?: string
 	github?: boolean
 	id: string
+	protocolCount?: number
 }
 
 export interface IChainOverviewData {
@@ -26,7 +27,7 @@ export interface IChainOverviewData {
 	metadata: IChainMetadata
 	protocols: Array<IProtocol>
 	tvlChart: Array<[number, number]>
-	extraTvlChart: {
+	extraTvlCharts: {
 		staking: Record<string, number>
 		borrowed: Record<string, number>
 		pool2: Record<string, number>
@@ -110,6 +111,7 @@ export interface ILiteChart {
 
 export interface ILiteProtocol {
 	category: string
+	tags?: Array<string>
 	chains: Array<string>
 	mcap: number
 	name: string
