@@ -14,6 +14,7 @@ import { useAuthContext } from '~/containers/Subscribtion/auth'
 import { useDashboardEngagement } from './hooks/useDashboardEngagement'
 import { DashboardSettingsModal } from './components/DashboardSettingsModal'
 import { CreateDashboardModal } from './components/CreateDashboardModal'
+import { GenerateDashboardModal } from './components/GenerateDashboardModal'
 import { SubscribeModal } from '~/components/Modal/SubscribeModal'
 import { SubscribePlusCard } from '~/components/SubscribeCards/SubscribePlusCard'
 
@@ -25,6 +26,7 @@ function ProDashboardContent() {
 	const [showDashboardMenu, setShowDashboardMenu] = useState<boolean>(false)
 	const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false)
 	const [showSubscribeModal, setShowSubscribeModal] = useState<boolean>(false)
+	const [showGenerateModal, setShowGenerateModal] = useState<boolean>(false)
 	const { subscription, isLoading: isSubLoading } = useSubscribe()
 	const { isAuthenticated } = useAuthContext()
 	const {
@@ -54,7 +56,8 @@ function ProDashboardContent() {
 		setDashboardDescription,
 		showCreateDashboardModal,
 		setShowCreateDashboardModal,
-		handleCreateDashboard
+		handleCreateDashboard,
+		handleAddGeneratedItems
 	} = useProDashboard()
 
 	const { trackView, toggleLike, isLiking } = useDashboardEngagement(dashboardId)
@@ -430,7 +433,12 @@ function ProDashboardContent() {
 				editItem={editItem}
 			/>
 
-			{!protocolsLoading && items.length === 0 && <EmptyState onAddChart={() => setShowAddModal(true)} />}
+			{!protocolsLoading && items.length === 0 && (
+				<EmptyState 
+					onAddChart={() => setShowAddModal(true)} 
+					onGenerateClick={() => setShowGenerateModal(true)} 
+				/>
+			)}
 
 			<DashboardSettingsModal
 				isOpen={showSettingsModal}
@@ -448,6 +456,12 @@ function ProDashboardContent() {
 				isOpen={showCreateDashboardModal}
 				onClose={() => setShowCreateDashboardModal(false)}
 				onCreate={handleCreateDashboard}
+			/>
+
+			<GenerateDashboardModal
+				isOpen={showGenerateModal}
+				onClose={() => setShowGenerateModal(false)}
+				onGenerate={handleAddGeneratedItems}
 			/>
 
 			<SubscribeModal isOpen={showSubscribeModal} onClose={() => setShowSubscribeModal(false)}>

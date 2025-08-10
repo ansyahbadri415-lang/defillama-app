@@ -72,6 +72,7 @@ interface ProDashboardContextType {
 	) => void
 	handleAddMultiChart: (chartItems: ChartConfig[], name?: string) => void
 	handleAddText: (title: string | undefined, content: string) => void
+	handleAddGeneratedItems: (items: DashboardItemConfig[], dashboardName?: string) => void
 	handleEditItem: (itemId: string, newItem: DashboardItemConfig) => void
 	handleRemoveItem: (itemId: string) => void
 	handleChartsReordered: (newCharts: DashboardItemConfig[]) => void
@@ -529,6 +530,24 @@ export function ProDashboardAPIProvider({
 		})
 	}
 
+	const handleAddGeneratedItems = (items: DashboardItemConfig[], dashboardName?: string) => {
+		if (isReadOnly) {
+			return
+		}
+		
+		// Update dashboard name if provided
+		if (dashboardName) {
+			setDashboardName(dashboardName)
+		}
+		
+		// Add all generated items to the dashboard
+		setItems((prev) => {
+			const newItems = [...prev, ...items]
+			autoSave(newItems)
+			return newItems
+		})
+	}
+
 	const handleEditItem = (itemId: string, newItem: DashboardItemConfig) => {
 		if (isReadOnly) {
 			return
@@ -745,6 +764,7 @@ export function ProDashboardAPIProvider({
 		handleAddTable,
 		handleAddMultiChart,
 		handleAddText,
+		handleAddGeneratedItems,
 		handleEditItem,
 		handleRemoveItem,
 		handleChartsReordered,
