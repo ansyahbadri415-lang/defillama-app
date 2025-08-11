@@ -141,16 +141,15 @@ const TokensSelect = ({
 	const tokenInSearchData = selectedValue !== '' ? searchData[selectedValue.toUpperCase()] : null
 
 	const [searchValue, setSearchValue] = React.useState('')
-	const deferredSearchValue = useDeferredValue(searchValue)
 
 	const matches = React.useMemo(() => {
 		const data = Object.values(searchData)
-		return matchSorter(data, deferredSearchValue, {
+		return matchSorter(data, searchValue, {
 			baseSort: (a, b) => (a.index < b.index ? -1 : 1),
 			keys: ['name', 'symbol'],
 			threshold: matchSorter.rankings.CONTAINS
 		})
-	}, [searchData, deferredSearchValue])
+	}, [searchData, searchValue])
 
 	const [viewableMatches, setViewableMatches] = React.useState(20)
 

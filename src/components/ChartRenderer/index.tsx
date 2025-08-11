@@ -4,7 +4,6 @@ import ChartNavigation from './ChartNavigation'
 import DataTable from './DataTable'
 import AreaChart from '../ECharts/AreaChart'
 import CustomBarChart from '../ECharts/BarChart'
-import ClusteredBarChart from '../ECharts/BarChart/ClusteredBarChart'
 import PieChart from '../ECharts/PieChart'
 import ScatterChart from '../ECharts/ScatterChart'
 import LineAndBarChart from '../ECharts/LineAndBarChart'
@@ -174,8 +173,6 @@ const ChartRenderer = React.memo<ChartRendererProps>(({ charts }) => {
 				return <ScatterChart {...chartProps.props} />
 			case 'mixed':
 				return <LineAndBarChart {...chartProps.props} />
-			case 'clustered':
-				return <ClusteredBarChart {...chartProps.props} />
 			case 'table':
 				return <DataTable dto={dto} />
 			case 'unsupported':
