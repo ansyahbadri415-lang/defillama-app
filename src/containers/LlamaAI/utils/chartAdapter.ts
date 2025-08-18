@@ -1,7 +1,7 @@
 import type { ChartConfiguration } from '../types'
 import type { IChartProps, IBarChartProps, IMultiSeriesChartProps } from '~/components/ECharts/types'
-import { convertToNumberFormat, groupData, generateChartColor } from '~/components/ProDashboard/utils'
-import { colorManager } from '~/components/ProDashboard/utils/colorManager'
+import { convertToNumberFormat, groupData, generateChartColor } from '~/containers/ProDashboard/utils'
+import { colorManager } from '~/containers/ProDashboard/utils/colorManager'
 
 interface AdaptedChartData {
 	chartType: 'area' | 'bar' | 'line' | 'combo' | 'multi-series'

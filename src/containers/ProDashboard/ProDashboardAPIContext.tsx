@@ -9,6 +9,7 @@ import {
 	ProtocolsTableConfig,
 	MultiChartConfig,
 	TextConfig,
+	ChartBuilderConfig,
 	Chain,
 	TableFilters
 } from './types'
@@ -72,7 +73,32 @@ interface ProDashboardContextType {
 	) => void
 	handleAddMultiChart: (chartItems: ChartConfig[], name?: string) => void
 	handleAddText: (title: string | undefined, content: string) => void
-	handleAddGeneratedItems: (items: DashboardItemConfig[], dashboardName?: string) => void
+	handleAddChartBuilder: (
+		name: string | undefined,
+		config: {
+			metric:
+				| 'fees'
+				| 'revenue'
+				| 'volume'
+				| 'perps'
+				| 'options-notional'
+				| 'options-premium'
+				| 'bridge-aggregators'
+				| 'dex-aggregators'
+				| 'perps-aggregators'
+				| 'user-fees'
+				| 'holders-revenue'
+				| 'protocol-revenue'
+				| 'supply-side-revenue'
+			chains: string[]
+			categories: string[]
+			groupBy: 'protocol'
+			limit: number
+			chartType: 'stackedBar' | 'stackedArea' | 'line'
+			displayAs: 'timeSeries' | 'percentage'
+			additionalFilters?: Record<string, any>
+		}
+	) => void
 	handleEditItem: (itemId: string, newItem: DashboardItemConfig) => void
 	handleRemoveItem: (itemId: string) => void
 	handleChartsReordered: (newCharts: DashboardItemConfig[]) => void
@@ -80,6 +106,7 @@ interface ProDashboardContextType {
 	handleColSpanChange: (chartId: string, newColSpan: 1 | 2) => void
 	handleCumulativeChange: (itemId: string, showCumulative: boolean) => void
 	handlePercentageChange: (itemId: string, showPercentage: boolean) => void
+	handleHideOthersChange: (itemId: string, hideOthers: boolean) => void
 	handleTableFiltersChange: (tableId: string, filters: TableFilters) => void
 	handleTableColumnsChange: (
 		tableId: string,
@@ -101,11 +128,30 @@ interface ProDashboardContextType {
 	copyDashboard: () => Promise<void>
 	showCreateDashboardModal: boolean
 	setShowCreateDashboardModal: (show: boolean) => void
+	showGenerateDashboardModal: boolean
+	setShowGenerateDashboardModal: (show: boolean) => void
+	showIterateDashboardModal: boolean
+	setShowIterateDashboardModal: (show: boolean) => void
 	handleCreateDashboard: (data: {
 		dashboardName: string
 		visibility: 'private' | 'public'
 		tags: string[]
 		description: string
+		items?: DashboardItemConfig[]
+	}) => Promise<void>
+	handleGenerateDashboard: (data: {
+		dashboardName: string
+		visibility: 'private' | 'public'
+		tags: string[]
+		description: string
+		items: DashboardItemConfig[]
+	}) => Promise<void>
+	handleIterateDashboard: (data: {
+		dashboardName: string
+		visibility: 'private' | 'public'
+		tags: string[]
+		description: string
+		items: DashboardItemConfig[]
 	}) => Promise<void>
 }
 
@@ -132,6 +178,8 @@ export function ProDashboardAPIProvider({
 	const [dashboardTags, setDashboardTags] = useState<string[]>([])
 	const [dashboardDescription, setDashboardDescription] = useState<string>('')
 	const [showCreateDashboardModal, setShowCreateDashboardModal] = useState(false)
+	const [showGenerateDashboardModal, setShowGenerateDashboardModal] = useState(false)
+	const [showIterateDashboardModal, setShowIterateDashboardModal] = useState(false)
 
 	// Use the dashboard API hook
 	const {
@@ -309,10 +357,16 @@ export function ProDashboardAPIProvider({
 	}, [isAuthenticated])
 
 	const handleCreateDashboard = useCallback(
-		async (data: { dashboardName: string; visibility: 'private' | 'public'; tags: string[]; description: string }) => {
+		async (data: {
+			dashboardName: string
+			visibility: 'private' | 'public'
+			tags: string[]
+			description: string
+			items?: DashboardItemConfig[]
+		}) => {
 			try {
 				const dashboardData = {
-					items: [],
+					items: data.items || [],
 					dashboardName: data.dashboardName,
 					timePeriod: '365d' as TimePeriod,
 					visibility: data.visibility,
@@ -327,6 +381,40 @@ export function ProDashboardAPIProvider({
 			}
 		},
 		[createDashboard]
+	)
+
+	const handleGenerateDashboard = useCallback(
+		async (data: {
+			dashboardName: string
+			visibility: 'private' | 'public'
+			tags: string[]
+			description: string
+			items: DashboardItemConfig[]
+		}) => {
+			await handleCreateDashboard(data)
+		},
+		[handleCreateDashboard]
+	)
+
+	const handleIterateDashboard = useCallback(
+		async (data: {
+			dashboardName: string
+			visibility: 'private' | 'public'
+			tags: string[]
+			description: string
+			items: DashboardItemConfig[]
+		}) => {
+			setItems(data.items)
+
+			if (dashboardId) {
+				await saveDashboard({
+					visibility: data.visibility,
+					tags: data.tags,
+					description: data.description
+				})
+			}
+		},
+		[dashboardId, saveDashboard]
 	)
 
 	// Load dashboard
@@ -530,19 +618,44 @@ export function ProDashboardAPIProvider({
 		})
 	}
 
-	const handleAddGeneratedItems = (items: DashboardItemConfig[], dashboardName?: string) => {
+	const handleAddChartBuilder = (
+		name: string | undefined,
+		config: {
+			metric:
+				| 'fees'
+				| 'revenue'
+				| 'volume'
+				| 'perps'
+				| 'options-notional'
+				| 'options-premium'
+				| 'bridge-aggregators'
+				| 'dex-aggregators'
+				| 'perps-aggregators'
+				| 'user-fees'
+				| 'holders-revenue'
+				| 'protocol-revenue'
+				| 'supply-side-revenue'
+			chains: string[]
+			categories: string[]
+			groupBy: 'protocol'
+			limit: number
+			chartType: 'stackedBar' | 'stackedArea' | 'line'
+			displayAs: 'timeSeries' | 'percentage'
+			additionalFilters?: Record<string, any>
+		}
+	) => {
 		if (isReadOnly) {
 			return
 		}
-		
-		// Update dashboard name if provided
-		if (dashboardName) {
-			setDashboardName(dashboardName)
+		const newBuilder = {
+			id: generateItemId('builder', ''),
+			kind: 'builder' as const,
+			name,
+			config,
+			colSpan: 1 as const
 		}
-		
-		// Add all generated items to the dashboard
 		setItems((prev) => {
-			const newItems = [...prev, ...items]
+			const newItems = [...prev, newBuilder]
 			autoSave(newItems)
 			return newItems
 		})
@@ -617,6 +730,8 @@ export function ProDashboardAPIProvider({
 							}))
 						}
 						return updatedMulti
+					} else if (item.kind === 'builder' && item.id === chartId) {
+						return { ...item, grouping: newGrouping }
 					}
 					return item
 				})
@@ -676,6 +791,39 @@ export function ProDashboardAPIProvider({
 				const newItems = prev.map((item) => {
 					if (item.id === itemId && item.kind === 'multi') {
 						return { ...item, showPercentage }
+					} else if (item.id === itemId && item.kind === 'builder') {
+						return {
+							...item,
+							config: {
+								...item.config,
+								displayAs: (showPercentage ? 'percentage' : 'timeSeries') as 'percentage' | 'timeSeries'
+							}
+						} as ChartBuilderConfig
+					}
+					return item
+				})
+				autoSave(newItems)
+				return newItems
+			})
+		},
+		[autoSave, isReadOnly]
+	)
+
+	const handleHideOthersChange = useCallback(
+		(itemId: string, hideOthers: boolean) => {
+			if (isReadOnly) {
+				return
+			}
+			setItems((prev) => {
+				const newItems = prev.map((item) => {
+					if (item.id === itemId && item.kind === 'builder') {
+						return {
+							...item,
+							config: {
+								...item.config,
+								hideOthers
+							}
+						} as ChartBuilderConfig
 					}
 					return item
 				})
@@ -764,7 +912,7 @@ export function ProDashboardAPIProvider({
 		handleAddTable,
 		handleAddMultiChart,
 		handleAddText,
-		handleAddGeneratedItems,
+		handleAddChartBuilder,
 		handleEditItem,
 		handleRemoveItem,
 		handleChartsReordered,
@@ -772,6 +920,7 @@ export function ProDashboardAPIProvider({
 		handleColSpanChange,
 		handleCumulativeChange,
 		handlePercentageChange,
+		handleHideOthersChange,
 		handleTableFiltersChange,
 		handleTableColumnsChange,
 		getChainInfo,
@@ -784,7 +933,13 @@ export function ProDashboardAPIProvider({
 		copyDashboard,
 		showCreateDashboardModal,
 		setShowCreateDashboardModal,
-		handleCreateDashboard
+		showGenerateDashboardModal,
+		setShowGenerateDashboardModal,
+		showIterateDashboardModal,
+		setShowIterateDashboardModal,
+		handleCreateDashboard,
+		handleGenerateDashboard,
+		handleIterateDashboard
 	}
 
 	return <ProDashboardContext.Provider value={value}>{children}</ProDashboardContext.Provider>

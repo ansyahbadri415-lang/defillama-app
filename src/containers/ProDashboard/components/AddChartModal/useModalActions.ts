@@ -27,6 +27,7 @@ export function useModalActions(
 		handleAddTable,
 		handleAddMultiChart,
 		handleAddText,
+		handleAddChartBuilder,
 		handleEditItem
 	} = useProDashboard()
 
@@ -147,6 +148,10 @@ export function useModalActions(
 		actions.setSelectedProtocol(null)
 		actions.setSelectedChartType('tvl')
 		actions.setSelectedChartTypes([])
+	}
+
+	const updateChartBuilder = (updates: Partial<typeof state.chartBuilder>) => {
+		actions.setChartBuilder(prev => ({ ...prev, ...updates }))
 	}
 
 	const handleSubmit = () => {
@@ -327,6 +332,13 @@ export function useModalActions(
 					title: state.textTitle.trim() || undefined,
 					content: state.textContent.trim()
 				} as TextConfig
+			} else if (state.selectedMainTab === 'builder' && state.chartBuilder.chains.length > 0) {
+				newItem = {
+					...editItem,
+					kind: 'builder',
+					name: state.chartBuilderName.trim() || undefined,
+					config: state.chartBuilder
+				}
 			}
 
 			if (newItem) {
@@ -390,12 +402,22 @@ export function useModalActions(
 				} else if (state.selectedTableType === 'bridge-aggregators') {
 					handleAddTable(state.selectedChains, 'dataset', 'bridge-aggregators')
 				} else if (state.selectedTableType === 'trending-contracts' && state.selectedDatasetChain) {
-					handleAddTable([state.selectedDatasetChain], 'dataset', 'trending-contracts', state.selectedDatasetChain, undefined, undefined, state.selectedDatasetTimeframe || '1d')
+					handleAddTable(
+						[state.selectedDatasetChain],
+						'dataset',
+						'trending-contracts',
+						state.selectedDatasetChain,
+						undefined,
+						undefined,
+						state.selectedDatasetTimeframe || '1d'
+					)
 				} else if (state.selectedTableType === 'chains') {
 					handleAddTable([], 'dataset', 'chains', state.selectedDatasetChain)
 				}
 			} else if (state.selectedMainTab === 'text' && state.textContent.trim()) {
 				handleAddText(state.textTitle.trim() || undefined, state.textContent.trim())
+			} else if (state.selectedMainTab === 'builder' && state.chartBuilder.chains.length > 0) {
+				handleAddChartBuilder(state.chartBuilderName.trim() || undefined, state.chartBuilder)
 			}
 		}
 
@@ -418,7 +440,9 @@ export function useModalActions(
 			handleMainTabChange,
 			handleChartTabChange,
 			handleComposerSubTypeChange,
-			handleSubmit
+			handleSubmit,
+			setChartBuilder: actions.setChartBuilder,
+			updateChartBuilder
 		},
 		computed: {
 			selectedProtocolData,

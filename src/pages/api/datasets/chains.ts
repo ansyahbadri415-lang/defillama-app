@@ -4,7 +4,11 @@ import { getChainsByCategory } from '~/containers/ChainsByCategory/queries'
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
 	try {
 		const { category } = req.query
-		const categoryParam = typeof category === 'string' ? category : 'All'
+		let categoryParam = typeof category === 'string' ? category : 'All'
+
+		if (categoryParam === 'Layer 2') {
+			categoryParam = 'Rollup'
+		}
 
 		const data = await getChainsByCategory({
 			category: categoryParam,

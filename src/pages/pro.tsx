@@ -12,6 +12,7 @@ import { useAuthContext } from '~/containers/Subscribtion/auth'
 import { ProDashboardLoader } from '~/containers/ProDashboard/components/ProDashboardLoader'
 import { Icon } from '~/components/Icon'
 import { CreateDashboardModal } from '~/containers/ProDashboard/components/CreateDashboardModal'
+import { GenerateDashboardModal } from '~/containers/ProDashboard/components/GenerateDashboardModal'
 import { SubscribeModal } from '~/components/Modal/SubscribeModal'
 import { SubscribePlusCard } from '~/components/SubscribeCards/SubscribePlusCard'
 
@@ -49,9 +50,9 @@ function ProPageContent() {
 
 	return (
 		<Layout title="DefiLlama - Pro Dashboard">
-			<AuthenticatedProContent 
-				activeTab={activeTab} 
-				setActiveTab={setActiveTab} 
+			<AuthenticatedProContent
+				activeTab={activeTab}
+				setActiveTab={setActiveTab}
 				hasActiveSubscription={subscription?.status === 'active'}
 			/>
 		</Layout>
@@ -77,7 +78,10 @@ function AuthenticatedProContent({
 		deleteDashboard,
 		showCreateDashboardModal,
 		setShowCreateDashboardModal,
-		handleCreateDashboard
+		showGenerateDashboardModal,
+		setShowGenerateDashboardModal,
+		handleCreateDashboard,
+		handleGenerateDashboard
 	} = useProDashboard()
 
 	const handleSelectDashboard = (dashboardId: string) => {
@@ -120,13 +124,32 @@ function AuthenticatedProContent({
 							{activeTab === 'discover' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-(--primary1)" />}
 						</button>
 					</div>
-					<button
-						onClick={hasActiveSubscription ? createNewDashboard : () => setShowSubscribeModal(true)}
-						className="px-4 py-2 bg-(--primary1) text-white flex items-center gap-2 hover:bg-(--primary1-hover) text-sm"
-					>
-						<Icon name="plus" height={16} width={16} />
-						Create New Dashboard
-					</button>
+					{hasActiveSubscription ? (
+						<div className="flex items-center gap-2">
+							<button
+								onClick={createNewDashboard}
+								className="px-4 py-2 bg-(--primary1) text-white flex items-center gap-2 hover:bg-(--primary1-hover) text-sm"
+							>
+								<Icon name="plus" height={16} width={16} />
+								Create New Dashboard
+							</button>
+							<button
+								onClick={() => setShowGenerateDashboardModal(true)}
+								className="px-4 py-2 border border-(--primary1) text-(--primary1) flex items-center gap-2 hover:bg-(--primary1) hover:text-white transition-colors text-sm"
+							>
+								<Icon name="sparkles" height={16} width={16} />
+								Generate with LlamaAI
+							</button>
+						</div>
+					) : (
+						<button
+							onClick={() => setShowSubscribeModal(true)}
+							className="px-4 py-2 bg-(--primary1) text-white flex items-center gap-2 hover:bg-(--primary1-hover) text-sm"
+						>
+							<Icon name="plus" height={16} width={16} />
+							Create New Dashboard
+						</button>
+					)}
 				</div>
 			</div>
 
@@ -147,7 +170,13 @@ function AuthenticatedProContent({
 				onClose={() => setShowCreateDashboardModal(false)}
 				onCreate={handleCreateDashboard}
 			/>
-			
+
+			<GenerateDashboardModal
+				isOpen={showGenerateDashboardModal}
+				onClose={() => setShowGenerateDashboardModal(false)}
+				onGenerate={handleGenerateDashboard}
+			/>
+
 			<SubscribeModal isOpen={showSubscribeModal} onClose={() => setShowSubscribeModal(false)}>
 				<SubscribePlusCard context="modal" returnUrl={router.asPath} />
 			</SubscribeModal>

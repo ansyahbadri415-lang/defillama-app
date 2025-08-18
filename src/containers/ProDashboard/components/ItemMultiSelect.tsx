@@ -2,25 +2,24 @@ import { ReactSelect } from '~/components/MultiSelect/ReactSelect'
 import { LoadingSpinner } from './LoadingSpinner'
 import { createFilter } from 'react-select'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useRef, useMemo } from 'react'
+import { useRef } from 'react'
 import { getItemIconUrl } from '../utils'
 import { reactSelectStyles } from '../utils/reactSelectStyles'
 
-interface MultiItemSelectProps {
+interface ItemMultiSelectProps {
 	label: string
 	options: Array<{ value: string; label: string; logo?: string }>
 	selectedValues: string[]
 	onChange: (options: any[]) => void
 	isLoading: boolean
 	placeholder: string
-	itemType: 'chain' | 'protocol' | 'token'
-	onInputChange?: (value: string) => void
-	customProps?: any
+	itemType?: 'chain' | 'protocol' | 'text'
+	maxSelections?: number
 }
 
 const CustomChainOption = ({ innerProps, label, data }) => (
 	<div {...innerProps} style={{ display: 'flex', alignItems: 'center', padding: '8px', cursor: 'pointer' }}>
-		{data.value !== 'All' && (
+		{label === 'All Chains' ? null : (
 			<img
 				src={getItemIconUrl('chain', null, label)}
 				alt={label}
@@ -71,21 +70,9 @@ const CustomProtocolOption = ({ innerProps, label, data }) => {
 	)
 }
 
-const CustomTokenOption = ({ innerProps, label, data }) => (
-	<div {...innerProps} className="flex items-center gap-2 p-2 cursor-pointer">
-		{data.logo ? (
-			<img
-				src={data.logo}
-				alt=""
-				className="w-5 h-5 rounded-full"
-				onError={(e) => {
-					e.currentTarget.style.display = 'none'
-				}}
-			/>
-		) : (
-			<div className="w-5 h-5 rounded-full bg-(--bg3)" />
-		)}
-		<span>{label}</span>
+const TextOption = ({ innerProps, label }) => (
+	<div {...innerProps} style={{ padding: '8px', cursor: 'pointer' }}>
+		{label}
 	</div>
 )
 
@@ -129,29 +116,31 @@ function VirtualizedMenuList(props) {
 	)
 }
 
-export function MultiItemSelect({
+export function ItemMultiSelect({
 	label,
 	options,
-	selectedValues = [],
+	selectedValues,
 	onChange,
 	isLoading,
 	placeholder,
 	itemType,
-	onInputChange,
-	customProps
-}: MultiItemSelectProps) {
+	maxSelections = 10
+}: ItemMultiSelectProps) {
 	const OptionComponent =
-		itemType === 'chain' ? CustomChainOption : itemType === 'protocol' ? CustomProtocolOption : CustomTokenOption
+		!itemType ? TextOption : itemType === 'chain' ? CustomChainOption : itemType === 'protocol' ? CustomProtocolOption : TextOption
 	const filterOption = itemType === 'protocol' ? createFilter({ ignoreAccents: false, ignoreCase: false }) : undefined
 
-	const selectedOptions = useMemo(() => {
-		if (!selectedValues || selectedValues.length === 0) return []
-		return options.filter((option) => selectedValues.includes(option.value))
-	}, [options, selectedValues])
+	const selectedOptions = options.filter(option => selectedValues.includes(option.value))
+	const isMaxReached = selectedValues.length >= maxSelections
 
 	return (
 		<div>
-			<label className="block mb-2 text-sm font-medium pro-text2">{label}</label>
+			<label className="block mb-1.5 md:mb-2 text-sm font-medium pro-text2">
+				{label}
+				{selectedValues.length > 0 && (
+					<span className="ml-1 text-xs pro-text3">({selectedValues.length}{maxSelections < 100 && `/${maxSelections}`})</span>
+				)}
+			</label>
 			{isLoading ? (
 				<div className="flex items-center justify-center h-10">
 					<LoadingSpinner size="sm" />
@@ -161,18 +150,28 @@ export function MultiItemSelect({
 					isMulti
 					options={options}
 					value={selectedOptions}
-					onChange={onChange}
-					onInputChange={onInputChange}
+					onChange={(selected) => onChange(selected || [])}
 					components={{ Option: OptionComponent, MenuList: VirtualizedMenuList }}
 					placeholder={placeholder}
-					className="w-full"
+					className="w-full text-sm md:text-base"
 					filterOption={filterOption}
 					styles={reactSelectStyles}
-					closeMenuOnSelect={false}
 					menuPosition="fixed"
-					isClearable
-					{...customProps}
+					isOptionDisabled={() => isMaxReached}
+					closeMenuOnSelect={false}
+					hideSelectedOptions={false}
 				/>
+			)}
+			{selectedValues.length > 0 && (
+				<div className="mt-1 flex flex-wrap gap-1">
+					<button
+						onClick={() => onChange([])}
+						className="text-xs px-2 py-0.5 border pro-border pro-hover-bg pro-text3 transition-colors"
+						title="Clear all selections"
+					>
+						Clear all
+					</button>
+				</div>
 			)}
 		</div>
 	)

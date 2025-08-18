@@ -12,6 +12,8 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { ChartRenderer } from './components/ChartRenderer'
 
+const MCP_HOST = 'http://localhost:6969'
+
 class StreamingContent {
 	private content: string = ''
 
@@ -66,7 +68,7 @@ async function fetchPromptResponse({
 			requestBody.createNewSession = true
 		}
 
-		const response = await fetch('https://mcp.llama.team/chatbot-agent', {
+		const response = await fetch(`${MCP_HOST}/chatbot-agent`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json'
@@ -390,7 +392,17 @@ export function LlamaAI({ searchData }: { searchData: ISearchData }) {
 		})
 	}
 
-	const handleNewChat = () => {
+	const handleNewChat = async () => {
+		if (sessionId) {
+			try {
+				await fetch(`${MCP_HOST}/chatbot-agent/session/${sessionId}`, {
+					method: 'DELETE'
+				})
+			} catch (error) {
+				console.error('Failed to reset backend session:', error)
+			}
+		}
+
 		setSessionId(null)
 
 		if (typeof window !== 'undefined') {
