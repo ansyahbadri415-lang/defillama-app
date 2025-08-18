@@ -12,7 +12,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { ChartRenderer } from './components/ChartRenderer'
 
-const MCP_HOST = 'http://localhost:6969'
+const MCP_HOST = 'https://mcp.llama.team'
 
 class StreamingContent {
 	private content: string = ''
