@@ -197,4 +197,4 @@ export const REV_PROTOCOLS = {
 	bsc: ['bloxroute']
 }
 
-export const MCP_SERVER = process.env.MCP_SERVER_URL ?? 'https://mcp.llama.team'
+export const MCP_SERVER = process.env.NEXT_PUBLIC_MCP_SERVER_URL ?? 'https://mcp.llama.team'

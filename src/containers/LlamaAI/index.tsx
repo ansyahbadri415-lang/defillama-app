@@ -36,7 +36,8 @@ async function fetchPromptResponse({
 	matchedEntities,
 	onProgress,
 	abortSignal,
-	sessionId
+	sessionId,
+	suggestionContext
 }: {
 	prompt?: string
 	userQuestion: string
@@ -52,6 +53,7 @@ async function fetchPromptResponse({
 	}) => void
 	abortSignal?: AbortSignal
 	sessionId?: string | null
+	suggestionContext?: any
 }) {
 	let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
 
@@ -65,6 +67,10 @@ async function fetchPromptResponse({
 			requestBody.sessionId = sessionId
 		} else {
 			requestBody.createNewSession = true
+		}
+
+		if (suggestionContext) {
+			requestBody.suggestionContext = suggestionContext
 		}
 
 		const response = await fetch(`${MCP_SERVER}/chatbot-agent`, {
@@ -267,10 +273,12 @@ export function LlamaAI({ searchData }: { searchData: ISearchData }) {
 	} = useMutation({
 		mutationFn: ({
 			userQuestion,
-			matchedEntities
+			matchedEntities,
+			suggestionContext
 		}: {
 			userQuestion: string
 			matchedEntities: Record<string, string[]>
+			suggestionContext?: any
 		}) => {
 			if (abortControllerRef.current) {
 				abortControllerRef.current.abort()
@@ -296,6 +304,7 @@ export function LlamaAI({ searchData }: { searchData: ISearchData }) {
 				userQuestion,
 				matchedEntities,
 				sessionId,
+				suggestionContext,
 				onProgress: (data) => {
 					if (data.type === 'token') {
 						const processedContent = streamingContentRef.current.addChunk(data.content)
@@ -338,10 +347,12 @@ export function LlamaAI({ searchData }: { searchData: ISearchData }) {
 		},
 		onMutate: ({
 			userQuestion,
-			matchedEntities
+			matchedEntities,
+			suggestionContext
 		}: {
 			userQuestion: string
 			matchedEntities: Record<string, string[]>
+			suggestionContext?: any
 		}) => {},
 		onSuccess: (data, variables) => {
 			setIsStreaming(false)
@@ -412,6 +423,25 @@ export function LlamaAI({ searchData }: { searchData: ISearchData }) {
 		})
 	}
 
+	const handleSubmitWithSuggestion = (prompt: string, suggestion: any) => {
+		let finalPrompt = prompt.trim()
+		Array.from(entitiesRef.current.entities).forEach((entity) => {
+			finalPrompt = finalPrompt.replaceAll(entity, entity.replace(/@/g, ''))
+		})
+
+		setPrompt(finalPrompt)
+
+		submitPrompt({
+			userQuestion: finalPrompt,
+			matchedEntities: {
+				chain: Array.from(entitiesRef.current.matchedEntities.chain),
+				protocol: Array.from(entitiesRef.current.matchedEntities.protocol),
+				protocol_parent: Array.from(entitiesRef.current.matchedEntities.protocol_parent)
+			},
+			suggestionContext: suggestion
+		})
+	}
+
 	const handleNewChat = async () => {
 		if (sessionId) {
 			try {
@@ -456,34 +486,9 @@ export function LlamaAI({ searchData }: { searchData: ISearchData }) {
 	const handleSuggestionClick = (suggestion: any) => {
 		let promptText = ''
 
-		if (suggestion.toolName === 'find_protocols') {
-			const { filters, sort_by, limit } = suggestion.arguments
-			if (filters?.chain) {
-				promptText = `Show me the top ${limit || 10} protocols by ${
-					sort_by?.replace(' desc', '')?.replace('_', ' ') || 'TVL'
-				} on ${filters.chain}`
-			} else {
-				promptText = `Show me the top ${limit || 10} protocols by ${
-					sort_by?.replace(' desc', '')?.replace('_', ' ') || 'TVL'
-				}`
-			}
-		} else if (suggestion.toolName === 'get_historical_metrics') {
-			const { entity_slugs, metric, days } = suggestion.arguments
-			promptText = `Show me the historical ${metric?.toUpperCase() || 'TVL'} data for ${entity_slugs} over the last ${
-				days || 30
-			} days`
-		} else if (suggestion.toolName === 'market_intelligence') {
-			const { analysis_type, scope } = suggestion.arguments
-			if (scope?.chain) {
-				promptText = `Give me a ${analysis_type?.replace('_', ' ') || 'market overview'} for ${scope.chain}`
-			} else {
-				promptText = `Give me a ${analysis_type?.replace('_', ' ') || 'market overview'}`
-			}
-		} else {
-			promptText = suggestion.title || suggestion.description
-		}
+		promptText = suggestion.title || suggestion.description
 
-		handleSubmit(promptText)
+		handleSubmitWithSuggestion(promptText, suggestion)
 	}
 
 	useEffect(() => {
