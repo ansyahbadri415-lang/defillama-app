@@ -37,7 +37,8 @@ async function fetchPromptResponse({
 	onProgress,
 	abortSignal,
 	sessionId,
-	suggestionContext
+	suggestionContext,
+	mode
 }: {
 	prompt?: string
 	userQuestion: string
@@ -54,13 +55,15 @@ async function fetchPromptResponse({
 	abortSignal?: AbortSignal
 	sessionId?: string | null
 	suggestionContext?: any
+	mode: 'auto' | 'sql_only'
 }) {
 	let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
 
 	try {
 		const requestBody: any = {
 			message: userQuestion,
-			stream: true
+			stream: true,
+			mode: mode
 		}
 
 		if (sessionId) {
@@ -203,6 +206,10 @@ export function LlamaAI({ searchData }: { searchData: ISearchData }) {
 	const [isAnalyzingForCharts, setIsAnalyzingForCharts] = useState(false)
 	const [hasChartError, setHasChartError] = useState(false)
 	const [expectedChartInfo, setExpectedChartInfo] = useState<{ count?: number; types?: string[] } | null>(null)
+	const [mode, setMode] = useState<'auto' | 'sql_only'>(() => {
+		const stored = typeof window !== 'undefined' ? localStorage.getItem('llama-ai-mode') : null
+		return (stored as 'auto' | 'sql_only') || 'auto'
+	})
 	const [sessionId, setSessionId] = useState<string | null>(() => {
 		const stored = typeof window !== 'undefined' ? localStorage.getItem(sessionStorageKey) : null
 		return stored
@@ -305,6 +312,7 @@ export function LlamaAI({ searchData }: { searchData: ISearchData }) {
 				matchedEntities,
 				sessionId,
 				suggestionContext,
+				mode,
 				onProgress: (data) => {
 					if (data.type === 'token') {
 						const processedContent = streamingContentRef.current.addChunk(data.content)
@@ -440,6 +448,13 @@ export function LlamaAI({ searchData }: { searchData: ISearchData }) {
 			},
 			suggestionContext: suggestion
 		})
+	}
+
+	const handleModeChange = (newMode: 'auto' | 'sql_only') => {
+		setMode(newMode)
+		if (typeof window !== 'undefined') {
+			localStorage.setItem('llama-ai-mode', newMode)
+		}
 	}
 
 	const handleNewChat = async () => {
@@ -629,12 +644,43 @@ export function LlamaAI({ searchData }: { searchData: ISearchData }) {
 							<h1 className="text-2xl font-semibold">What can I help you with ?</h1>
 						</div>
 					)}
-					<PromptInput
-						handleSubmit={handleSubmit}
-						isPending={isPending}
-						searchData={searchData}
-						entitiesRef={entitiesRef}
-					/>
+					<div className="flex flex-col gap-2">
+						<div className="flex items-center justify-between">
+							<div className="flex items-center gap-3">
+								<span className="text-sm font-medium text-[var(--text1)]">Mode:</span>
+								<div className="flex gap-2">
+									<button
+										onClick={() => handleModeChange('auto')}
+										disabled={isPending || isStreaming}
+										className={`px-3 py-1 rounded text-sm transition-colors ${
+											mode === 'auto'
+												? 'bg-[var(--old-blue)] text-white border border-[var(--old-blue)]'
+												: 'bg-[var(--app-bg)] text-[var(--text1)] border border-[#e6e6e6] dark:border-[#222324] hover:border-[var(--old-blue)]'
+										} ${isPending || isStreaming ? 'opacity-50 cursor-not-allowed' : ''}`}
+									>
+										Auto
+									</button>
+									<button
+										onClick={() => handleModeChange('sql_only')}
+										disabled={isPending || isStreaming}
+										className={`px-3 py-1 rounded text-sm transition-colors ${
+											mode === 'sql_only'
+												? 'bg-[var(--old-blue)] text-white border border-[var(--old-blue)]'
+												: 'bg-[var(--app-bg)] text-[var(--text1)] border border-[#e6e6e6] dark:border-[#222324] hover:border-[var(--old-blue)]'
+										} ${isPending || isStreaming ? 'opacity-50 cursor-not-allowed' : ''}`}
+									>
+										SQL
+									</button>
+								</div>
+							</div>
+						</div>
+						<PromptInput
+							handleSubmit={handleSubmit}
+							isPending={isPending}
+							searchData={searchData}
+							entitiesRef={entitiesRef}
+						/>
+					</div>
 					{conversationHistory.length === 0 && !isSubmitted ? (
 						<div className="flex items-center gap-4 justify-center flex-wrap w-full pb-[100px]">
 							{recommendedPrompts.map((prompt) => (
