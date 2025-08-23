@@ -2,6 +2,7 @@ import type { ChartConfiguration } from '../types'
 import type { IChartProps, IBarChartProps, IMultiSeriesChartProps } from '~/components/ECharts/types'
 import { convertToNumberFormat, groupData, generateChartColor } from '~/containers/ProDashboard/utils'
 import { colorManager } from '~/containers/ProDashboard/utils/colorManager'
+import { formattedNum } from '~/utils'
 
 interface AdaptedChartData {
 	chartType: 'area' | 'bar' | 'line' | 'combo' | 'multi-series'
@@ -35,6 +36,32 @@ const parseStringNumber = (value: any): number => {
 	}
 
 	return 0
+}
+
+const formatPrecisionPercentage = (value: number): string => {
+	if (value === null || value === undefined || isNaN(value)) {
+		return '0%'
+	}
+
+	if (Math.abs(value) < 1) {
+		const formatted = value.toFixed(5).replace(/\.?0+$/, '')
+		return `${formatted}%`
+	}
+
+	return `${Math.round(value * 100) / 100}%`
+}
+
+const formatChartValue = (value: number, valueSymbol?: string): string => {
+	switch (valueSymbol) {
+		case '%':
+			return formatPrecisionPercentage(value)
+		case '$':
+			return formattedNum(value, true)
+		case '':
+			return formattedNum(value)
+		default:
+			return `${formattedNum(value)} ${valueSymbol || ''}`
+	}
 }
 
 const validateChartData = (data: [any, number | null][], chartType: string): [any, number | null][] => {
@@ -133,7 +160,7 @@ export function adaptChartData(config: ChartConfiguration, rawData: any[]): Adap
 
 		const commonProps: Partial<IChartProps> = {
 			title: config.title,
-			valueSymbol: '$',
+			valueSymbol: config.valueSymbol || '$',
 			color,
 			height: '300px',
 			hideDataZoom: true,
@@ -142,7 +169,28 @@ export function adaptChartData(config: ChartConfiguration, rawData: any[]): Adap
 
 			customLegendName: undefined,
 			customLegendOptions: undefined,
-			hideDefaultLegend: true
+			hideDefaultLegend: true,
+
+			...(config.valueSymbol === '%' && {
+				tooltipFormatter: (params: any) => {
+					if (Array.isArray(params)) {
+						const timestamp = params[0]?.value?.[0]
+						const date = new Date(timestamp).toLocaleDateString()
+
+						let content = `<div style="margin-bottom: 8px; font-weight: 600;">${date}</div>`
+
+						params.forEach((param: any) => {
+							const value = param.value?.[1]
+							if (value !== null && value !== undefined) {
+								content += `<div>${param.marker} ${param.seriesName}: ${formatPrecisionPercentage(value)}</div>`
+							}
+						})
+
+						return content
+					}
+					return ''
+				}
+			})
 		}
 
 		return {
@@ -235,7 +283,28 @@ export function adaptMultiSeriesData(config: ChartConfiguration, rawData: any[])
 			height: '300px',
 			hideDataZoom: true,
 			hideDownloadButton: false,
-			valueSymbol: '$'
+			valueSymbol: config.valueSymbol || '$',
+
+			...(config.valueSymbol === '%' && {
+				tooltipFormatter: (params: any) => {
+					if (Array.isArray(params)) {
+						const timestamp = params[0]?.value?.[0]
+						const date = new Date(timestamp).toLocaleDateString()
+
+						let content = `<div style="margin-bottom: 8px; font-weight: 600;">${date}</div>`
+
+						params.forEach((param: any) => {
+							const value = param.value?.[1]
+							if (value !== null && value !== undefined) {
+								content += `<div>${param.marker} ${param.seriesName}: ${formatPrecisionPercentage(value)}</div>`
+							}
+						})
+
+						return content
+					}
+					return ''
+				}
+			})
 		}
 
 		return {

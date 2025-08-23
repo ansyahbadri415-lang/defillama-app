@@ -9,9 +9,10 @@ export interface ChartConfiguration {
 	type: 'line' | 'area' | 'bar' | 'combo'
 	title: string
 	description: string
-	
+	valueSymbol?: string
+
 	axes: {
-		x: { 
+		x: {
 			field: string
 			label: string
 			type: 'time' | 'category'
@@ -24,7 +25,7 @@ export interface ChartConfiguration {
 			scale?: 'linear' | 'log'
 		}>
 	}
-	
+
 	series: Array<{
 		name: string
 		type: 'line' | 'area' | 'bar'
@@ -39,7 +40,7 @@ export interface ChartConfiguration {
 			opacity?: number
 		}
 	}>
-	
+
 	dataTransformation: {
 		groupBy?: string
 		timeField: string
