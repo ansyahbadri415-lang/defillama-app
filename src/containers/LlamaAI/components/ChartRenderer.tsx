@@ -117,7 +117,7 @@ const ChartAnalysisPlaceholder = ({
 	expectedChartCount?: number
 	chartTypes?: string[]
 }) => (
-	<div className="mt-4 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+	<div className="mt-4 border border-gray-200 dark:border-gray-700 rounded-lg overflow-visible">
 		<div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
 			<div className="flex items-center gap-2">
 				<Icon name="search" height={16} width={16} className="text-blue-500 animate-pulse" />
@@ -149,7 +149,7 @@ const ChartLoadingPlaceholder = ({
 	expectedChartCount?: number
 	chartTypes?: string[]
 }) => (
-	<div className="mt-4 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+	<div className="mt-4 border border-gray-200 dark:border-gray-700 rounded-lg overflow-visible">
 		<div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
 			<div className="flex items-center gap-2">
 				<Icon name="bar-chart" height={16} width={16} className="text-blue-500 animate-pulse" />
@@ -177,7 +177,7 @@ const ChartLoadingPlaceholder = ({
 )
 
 const ChartErrorPlaceholder = () => (
-	<div className="mt-4 border border-red-200 dark:border-red-800 rounded-lg overflow-hidden bg-red-50 dark:bg-red-900/10">
+	<div className="mt-4 border border-red-200 dark:border-red-800 rounded-lg overflow-visible bg-red-50 dark:bg-red-900/10">
 		<div className="flex items-center gap-2 p-3 bg-red-100 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800">
 			<Icon name="alert-triangle" height={16} width={16} className="text-red-600 dark:text-red-400" />
 			<h4 className="text-sm font-medium text-red-800 dark:text-red-200">
@@ -223,7 +223,7 @@ export const ChartRenderer = memo(function ChartRenderer({
 	const hasMultipleCharts = charts.length > 1
 
 	return (
-		<div className="mt-4 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+		<div className="mt-4 border border-gray-200 dark:border-gray-700 rounded-lg overflow-visible">
 			<div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
 				<div className="flex items-center gap-2">
 					<Icon name="bar-chart" height={16} width={16} className="text-blue-500" />

@@ -171,6 +171,13 @@ export function adaptChartData(config: ChartConfiguration, rawData: any[]): Adap
 			customLegendOptions: undefined,
 			hideDefaultLegend: true,
 
+			chartOptions: {
+				tooltip: {
+					confine: false,
+					appendToBody: true
+				}
+			},
+
 			...(config.valueSymbol === '%' && {
 				tooltipFormatter: (params: any) => {
 					if (Array.isArray(params)) {
@@ -284,6 +291,13 @@ export function adaptMultiSeriesData(config: ChartConfiguration, rawData: any[])
 			hideDataZoom: true,
 			hideDownloadButton: false,
 			valueSymbol: config.valueSymbol || '$',
+
+			chartOptions: {
+				tooltip: {
+					confine: false,
+					appendToBody: true
+				}
+			},
 
 			...(config.valueSymbol === '%' && {
 				tooltipFormatter: (params: any) => {

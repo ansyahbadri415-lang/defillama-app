@@ -558,9 +558,9 @@ export function LlamaAI({ searchData }: { searchData: ISearchData }) {
 		<Layout title="LlamaAI" defaultSEO>
 			<ProtocolsChainsSearch hideFilters />
 			<div className="flex gap-2 h-full flex-1">
-				<div className="flex-1 flex flex-col gap-3 bg-[var(--cards-bg)] border border-[#e6e6e6] dark:border-[#222324] rounded-md p-3 relative overflow-auto">
+				<div className="flex-1 flex flex-col gap-3 bg-[var(--cards-bg)] border border-[#e6e6e6] dark:border-[#222324] rounded-md p-3 relative overflow-visible">
 					{conversationHistory.length > 0 || isSubmitted ? (
-						<div className="flex flex-col gap-3 mb-auto w-full">
+						<div className="flex flex-col gap-3 mb-auto w-full max-h-full overflow-auto">
 							<div className="flex items-center justify-between gap-3 w-full">
 								<h1 className="text-lg font-semibold">Chat History</h1>
 								<button
