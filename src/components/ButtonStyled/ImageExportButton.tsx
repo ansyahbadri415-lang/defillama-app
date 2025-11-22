@@ -122,8 +122,54 @@ export const ImageExportButton2 = ({ chartInstance, className, smol, title, file
 						left: 14
 					}
 
+					if (currentOptions.tooltip) {
+						// @ts-expect-error - all options are in array format
+						currentOptions.tooltip = currentOptions.tooltip.map((tooltip, index) => {
+							if (index === 0) {
+								tooltip.show = true
+								tooltip.alwaysShowContent = true
+								tooltip.renderMode = 'richText'
+								tooltip.rich = {}
+
+								const originalFormatter = tooltip.formatter
+								if (typeof originalFormatter === 'function') {
+									tooltip.formatter = (params: any) => {
+										try {
+											const html = originalFormatter(params)
+											if (typeof html === 'string') {
+												// Replace block tags with newlines
+												let text = html
+													.replace(/<li[^>]*>/g, '\n')
+													.replace(/<\/li>/g, '\n')
+													.replace(/<br\s*\/?>/g, '\n')
+												// Remove all other HTML tags
+												text = text.replace(/<[^>]+>/g, '')
+												// Decode entities if needed (basic ones)
+												text = text.replace(/&nbsp;/g, ' ')
+												return text.trim()
+											}
+											return html
+										} catch (error) {
+											console.log(error)
+											return ''
+										}
+									}
+								}
+							}
+							return tooltip
+						})
+					}
+
 					// Set options on the temporary chart with any modifications you want
 					tempChart.setOption(currentOptions)
+
+					const dataLength = currentOptions.series?.[0]?.data?.length ?? 0
+
+					tempChart.dispatchAction({
+						type: 'showTip',
+						seriesIndex: 0,
+						dataIndex: dataLength - 1
+					})
 
 					// Get the data URL from the temporary chart
 					dataURL = tempChart.getDataURL({
